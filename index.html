@@ -832,7 +832,9 @@ const gtgTarget = (max, pct) => Math.max(1, Math.round((max||1)*pct/100));
 
 /* ---------- study: rules ---------- */
 const STUDY = {halfXp:20, minBonus:50, fullBonus:30, combo:10, comboWindow:60*60000, weekGoal:1800, weekXp:400, capMs:3*3600000};
-const studyTarget = d => { const w=parse(d).getDay(); if(w===4) return null; return (w===5||w===6) ? {min:360, full:480} : {min:240, full:360}; };
+const STUDY_DEFAULT = {week:{min:240, full:360}, end:{min:360, full:480}};
+const studyPlanOf = e => { const st=(e&&e.study)||{}; return {week:Object.assign({}, STUDY_DEFAULT.week, st.week), end:Object.assign({}, STUDY_DEFAULT.end, st.end)}; };
+const studyTarget = d => { const w=parse(d).getDay(); if(w===4) return null; const sp=studyPlanOf(entryFor(S()||{}, d)); const t=(w===5||w===6)?sp.end:sp.week; return {min:t.min, full:t.full}; };
 const isExam = d => ((S()||{}).examWeeks||[]).some(e=>e && e.start<=d && d<=e.end);
 const examFor = d => ((S()||{}).examWeeks||[]).find(e=>e && e.start<=d && d<=e.end) || null;
 const getStudy = d => pending.study[d] || state.study[d];
@@ -1288,8 +1290,8 @@ function canShield(C){
   return !!(rec && rec.tgt && !rec.exam && rec.status==='open' && !rec.shield && !shieldUsedThisWeek(C) && !state.readOnly);
 }
 function studyCols(rec){
-  const n = rec.tgt ? rec.tgt.full/60 : Math.max(2, Math.ceil(rec.mins/60));
-  const need = rec.tgt ? rec.tgt.min/60 : 0;
+  const n = rec.tgt ? Math.max(1, Math.ceil(rec.tgt.full/60)) : Math.max(2, Math.ceil(rec.mins/60));
+  const need = rec.tgt ? Math.ceil(rec.tgt.min/60) : 0;
   return Array.from({length:n},(_,i)=>`<i class="scol${i===need-1&&need<n?' need':''}" data-col="${i}" style="--f:${clamp((rec.mins-i*60)/60,0,1).toFixed(3)}"></i>`).join('');
 }
 function timerBlock(C){
@@ -1701,12 +1703,12 @@ function currentEntry(){ const h=sortedHistory(S()); return h[h.length-1]; }
 function ensureDraft(){
   if(ui.draft) return;
   const e=currentEntry();
-  ui.draft = clone({plan:e.plan, gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo||{})});
+  ui.draft = clone({plan:e.plan, gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo||{}), study:studyPlanOf(e)});
 }
 function planView(C){
   ensureDraft();
   const s=S(), d=ui.draft, e=currentEntry();
-  const dirty = JSON.stringify(d)!==JSON.stringify({plan:e.plan,gtg:e.gtg,test:e.test,combo:Object.assign({sets:3}, e.combo||{})});
+  const dirty = JSON.stringify(d)!==JSON.stringify({plan:e.plan,gtg:e.gtg,test:e.test,combo:Object.assign({sets:3}, e.combo||{}),study:studyPlanOf(e)});
   const comboIds = (C.exIds.includes('pullups') && C.exIds.includes('dips')) ? ['pullups','dips'] : C.exIds.slice(0,2);
   const opts = cur => {
     const list=[...C.exIds.map(id=>({v:'gtg:'+id, l:`${exName(id)} groove`})), ...(comboIds.length===2?[{v:'combo:'+comboIds.join(','), l:`${comboIds.map(exName).join(' + ')} groove`}]:[]), {v:'test',l:'Max test'}, {v:'rest',l:'Rest'}];
@@ -1731,6 +1733,15 @@ function planView(C){
     ${comboIds.length===2?`<div class="mini-steppers" style="grid-template-columns:minmax(0,1fr) 2fr">${mini('Mixed days','comboSets',d.combo.sets,'sets of each')}<p class="muted num" style="margin:0;font-size:13px;align-self:center">Every set of both is needed to complete a mixed day: ${comboIds.map(id=>`${esc(exName(id))} ${d.combo.sets} × ${gtgTarget(C.maxes[id],d.gtg.pct)}`).join(' + ')}</p></div>`:''}
   </section>
   <section class="card">
+    <h2>Study days</h2>
+    <p class="muted" style="margin:0;font-size:14px">The goal fills your study scroll. Reaching the minimum keeps your study streak. Hours past the goal still count and earn XP.</p>
+    <p class="eyebrow" style="margin:4px 0 0">Sunday to Wednesday</p>
+    <div class="mini-steppers" style="grid-template-columns:repeat(2,minmax(0,1fr))">${mini('Goal / day','stWeekFull',d.study.week.full/60,'hours')}${mini('To complete','stWeekMin',d.study.week.min/60,'hours needed')}</div>
+    <p class="eyebrow" style="margin:4px 0 0">Friday and Saturday</p>
+    <div class="mini-steppers" style="grid-template-columns:repeat(2,minmax(0,1fr))">${mini('Goal / day','stEndFull',d.study.end.full/60,'hours')}${mini('To complete','stEndMin',d.study.end.min/60,'hours needed')}</div>
+    <p class="muted num" style="margin:0;font-size:13px">Thursday is your study rest day. Weekly challenge: 30 hours.</p>
+  </section>
+  <section class="card">
     <h2>Test days</h2>
     <div class="mini-steppers" style="grid-template-columns:minmax(0,1fr) 2fr">${mini('Sets each','testSets',d.test.sets,'to failure')}<div class="checks" style="align-content:center">${testChecks}</div></div>
   </section>
@@ -1753,8 +1764,8 @@ function planView(C){
       <span>Every planned set done</span><b>+${XP.gtgFull}</b>
       <span>Mixed day complete (every set of both)</span><b>+${XP.gtgComplete+XP.gtgFull}</b>
       <span>Study, every half hour</span><b>+${STUDY.halfXp}</b>
-      <span>Study minimum reached (4h, 6h Fri–Sat)</span><b>+${STUDY.minBonus}</b>
-      <span>Study scroll full (6h, 8h Fri–Sat)</span><b>+${STUDY.fullBonus}</b>
+      <span>Study minimum reached (set in Study days)</span><b>+${STUDY.minBonus}</b>
+      <span>Study goal reached, scroll full</span><b>+${STUDY.fullBonus}</b>
       <span>Combo: a set within an hour of a study hour</span><b>+${STUDY.combo}</b>
       <span>Third Hokage: 30 study hours in a week</span><b>+${STUDY.weekXp} weekly</b>
       <span>Missed study minimum</span><b>No XP lost, study streak resets</b>
@@ -2642,6 +2653,11 @@ document.addEventListener('click', e=>{
     if(k==='sets'){ g.sets=clamp(g.sets+dd,1,15); g.minSets=Math.min(g.minSets,g.sets); }
     else if(k==='minSets'){ g.minSets=clamp(g.minSets+dd,1,g.sets); }
     else if(k==='pct'){ g.pct=clamp(g.pct+dd*5,20,90); }
+    else if(/^st(Week|End)(Full|Min)$/.test(k)){
+      const t=ui.draft.study[k.startsWith('stWeek')?'week':'end'];
+      if(k.endsWith('Full')){ t.full=clamp(t.full+dd*60,60,14*60); t.min=Math.min(t.min,t.full); }
+      else { t.min=clamp(t.min+dd*60,60,t.full); }
+    }
     else if(k==='testSets'){ ui.draft.test.sets=clamp(ui.draft.test.sets+dd,1,5); }
     else if(k==='comboSets'){ ui.draft.combo=Object.assign({sets:3}, ui.draft.combo); ui.draft.combo.sets=clamp(ui.draft.combo.sets+dd,1,8); }
     render(); return;
