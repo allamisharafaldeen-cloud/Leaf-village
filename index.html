@@ -831,7 +831,7 @@ function planFor(s, date){
 const gtgTarget = (max, pct) => Math.max(1, Math.round((max||1)*pct/100));
 
 /* ---------- study: rules ---------- */
-const STUDY = {halfXp:20, minBonus:50, fullBonus:30, combo:10, comboWindow:60*60000, weekGoal:1800, weekXp:400, capMs:3*3600000};
+const STUDY = {halfXp:20, minBonus:50, fullBonus:30, combo:10, comboWindow:60*60000, weekGoal:1800, weekXp:400, capMs:3*3600000, offFull:480};
 const STUDY_DEFAULT = {week:{min:240, full:360}, end:{min:360, full:480}};
 const studyPlanOf = e => { const st=(e&&e.study)||{}; return {week:Object.assign({}, STUDY_DEFAULT.week, st.week), end:Object.assign({}, STUDY_DEFAULT.end, st.end)}; };
 const studyTarget = d => { const w=parse(d).getDay(); if(w===4) return null; const sp=studyPlanOf(entryFor(S()||{}, d)); const t=(w===5||w===6)?sp.end:sp.week; return {min:t.min, full:t.full}; };
@@ -870,11 +870,13 @@ function computeStudy(s, today){
     const doc=getStudy(d)||{}, entries=(doc.entries||[]).map(e=>({start:+new Date(e.start||e.end), end:+new Date(e.end), min:+e.min||0, src:e.src||'manual'}));
     const segs=entries.concat(live[d]||[]);
     const mins=segs.reduce((m,x)=>m+x.min,0), committed=entries.reduce((m,x)=>m+x.min,0);
-    const tgt=studyTarget(d), exam=isExam(d), wk=weekStart(d);
+    const base=studyTarget(d), off=!base && parse(d).getDay()===4 && (doc.offday || mins>0);
+    const tgt= off ? {min:0, full:STUDY.offFull, off:true} : base, exam=isExam(d), wk=weekStart(d);
     const W=res.weeks[wk]||(res.weeks[wk]={start:wk, mins:0, shields:0, won:false});
     let xp=Math.floor(mins/30)*STUDY.halfXp, status;
-    if(tgt){ if(mins>=tgt.min) xp+=STUDY.minBonus; if(mins>=tgt.full) xp+=STUDY.fullBonus; }
+    if(tgt){ if(mins>=tgt.min && !tgt.off) xp+=STUDY.minBonus; if(mins>=tgt.full) xp+=STUDY.fullBonus; }
     if(!tgt) status='rest';
+    else if(tgt.off) status = mins>0 ? 'done' : 'rest';
     else if(mins>=tgt.min) status='done';
     else if(exam) status='exam';
     else if(doc.shield && W.shields<1){ status='shield'; W.shields++; }
@@ -1258,6 +1260,7 @@ function upNext(C){
 
 /* ---------- study: views ---------- */
 const STUDY_LINES = {
+  offday:['Thursday is yours to rest, yet here you are. There is no minimum today: any hour you give counts toward your streak.', 'An off day at the library. Study as much or as little as you like, {name}. One hour or eight, the streak grows.'],
   fresh:['Good morning, {name}. Today: {min} at least, {full} to fill the scroll.','Knowledge is built like strength, one hour at a time. Begin with the first.','Open the books, {name}. {min} today, and a set after every hour.'],
   progress:['{done} so far. {left} more to reach today\'s minimum.','Steady work. Finish this hour, then reward yourself with a set.','Good. The scroll fills one hour at a time. {left} to the minimum.'],
   close:['Less than an hour to your minimum. Finish it before you rest.'],
@@ -1274,7 +1277,8 @@ function studyLine(C){
   const hour=new Date().getHours(), y=st.days[addDays(C.today,-1)];
   const v={name:(S().name||'ninja'), done:fmtH(rec.mins), min:rec.tgt?fmtH(rec.tgt.min):'', full:rec.tgt?fmtH(rec.tgt.full):'', left:rec.tgt?fmtH(Math.max(0,rec.tgt.min-rec.mins)):''};
   let key;
-  if(rec.status==='rest') key='rest';
+  if(rec.tgt && rec.tgt.off && rec.mins<=0) key='offday';
+  else if(rec.status==='rest') key='rest';
   else if(rec.exam && rec.status!=='done') key='exam';
   else if(rec.status==='shield') key='shield';
   else if(rec.status==='done') key = rec.mins>=rec.tgt.full ? 'full' : 'done';
@@ -1315,9 +1319,11 @@ function timerText(){
 }
 function studyCard(C){
   const st=C.study, rec=st.days[C.today]; if(!rec) return '';
-  const tgt=rec.tgt, done=rec.status==='done';
+  const tgt=rec.tgt, done=rec.status==='done', off=!!(tgt && tgt.off);
+  const isThu=parse(C.today).getDay()===4;
   let note;
-  if(!tgt) note=`<span><b>${fmtH(rec.mins)}</b> today · rest day, every half hour still earns XP</span>`;
+  if(off) note = rec.mins>=tgt.full ? `<span><b>Scroll full.</b> ${fmtH(rec.mins)} studied</span>` : `<span><b>${fmtH(rec.mins)} of ${fmtH(tgt.full)}</b> · no minimum today</span>`;
+  else if(!tgt) note=`<span><b>${fmtH(rec.mins)}</b> today · rest day, every half hour still earns XP</span>`;
   else if(rec.mins>=tgt.full) note=`<span><b>Scroll full.</b> ${fmtH(rec.mins)} studied</span>`;
   else if(done) note=`<span><b>Minimum done.</b> ${fmtH(tgt.full)} fills the scroll</span>`;
   else note=`<span><b>${fmtH(rec.mins)} of ${fmtH(tgt.min)}</b> minimum</span>`;
@@ -1327,23 +1333,24 @@ function studyCard(C){
   const statusLine = rec.exam && !done ? `<div class="deadline">Exam week · study is optional and your study streak is frozen.</div>`
     : rec.status==='shield' ? `<div class="deadline">${ico.shield} Streak protected today. Hours you log still earn XP.</div>`
     : (tgt && rec.status==='open') ? `<div class="deadline">Reach ${fmtH(tgt.min)} before midnight to keep your study streak.</div>` : '';
-  const progress = !tgt ? `Rest day · ${fmtH(rec.mins)}` : done ? `Minimum done · ${fmtH(rec.mins)}` : rec.exam ? `Exam week · ${fmtH(rec.mins)}` : `${fmtH(rec.mins)} of ${fmtH(tgt.min)}`;
-  const title = tgt ? 'Study Scroll' : 'Study Rest Day';
+  const progress = off ? `Off-day study · ${fmtH(rec.mins)}` : !tgt ? `Rest day · ${fmtH(rec.mins)}` : done ? `Minimum done · ${fmtH(rec.mins)}` : rec.exam ? `Exam week · ${fmtH(rec.mins)}` : `${fmtH(rec.mins)} of ${fmtH(tgt.min)}`;
+  const title = off ? 'Off-Day Study' : tgt ? 'Study Scroll' : 'Study Rest Day';
+  const offBtn = (!tgt && isThu && !state.readOnly) ? `<button class="btn chakra-btn" data-act="st-offday">Study on an off day</button><p class="muted" style="margin:0;font-size:13px">8 hours fills the scroll. There's no minimum, so any hour today adds 1 to your study streak.</p>` : '';
   const seal = '学';
-  return `<section class="mscroll study${done||!tgt?' done':''}" data-sid="study" aria-label="Today's study mission">
+  return `<section class="mscroll study${done||(!tgt&&!offBtn)?' done':''}" data-sid="study" aria-label="Today's study mission">
     <button type="button" class="ms-rod ms-top" data-act="scroll-toggle" aria-expanded="false" aria-label="Open or roll up today's study mission"><span class="cap l"></span><span class="cap r"></span></button>
     <div class="ms-paper-wrap"><div class="ms-paper-clip"><div class="ms-paper">
       <div class="zig" aria-hidden="true"></div>
       <div class="ms-inner">
         <div class="seal" aria-hidden="true">${seal}<small>STUDY</small></div>
-        <div class="eyebrow">書 · ${tgt?`${fmtH(tgt.min)}–${fmtH(tgt.full)} today`:'Thursday rest'}</div>
+        <div class="eyebrow">書 · ${off?`Off day · ${fmtH(tgt.full)} fills the scroll`:tgt?`${fmtH(tgt.min)}–${fmtH(tgt.full)} today`:'Thursday rest'}</div>
         <h2 class="mission-title">${title}</h2>
         <div class="hokage-line">${senseiAvatar('hiruzen',40)}<p>${esc(studyLine(C))}</p></div>
         <div class="scols" style="--n:${tgt?tgt.full/60:Math.max(2,Math.ceil(rec.mins/60))}" aria-label="${fmtH(rec.mins)} studied today">${studyCols(rec)}</div>
         <div class="chakra-note">${note}<span class="num">1 column = 1 hour</span></div>
-        ${done ? `<div class="complete-badge">${ico.check} Study minimum done</div>` : ''}
-        ${timerBlock(C)}
-        ${state.readOnly?'':`<div class="btnrow quick"><button class="btn small ghost" data-act="st-add" data-min="30">+30 min</button><button class="btn small ghost" data-act="st-add" data-min="60">+1 hour</button></div>`}
+        ${done ? `<div class="complete-badge">${ico.check} ${off?'Off-day study counted':'Study minimum done'}</div>` : ''}
+        ${offBtn || timerBlock(C)}
+        ${state.readOnly||offBtn?'':`<div class="btnrow quick"><button class="btn small ghost" data-act="st-add" data-min="30">+30 min</button><button class="btn small ghost" data-act="st-add" data-min="60">+1 hour</button></div>`}
         ${shield}
         <div class="today-line"><span class="xp-chip pos">Study ${signed(rec.xp)} XP</span>${undo}</div>
         ${statusLine}
@@ -1765,7 +1772,7 @@ function planView(C){
       <span>Mixed day complete (every set of both)</span><b>+${XP.gtgComplete+XP.gtgFull}</b>
       <span>Study, every half hour</span><b>+${STUDY.halfXp}</b>
       <span>Study minimum reached (set in Study days)</span><b>+${STUDY.minBonus}</b>
-      <span>Study goal reached, scroll full</span><b>+${STUDY.fullBonus}</b>
+      <span>Study goal reached, scroll full (off-day Thursday: 8h)</span><b>+${STUDY.fullBonus}</b>
       <span>Combo: a set within an hour of a study hour</span><b>+${STUDY.combo}</b>
       <span>Third Hokage: 30 study hours in a week</span><b>+${STUDY.weekXp} weekly</b>
       <span>Missed study minimum</span><b>No XP lost, study streak resets</b>
@@ -2837,6 +2844,11 @@ function studyAction(act, el){
     if(!confirmTap('sundo')) return;
     const doc=clone(getStudy(C.today)); if(!doc || !(doc.entries||[]).length) return;
     const gone=doc.entries.pop(); save('study', C.today, doc); SFX.play('undo'); toast(`${fmtH(gone.min)} removed`); return;
+  }
+  if(act==='st-offday'){
+    if(parse(C.today).getDay()!==4) return;
+    const doc=clone(getStudy(C.today)) || {date:C.today, entries:[]}; doc.offday=true; doc.date=C.today; save('study', C.today, doc);
+    toast('Off-day study open. 8 hours fills the scroll.'); return;
   }
   if(act==='st-shield'){
     if(!canShield(C)) return;
