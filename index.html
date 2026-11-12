@@ -2345,11 +2345,12 @@ const FOCUS_POS = {left:'20% center', center:'center', right:'80% center'};
 let bgShown=null, bgFront='bgA';
 function bgRec(slot){ const r=media().bg[slot]; return (r && r.id) ? {id:r.id, name:r.name||'Photo', url:blobUrl(r.id)} : null; }
 function bgSlotNow(){ return prefs.bgAll ? 'all' : ui.tab; }
-/* the wallpaper for the active rank theme, shown behind the Mission tab */
+/* the wallpaper for the active rank theme, shown behind the Mission and Ninja tabs */
 function rankWall(){
-  if(prefs.rankWalls===false || !lastC || ui.tab!=='mission') return null;
+  if(prefs.rankWalls===false || !lastC || (ui.tab!=='mission' && ui.tab!=='ninja')) return null;
   const i = appliedTheme==null ? lastC.peak : appliedTheme, r=RANKS[i]; if(!r || !r.walls || !r.walls.length) return null;
-  const f = r.walls[Math.abs(daysBetween('2026-01-01', lastC.today)) % r.walls.length];
+  const n = Math.abs(daysBetween('2026-01-01', lastC.today)) + (ui.tab==='ninja' ? 1 : 0);
+  const f = r.walls[n % r.walls.length];
   return {id:'rank-'+f, name:r.name+' wallpaper', url:'media/'+f+'.jpg', rank:true};
 }
 function bgShow(slot){ return rankWall() || bgRec(slot); }
@@ -2398,7 +2399,7 @@ function bgCard(){
   return `<section class="card">
     <div class="section-head"><h2>Tab backgrounds</h2></div>
     <p class="muted small">Put a photo behind each tab. Photos are saved on this phone, so they stay after you close the app.</p>
-    <button type="button" class="switch" role="switch" aria-checked="${prefs.rankWalls!==false}" data-act="rank-walls"><span>Rank wallpaper on the Mission tab<small class="muted" style="display:block;font-weight:400">Changes when you rank up. Turn off to use your own Mission photo.</small></span><span class="switch-track" aria-hidden="true"><span></span></span></button>
+    <button type="button" class="switch" role="switch" aria-checked="${prefs.rankWalls!==false}" data-act="rank-walls"><span>Rank wallpapers on Mission and Ninja<small class="muted" style="display:block;font-weight:400">They change when you rank up and follow the village theme you pick. Turn off to use your own photos there.</small></span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <button type="button" class="switch" role="switch" aria-checked="${prefs.bgAll}" data-act="bg-all"><span>Use one photo for all tabs</span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <label class="range"><span>Photo strength</span><input id="bg-strength" type="range" min="0" max="100" step="5" value="${Math.round(prefs.bgStrength*100)}" data-act="vol" data-k="bgStrength"></label>
     ${rows}
