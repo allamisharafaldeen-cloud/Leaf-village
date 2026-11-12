@@ -2,7 +2,7 @@
    Keeps a copy of the app, your photos and your music on the phone so it opens without internet.
    The app page itself is always checked online first, so updates show up the next time you open it.
    Bump VERSION whenever files change. */
-const VERSION = 'b7a70d2350';
+const VERSION = '50bd6c4166';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
@@ -96,7 +96,23 @@ const FILES = [
  "media/wp-valley.jpg",
  "ranks/eight-gates-cut.webp",
  "ranks/eight-gates-face.jpg",
- "ranks/eight-gates.jpg"
+ "ranks/eight-gates.jpg",
+ "media/wp-bridge-sunset.jpg",
+ "media/wp-forest-death.jpg",
+ "media/wp-iron.jpg",
+ "media/wp-konoha-classic.jpg",
+ "media/wp-konoha-dusk.jpg",
+ "media/wp-konoha-monument.jpg",
+ "media/wp-konoha-naruto.jpg",
+ "media/wp-konoha-roof.jpg",
+ "media/wp-konoha-street.jpg",
+ "media/wp-myoboku2.jpg",
+ "media/wp-rain.jpg",
+ "media/wp-rock.jpg",
+ "media/wp-sand.jpg",
+ "media/wp-sealed-shrine.jpg",
+ "media/wp-uchiha-ruins.jpg",
+ "media/wp-valley-tall.jpg"
 ];
 
 self.addEventListener('install', e=>{

@@ -638,20 +638,20 @@ const CUT_AR = {"eight-gates": 1.409, "byakugan": 1.059, "akatsuki": 1.185, "sus
 const CUT_V = {'academy':'-v2','genin':'-v2','six-paths':'-v2'};
 const AURA = {'eight-gates':'#ff3b2f','byakugan':'#dfe3ff','akatsuki':'#ff4a4a','susanoo':'#ff5ea0','academy':'#6ec3ff','genin':'#6ec3ff','chunin':'#5fe0c0','special-jonin':'#ffcf6e','jonin':'#9ad4ff','anbu':'#b9c8ff','sannin':'#ff8fa6','kage':'#ff7b6b','hokage':'#ffb14a','sage':'#ff8a3d','tailed-beast':'#ffc229','six-paths':'#ffe27a'};
 const RANKS = [
-  {id:'academy',      name:'Academy Student',   xp:0,     color:'#8a968c', walls:['wp-ichiraku']},
-  {id:'genin',        name:'Genin',             xp:1500,  color:'#3e9150', focus:'58% 22%', walls:['wp-ground3','wp-bridge']},
-  {id:'chunin',       name:'Chunin',            xp:5000,  color:'#2a8c80', walls:['wp-arena','wp-byakugan']},
+  {id:'academy',      name:'Academy Student',   xp:0,     color:'#8a968c', walls:['wp-konoha-roof','wp-ichiraku','wp-konoha-street','wp-konoha-naruto','wp-konoha-classic']},
+  {id:'genin',        name:'Genin',             xp:1500,  color:'#3e9150', focus:'58% 22%', walls:['wp-ground3','wp-bridge','wp-bridge-sunset']},
+  {id:'chunin',       name:'Chunin',            xp:5000,  color:'#2a8c80', walls:['wp-arena','wp-forest-death','wp-byakugan']},
   {id:'special-jonin',name:'Special Jonin',     xp:10000, color:'#3a72b8'},
   {id:'jonin',        name:'Jonin',             xp:16000, color:'#5157b8', focus:'50% 30%'},
-  {id:'anbu',         name:'ANBU',              xp:22500, color:'#6b7a88'},
-  {id:'akatsuki',     name:'Akatsuki',          xp:29500, color:'#b3262e', walls:['wp-akatsuki']},
+  {id:'anbu',         name:'ANBU',              xp:22500, color:'#6b7a88', walls:['wp-sealed-shrine']},
+  {id:'akatsuki',     name:'Akatsuki',          xp:29500, color:'#b3262e', walls:['wp-rain','wp-akatsuki']},
   {id:'sannin',       name:'Sannin',            xp:37000, color:'#8550b3'},
-  {id:'sage',         name:'Sage Mode',         xp:45000, color:'#c9900f', form:true, walls:['wp-myoboku','wp-pain']},
-  {id:'susanoo',      name:'Susanoo',           xp:53000, color:'#c2306a', form:true, walls:['wp-uchiha']},
+  {id:'sage',         name:'Sage Mode',         xp:45000, color:'#c9900f', form:true, walls:['wp-myoboku','wp-myoboku2','wp-pain']},
+  {id:'susanoo',      name:'Susanoo',           xp:53000, color:'#c2306a', form:true, walls:['wp-uchiha','wp-uchiha-ruins']},
   {id:'tailed-beast', name:'Tailed Beast Mode', xp:61000, color:'#e04a12', form:true},
   {id:'eight-gates',  name:'Eight Gates',       xp:68500, color:'#d0281e', form:true},
-  {id:'kage',         name:'Kage',              xp:73500, color:'#c0393e', walls:['wp-valley']},
-  {id:'hokage',       name:'Hokage',            xp:77500, color:'#e8620f'}
+  {id:'kage',         name:'Kage',              xp:73500, color:'#c0393e', walls:['wp-iron','wp-valley','wp-sand','wp-rock','wp-valley-tall']},
+  {id:'hokage',       name:'Hokage',            xp:77500, color:'#e8620f', walls:['wp-konoha-dusk','wp-konoha-monument']}
 ].map(r=>Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, aura:AURA[r.id]||r.color}));
 const XP = { gtgSet:10, gtgComplete:50, gtgFull:20, testRep:2, testComplete:100, pr:75, rest:10, missGtg:100, missTest:150 };
 const TIERS = [[0,1],[7,1.1],[14,1.2],[30,1.3],[60,1.5]];
@@ -2378,11 +2378,12 @@ const FOCUS_POS = {left:'20% center', center:'center', right:'80% center'};
 let bgShown=null, bgFront='bgA';
 function bgRec(slot){ const r=media().bg[slot]; return (r && r.id) ? {id:r.id, name:r.name||'Photo', url:blobUrl(r.id)} : null; }
 function bgSlotNow(){ return prefs.bgAll ? 'all' : ui.tab; }
-/* the wallpaper for the active rank theme, shown behind the Mission and Ninja tabs */
+/* the wallpaper for the active rank theme: each tab gets a different picture from the rank's set, and they rotate daily */
 function rankWall(){
-  if(prefs.rankWalls===false || !lastC || (ui.tab!=='mission' && ui.tab!=='ninja')) return null;
+  if(prefs.rankWalls===false || !lastC) return null;
   const i = appliedTheme==null ? lastC.peak : appliedTheme, r=RANKS[i]; if(!r || !r.walls || !r.walls.length) return null;
-  const n = Math.abs(daysBetween('2026-01-01', lastC.today)) + (ui.tab==='ninja' ? 1 : 0);
+  const tabIdx = Math.max(0, ['mission','stats','plan','ninja','settings'].indexOf(ui.tab));
+  const n = Math.abs(daysBetween('2026-01-01', lastC.today)) + tabIdx;
   const f = r.walls[n % r.walls.length];
   return {id:'rank-'+f, name:r.name+' wallpaper', url:'media/'+f+'.jpg', rank:true};
 }
@@ -2432,7 +2433,7 @@ function bgCard(){
   return `<section class="card">
     <div class="section-head"><h2>Tab backgrounds</h2></div>
     <p class="muted small">Put a photo behind each tab. Photos are saved on this phone, so they stay after you close the app.</p>
-    <button type="button" class="switch" role="switch" aria-checked="${prefs.rankWalls!==false}" data-act="rank-walls"><span>Rank wallpapers on Mission and Ninja<small class="muted" style="display:block;font-weight:400">They change when you rank up and follow the village theme you pick. Turn off to use your own photos there.</small></span><span class="switch-track" aria-hidden="true"><span></span></span></button>
+    <button type="button" class="switch" role="switch" aria-checked="${prefs.rankWalls!==false}" data-act="rank-walls"><span>Rank wallpapers on every tab<small class="muted" style="display:block;font-weight:400">Each tab shows a different picture from your rank's set, changing daily and when you rank up. Ranks without pictures yet use your own photos. Turn off to always use your own.</small></span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <button type="button" class="switch" role="switch" aria-checked="${prefs.bgAll}" data-act="bg-all"><span>Use one photo for all tabs</span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <label class="range"><span>Photo strength</span><input id="bg-strength" type="range" min="0" max="100" step="5" value="${Math.round(prefs.bgStrength*100)}" data-act="vol" data-k="bgStrength"></label>
     ${rows}
