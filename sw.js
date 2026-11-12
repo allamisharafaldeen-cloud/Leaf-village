@@ -2,7 +2,7 @@
    Keeps a copy of the app, your photos and your music on the phone so it opens without internet.
    The app page itself is always checked online first, so updates show up the next time you open it.
    Bump VERSION whenever files change. */
-const VERSION = 'cc7042289b';
+const VERSION = '13ebc71477';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [

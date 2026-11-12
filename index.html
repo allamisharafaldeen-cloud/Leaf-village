@@ -2039,7 +2039,7 @@ const SFX = (()=>{
   function ac(){
     try{
       if(!ctx){ const C=window.AudioContext||window.webkitAudioContext; if(!C) return null; ctx=new C(); out=ctx.createGain(); out.gain.value=.55*prefs.fxVol; const comp=ctx.createDynamicsCompressor(); out.connect(comp); comp.connect(ctx.destination); }
-      if(ctx.state==='suspended') ctx.resume();
+      if(ctx.state!=='running' && ctx.state!=='closed'){ try{ const pr=ctx.resume(); if(pr && pr.catch) pr.catch(()=>{}); }catch(e){} }
       return ctx;
     }catch(e){ return null; }
   }
@@ -2213,14 +2213,32 @@ function soundCard(){
 /* ---------- background music ---------- */
 const MUSIC_BUILTIN = {id:'builtin', name:'Training Grounds', builtin:true};
 const Music = (()=>{
-  let gain=null, duck=null, el=null, connected=false, playing=false, active=false, idx=0, bt=null, loaded=false, autoDone=false, errShown=false;
+  let gain=null, duck=null, el=null, connected=false, playing=false, active=false, idx=0, bt=null, loaded=false, autoDone=false, errShown=false, selfPauseAt=0, resumeOnReturn=false;
+  /* each track is loaded once into memory, so playback never waits on the disk or the network */
+  const mem={}, loading={};
+  function srcFor(id){ const u=blobUrl(id); if(mem[id]) return mem[id]; if(/^blob:/.test(u)) return u; return u; }
+  function preload(id){
+    const u=blobUrl(id); if(mem[id] || loading[id] || !u || /^blob:/.test(u)) return Promise.resolve();
+    loading[id]=fetch(u).then(r=>r.ok?r.blob():null).then(b=>{ if(b && b.size) mem[id]=URL.createObjectURL(b); }).catch(()=>{}).finally(()=>{ delete loading[id]; });
+    return loading[id];
+  }
+  async function preloadAll(){ const l=files(); if(!l.length) return; const first=l[Math.min(idx,l.length-1)]; if(first) await preload(first.id); for(const t of l) await preload(t.id); }
+  function setSession(){
+    if(!('mediaSession' in navigator)) return;
+    const t=current();
+    try{ navigator.mediaSession.metadata = t ? new MediaMetadata({title:t.name, artist:'The Leaf Village', artwork:[{src:'icons/icon-512.png', sizes:'512x512', type:'image/png'}]}) : null; }catch(e){}
+    try{ navigator.mediaSession.playbackState = playing ? 'playing' : (active ? 'paused' : 'none'); }catch(e){}
+  }
+  function wake(){ const c=chain(); if(c && c.state!=='running'){ try{ const pr=c.resume(); if(pr && pr.catch) pr.catch(()=>{}); }catch(e){} } return c; }
   const files = () => media().music.filter(m=>m && m.id).map(m=>({id:m.id, name:m.name||'Track'}));
-  const changed=()=>render();
+  const changed=()=>{ setSession(); render(); };
   function list(){ return (prefs.builtinHidden?[]:[MUSIC_BUILTIN]).concat(files()); }
   function current(){ const l=list(); return l.length ? l[Math.min(idx,l.length-1)] : null; }
   function chain(){ const c=SFX.audio(); if(!c) return null; if(!gain){ gain=c.createGain(); gain.gain.value=prefs.musicVol; duck=c.createGain(); gain.connect(duck); duck.connect(c.destination); } return c; }
   function ensureEl(){
-    if(!el){ el=new Audio(); el.preload='auto'; el.setAttribute('playsinline',''); el.addEventListener('ended',()=>{ if(playing) step(1,true); }); el.addEventListener('error',()=>{ if(!playing) return; if(!errShown){ errShown=true; toast("A music track couldn't be loaded, so it was skipped."); } if(list().length>1) setTimeout(()=>step(1,true),300); else { playing=false; changed(); } }); }
+    if(!el){ el=new Audio(); el.preload='auto'; el.setAttribute('playsinline',''); el.addEventListener('ended',()=>{ if(playing) step(1,true); });
+      el.addEventListener('pause',()=>{ if(Date.now()-selfPauseAt<800 || el.ended) return; if(playing && !(current()||{}).builtin){ playing=false; setSession(); changed(); } });
+      el.addEventListener('playing',()=>{ if(!playing){ playing=true; active=true; setSession(); changed(); } }); el.addEventListener('error',()=>{ if(!playing) return; if(!errShown){ errShown=true; toast("A music track couldn't be loaded, so it was skipped."); } if(list().length>1) setTimeout(()=>step(1,true),300); else { playing=false; changed(); } }); }
     if(!connected){ const c=chain(); if(c){ try{ c.createMediaElementSource(el).connect(gain); connected=true; }catch(e){ el.volume=prefs.musicVol; } } }
     return el;
   }
@@ -2265,13 +2283,15 @@ const Music = (()=>{
     const l=list(); if(!l.length) return false;
     idx=((i%l.length)+l.length)%l.length; const t=l[idx];
     if(!chain()) return false;
-    active=true; playing=true;
-    if(t.builtin){ if(el) el.pause(); startBuiltin(); }
+    wake();
+    active=true; playing=true; resumeOnReturn=false;
+    if(t.builtin){ if(el){ selfPauseAt=Date.now(); el.pause(); } startBuiltin(); }
     else {
-      stopBuiltin(true); const e=ensureEl(), u=blobUrl(t.id);
-      if(!e.src || !e.src.endsWith(u)) e.src=u;
+      stopBuiltin(true); const e=ensureEl(), u=srcFor(t.id);
+      if(e.dataset.track!==t.id){ e.dataset.track=t.id; e.src=u; }
       e.loop = prefs.musicMode==='one' || l.length===1;
       try{ const pr=e.play(); if(pr && pr.catch) pr.catch(()=>{ playing=false; changed(); }); }catch(err){ playing=false; }
+      const nx=l[(idx+1)%l.length]; if(nx && !nx.builtin) preload(nx.id);
     }
     changed(); return true;
   }
@@ -2281,12 +2301,23 @@ const Music = (()=>{
     if(prefs.musicMode==='shuffle' && l.length>1){ let j=idx; while(j===idx) j=Math.floor(Math.random()*l.length); playAt(j); }
     else playAt(idx+dir);
   }
-  function pause(){ playing=false; if(el) el.pause(); stopBuiltin(); changed(); }
-  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden && playing && el && !(current()||{}).builtin && el.paused){ try{ const pr=el.play(); if(pr && pr.catch) pr.catch(()=>{ playing=false; changed(); }); }catch(e){} } });
+  function pause(){ playing=false; if(el){ selfPauseAt=Date.now(); el.pause(); } stopBuiltin(); changed(); }
+  /* music belongs to the app: it pauses when you leave and picks up again when you come back */
+  function leave(){ if(playing){ resumeOnReturn=true; pause(); } }
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ leave(); return; }
+    if(resumeOnReturn && active){ resumeOnReturn=false; playAt(idx); }
+  });
+  addEventListener('pagehide', leave);
+  addEventListener('blur', ()=>{ if(document.hidden) leave(); });
+  if('mediaSession' in navigator){
+    const h=(a,f)=>{ try{ navigator.mediaSession.setActionHandler(a,f); }catch(e){} };
+    h('play', ()=>playAt(idx)); h('pause', ()=>pause()); h('stop', ()=>{ pause(); active=false; changed(); }); h('nexttrack', ()=>step(1,false));
+  }
   return {
     get playing(){ return playing; }, get active(){ return active; },
     list, current,
-    markLoaded(){ if(!loaded){ loaded=true; changed(); } },
+    markLoaded(){ if(!loaded){ loaded=true; changed(); setTimeout(preloadAll, 1500); } },
     playAt, pause,
     toggle(){ if(playing) pause(); else playAt(idx); },
     next(){ step(1,false); },
