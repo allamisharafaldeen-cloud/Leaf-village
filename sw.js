@@ -2,7 +2,7 @@
    Keeps a copy of the app, your photos and your music on the phone so it opens without internet.
    The app page itself is always checked online first, so updates show up the next time you open it.
    Bump VERSION whenever files change. */
-const VERSION = 'd09d0cdb38';
+const VERSION = '356a67bbf1';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
@@ -69,7 +69,31 @@ const FILES = [
  "ranks/tailed-beast.jpg",
  "icons/icon-180.png",
  "icons/icon-192.png",
- "icons/icon-512.png"
+ "icons/icon-512.png",
+ "ranks/akatsuki-cut.webp",
+ "ranks/akatsuki-face.jpg",
+ "ranks/akatsuki.jpg",
+ "ranks/byakugan-cut.webp",
+ "ranks/byakugan-face.jpg",
+ "ranks/byakugan.jpg",
+ "ranks/comeback-face.jpg",
+ "ranks/comeback.jpg",
+ "ranks/genin-cut-v2.webp",
+ "ranks/susanoo-cut.webp",
+ "ranks/susanoo-face.jpg",
+ "ranks/susanoo.jpg",
+ "media/comeback.jpg",
+ "media/wp-akatsuki.jpg",
+ "media/wp-arena.jpg",
+ "media/wp-bridge.jpg",
+ "media/wp-byakugan.jpg",
+ "media/wp-funeral.jpg",
+ "media/wp-ground3.jpg",
+ "media/wp-ichiraku.jpg",
+ "media/wp-myoboku.jpg",
+ "media/wp-pain.jpg",
+ "media/wp-uchiha.jpg",
+ "media/wp-valley.jpg"
 ];
 
 self.addEventListener('install', e=>{

@@ -568,6 +568,39 @@ body.has-player .wrap{padding-bottom:178px}
 .alarm-list span{color:var(--muted)}
 .import-panel{display:grid; gap:10px; margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:12px; background:var(--paper-glass)}
 .import-panel p{margin:0; font-size:14px}
+/* mini ninja bar: shows the character and XP when the big stage is scrolled away */
+.minibar{position:fixed; left:50%; top:calc(8px + env(safe-area-inset-top,0px)); z-index:25; width:min(720px,calc(100% - 24px)); display:flex; align-items:center; gap:12px; padding:7px 14px 7px 7px; border-radius:18px; background:var(--card-glass); -webkit-backdrop-filter:blur(12px) saturate(1.2); backdrop-filter:blur(12px) saturate(1.2); border:2px solid var(--panel); box-shadow:3px 3px 0 var(--panel); transform:translate(-50%,-140%); opacity:0; transition:transform .35s cubic-bezier(.2,1.2,.4,1),opacity .25s; pointer-events:none}
+.minibar.show{transform:translate(-50%,0); opacity:1; pointer-events:auto}
+.mb-face{position:relative; flex:none; width:52px; height:52px; border-radius:14px; overflow:hidden; background:var(--ink)}
+.mb-face img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover}
+.mb-face::after{content:""; position:absolute; inset:0; border-radius:14px; box-shadow:inset 0 0 0 2px var(--aura,#ffd27a); opacity:.7}
+.mb-mid{flex:1; min-width:0; display:grid; gap:5px}
+.mb-top{display:flex; justify-content:space-between; gap:8px; font-size:13px; white-space:nowrap}
+.mb-top b{font-family:var(--f-display); font-size:15px; overflow:hidden; text-overflow:ellipsis}
+.mb-top span{font-family:var(--f-data); color:var(--muted)}
+.mb-track{height:9px; border-radius:99px; background:var(--paper); border:1.5px solid var(--panel); overflow:hidden}
+.mb-fill{height:100%; background:linear-gradient(90deg,var(--primary),var(--chakra)); transition:width .8s cubic-bezier(.2,1,.3,1)}
+.mb-streaks{flex:none; display:flex; gap:6px; font-family:var(--f-data); font-weight:700; font-size:14px}
+.mb-streaks span{display:inline-flex; align-items:center; gap:3px; padding:3px 8px; border-radius:99px; background:var(--paper-glass)}
+.mb-streaks svg{width:14px; height:14px}
+.minibar.pulse{animation:mbpulse .9s ease-out}
+@keyframes mbpulse{0%{box-shadow:3px 3px 0 var(--panel),0 0 0 0 var(--aura,#ffd27a)}30%{box-shadow:3px 3px 0 var(--panel),0 0 26px 6px var(--aura,#ffd27a)}100%{box-shadow:3px 3px 0 var(--panel),0 0 0 0 transparent}}
+.minibar.pulse .mb-face img{animation:flexface .7s cubic-bezier(.2,1.5,.4,1)}
+@keyframes flexface{0%{transform:scale(1); filter:none}35%{transform:scale(1.15); filter:brightness(1.4)}100%{transform:scale(1)}}
+.tap-xp{position:fixed; z-index:45; transform:translate(-50%,-50%); font-family:var(--f-display); font-size:22px; line-height:1; color:var(--chakra-ink); text-shadow:0 0 12px var(--glow),0 1px 0 var(--card); pointer-events:none; white-space:nowrap; animation:tapxp 1.15s ease-out forwards}
+@keyframes tapxp{0%{opacity:0; transform:translate(-50%,-30%) scale(.7)}18%{opacity:1; transform:translate(-50%,-80%) scale(1.12)}100%{opacity:0; transform:translate(-50%,-260%) scale(1)}}
+.mb-xp{position:absolute; left:70px; top:-6px; font-family:var(--f-display); font-size:20px; color:var(--chakra-ink); text-shadow:0 0 10px var(--glow); pointer-events:none; animation:tapxp 1.15s ease-out forwards}
+/* story scenes: streak broken, comeback */
+.scene{position:relative; width:min(560px,100%); border-radius:22px; overflow:hidden; background:#0d0d10; color:#f2efe9; box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.scene img{display:block; width:100%; aspect-ratio:16/9; object-fit:cover}
+.scene .scene-body{padding:18px 20px 20px; display:grid; gap:10px; text-align:center}
+.scene .eyebrow{color:#c9c3b8}
+.scene h2{margin:0; font-size:28px; color:#fff}
+.scene p{margin:0; font-size:14.5px; line-height:1.5; color:#ddd6cb}
+.scene.funeral img{filter:saturate(.7)}
+.scene.comeback{box-shadow:0 0 0 2px #8fd0ff,0 0 60px rgba(120,190,255,.55),0 30px 80px rgba(0,0,0,.6)}
+.scene.comeback img{animation:revive 2.4s ease-out}
+@keyframes revive{0%{filter:grayscale(1) brightness(.4) blur(3px); transform:scale(1.08)}60%{filter:grayscale(.3) brightness(1.1)}100%{filter:none; transform:scale(1)}}
 </style>
 </head>
 <body>
@@ -592,6 +625,7 @@ body.has-player .wrap{padding-bottom:178px}
 </nav>
 <div id="overlay" class="overlay" hidden></div>
 <div id="toast" class="toast" hidden role="status"></div>
+<div id="minibar" class="minibar" aria-hidden="true"></div>
 <div class="peekhint" aria-hidden="true">Tap anywhere to return</div>
 
 <script src="platform.js"></script>
@@ -600,22 +634,25 @@ body.has-player .wrap{padding-bottom:178px}
 'use strict';
 
 /* ---------- game constants ---------- */
-const CUT_AR = {"academy": 0.731, "genin": 0.714, "chunin": 0.609, "special-jonin": 1.178, "jonin": 1.041, "anbu": 0.771, "sannin": 0.887, "kage": 0.797, "hokage": 0.966, "sage": 1.168, "tailed-beast": 1.267, "six-paths": 0.738};
-const CUT_V = {'academy':'-v2','six-paths':'-v2'};
-const AURA = {'academy':'#6ec3ff','genin':'#6ec3ff','chunin':'#5fe0c0','special-jonin':'#ffcf6e','jonin':'#9ad4ff','anbu':'#b9c8ff','sannin':'#ff8fa6','kage':'#ff7b6b','hokage':'#ffb14a','sage':'#ff8a3d','tailed-beast':'#ffc229','six-paths':'#ffe27a'};
+const CUT_AR = {"byakugan": 1.059, "akatsuki": 1.185, "susanoo": 1.002, "academy": 0.731, "genin": 0.714, "chunin": 0.609, "special-jonin": 1.178, "jonin": 1.041, "anbu": 0.771, "sannin": 0.887, "kage": 0.797, "hokage": 0.966, "sage": 1.168, "tailed-beast": 1.267, "six-paths": 0.738};
+const CUT_V = {'academy':'-v2','genin':'-v2','six-paths':'-v2'};
+const AURA = {'byakugan':'#dfe3ff','akatsuki':'#ff4a4a','susanoo':'#ff5ea0','academy':'#6ec3ff','genin':'#6ec3ff','chunin':'#5fe0c0','special-jonin':'#ffcf6e','jonin':'#9ad4ff','anbu':'#b9c8ff','sannin':'#ff8fa6','kage':'#ff7b6b','hokage':'#ffb14a','sage':'#ff8a3d','tailed-beast':'#ffc229','six-paths':'#ffe27a'};
 const RANKS = [
-  {id:'academy',      name:'Academy Student',   xp:0,      color:'#8a968c'},
-  {id:'genin',        name:'Genin',             xp:1500,   color:'#3e9150', focus:'58% 22%'},
-  {id:'chunin',       name:'Chunin',            xp:6250,   color:'#2a8c80'},
-  {id:'special-jonin',name:'Special Jonin',     xp:15000,  color:'#3a72b8'},
-  {id:'jonin',        name:'Jonin',             xp:27500,  color:'#5157b8', focus:'50% 30%'},
-  {id:'anbu',         name:'ANBU',              xp:40000,  color:'#6b7a88'},
-  {id:'sannin',       name:'Sannin',            xp:52500,  color:'#8550b3'},
-  {id:'kage',         name:'Kage',              xp:65000,  color:'#c0393e'},
-  {id:'hokage',       name:'Hokage',            xp:77500,  color:'#e8620f'},
-  {id:'sage',         name:'Sage Mode',         xp:100000,  color:'#c9900f', prestige:true},
-  {id:'tailed-beast', name:'Tailed Beast Mode', xp:125000, color:'#e04a12', prestige:true},
-  {id:'six-paths',    name:'Six Paths',         xp:156000, color:'#b99a24', prestige:true}
+  {id:'academy',      name:'Academy Student',   xp:0,     color:'#8a968c', walls:['wp-ichiraku']},
+  {id:'genin',        name:'Genin',             xp:1500,  color:'#3e9150', focus:'58% 22%', walls:['wp-ground3','wp-bridge']},
+  {id:'chunin',       name:'Chunin',            xp:5000,  color:'#2a8c80', walls:['wp-arena']},
+  {id:'byakugan',     name:'Byakugan',          xp:9000,  color:'#7a7fc0', form:true, walls:['wp-byakugan']},
+  {id:'special-jonin',name:'Special Jonin',     xp:14000, color:'#3a72b8'},
+  {id:'jonin',        name:'Jonin',             xp:19500, color:'#5157b8', focus:'50% 30%'},
+  {id:'anbu',         name:'ANBU',              xp:25500, color:'#6b7a88'},
+  {id:'akatsuki',     name:'Akatsuki',          xp:32000, color:'#b3262e', walls:['wp-akatsuki']},
+  {id:'sannin',       name:'Sannin',            xp:39000, color:'#8550b3'},
+  {id:'sage',         name:'Sage Mode',         xp:46000, color:'#c9900f', form:true, walls:['wp-myoboku','wp-pain']},
+  {id:'susanoo',      name:'Susanoo',           xp:53000, color:'#c2306a', form:true, walls:['wp-uchiha']},
+  {id:'tailed-beast', name:'Tailed Beast Mode', xp:60000, color:'#e04a12', form:true},
+  {id:'six-paths',    name:'Six Paths',         xp:67000, color:'#b99a24', form:true, walls:['wp-valley']},
+  {id:'kage',         name:'Kage',              xp:72500, color:'#c0393e'},
+  {id:'hokage',       name:'Hokage',            xp:77500, color:'#e8620f'}
 ].map(r=>Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, aura:AURA[r.id]||r.color}));
 const XP = { gtgSet:10, gtgComplete:50, gtgFull:20, testRep:2, testComplete:100, pr:75, rest:10, missGtg:100, missTest:150 };
 const TIERS = [[0,1],[7,1.1],[14,1.2],[30,1.3],[60,1.5]];
@@ -664,6 +701,15 @@ const THEMES = {
   'tailed-beast': {fx:'sparks',
     light:{paper:'#fbf3dc',ink:'#241a08',primary:'#a35f00',accent:'#f08c00',accent2:'#ffc933',seal:'#c0392b',rod:'#5a3c12',bgA:'#ffe08a',bgB:'#ffd3a0',fx:['#f08c00','#ffb300','#ff6a00']},
     dark: {paper:'#140f06',ink:'#f7efdc',primary:'#ffc24d',accent:'#ffab1f',accent2:'#ffe066',seal:'#ff6e5e',rod:'#d6b26e',bgA:'#3d2a05',bgB:'#2c1508',fx:['#ffb72e','#ffe066','#ff8a1f']}},
+  'byakugan':     {fx:'motes',
+    light:{paper:'#eeeff8',ink:'#181a2c',primary:'#4b4f8f',accent:'#6a5acd',accent2:'#b7a8ff',seal:'#7a2e8f',rod:'#5b4a3a',bgA:'#e2e4f6',bgB:'#efeae0',fx:['#c9cdf6','#ffffff','#a59bdc']},
+    dark: {paper:'#0d0e19',ink:'#eceef9',primary:'#aab0f2',accent:'#a99bff',accent2:'#d8d0ff',seal:'#d98cff',rod:'#b9a58c',bgA:'#1b1d3a',bgB:'#221d16',fx:['#d6d9ff','#ffffff','#b3a6ff']}},
+  'akatsuki':     {fx:'storm',
+    light:{paper:'#f1e9ea',ink:'#1d1214',primary:'#7d1c22',accent:'#c8262e',accent2:'#e8a33a',seal:'#9e1a20',rod:'#3a2a2c',bgA:'#e5cfd2',bgB:'#d9dbe2',fx:['#c8262e','#5a5d68','#e8a33a']},
+    dark: {paper:'#120b0c',ink:'#f4e8e9',primary:'#ff7d84',accent:'#ff4a52',accent2:'#ffc061',seal:'#ff6e6e',rod:'#b39a9c',bgA:'#3a0f13',bgB:'#161a24',fx:['#ff4a52','#8a8f9e','#ffc061']}},
+  'susanoo':      {fx:'sparks',
+    light:{paper:'#f6e9ef',ink:'#22101a',primary:'#8f1f4f',accent:'#d2306f',accent2:'#ff8fb6',seal:'#a8232f',rod:'#3c2532',bgA:'#f3cddd',bgB:'#dcd6ea',fx:['#ff5ea0','#d2306f','#ffb3cf']},
+    dark: {paper:'#13090f',ink:'#f7e8ef',primary:'#ff8fbd',accent:'#ff5ea0',accent2:'#ffb3cf',seal:'#ff6e8a',rod:'#c49aae',bgA:'#3d0d24',bgB:'#1c1630',fx:['#ff5ea0','#ffb3cf','#ff2f6d']}},
   'six-paths':    {fx:'stars',
     light:{paper:'#eceef6',ink:'#141629',primary:'#2c3266',accent:'#d4a017',accent2:'#f3d36b',seal:'#b0302b',rod:'#2b2e45',bgA:'#dfe2f3',bgB:'#f6efd6',fx:['#c9a227','#2c3266','#e0b83a']},
     dark: {paper:'#0a0c1a',ink:'#eceef8',primary:'#9aa3e6',accent:'#f5c542',accent2:'#ffe28a',seal:'#ff6e6e',rod:'#c9b277',bgA:'#141a3d',bgB:'#2a2410',fx:['#ffe9a3','#ffffff','#f5c542']}}
@@ -682,7 +728,7 @@ function themeVars(p, dark){
     `--paper:${p.paper}`, `--card:${card}`, `--ink:${p.ink}`, `--muted:${mixHex(p.ink,p.paper,dark?.36:.37)}`, `--line:${mixHex(p.paper,p.ink,dark?.17:.15)}`,
     `--primary:${p.primary}`, `--primary-soft:${mixHex(p.primary,p.paper,.84)}`,
     `--chakra:${p.accent}`, `--chakra-ink:${cInk}`, `--chakra-2:${p.accent2}`, `--chakra-soft:${mixHex(p.accent,p.paper,dark?.78:.84)}`, `--glow:${rgbaHex(p.accent,dark?.4:.3)}`, `--on-chakra:${onC}`,
-    `--card-glass:${rgbaHex(card,dark?.68:.74)}`, `--paper-glass:${rgbaHex(p.paper,dark?.55:.6)}`,
+    `--card-glass:${rgbaHex(mixHex(card,p.primary,dark?.1:.07),dark?.7:.76)}`, `--paper-glass:${rgbaHex(p.paper,dark?.55:.6)}`,
     `--seal:${p.seal}`, `--rod:${p.rod}`, `--bg-a:${p.bgA}`, `--bg-b:${p.bgB}`, `--panel:${mixHex(p.ink,p.paper,dark?.55:.12)}`
   ].join(';');
 }
@@ -1006,7 +1052,8 @@ const SCROLLS = [
   {id:'tp1k',   name:'Thousand Pulls',  need:'1,000 total pull-ups logged',    test:C=>(C.totalReps.pullups||0)>=1000},
   {id:'td2k',   name:'River of Dips',   need:'2,500 total dips logged',        test:C=>(C.totalReps.dips||0)>=2500},
   {id:'scale',  name:'Scale Keeper',    need:'Log your weight 4 times',        test:C=>C.body.length>=4},
-  {id:'genin',  name:'Graduation',      need:'Reach the rank of Genin',        test:C=>C.peak>=1}
+  {id:'genin',  name:'Graduation',      need:'Reach the rank of Genin',        test:C=>C.peak>=1},
+  {id:'comeback', name:'Back from the Dead', need:'Rebuild a broken streak to 7 days', test:C=>streakStory(C).ever}
 ];
 
 /* ---------- small renderers ---------- */
@@ -1053,7 +1100,49 @@ function todayPower(C){
   const tot=t.info.per.length*t.info.sets, got=t.info.per.reduce((m,p)=>m+p.sets.length,0);
   return tot ? clamp(got/tot,0,1) : 0;
 }
+let lastTap=null;
+document.addEventListener('pointerdown', e=>{ const b=e.target.closest && e.target.closest('button,.btn'); if(!b) return; const r=b.getBoundingClientRect(); lastTap={x:r.left+r.width/2, y:r.top+r.height/2, t:Date.now()}; }, {capture:true, passive:true});
+function stageVisible(){ const st=document.querySelector('.stage'); if(!st) return false; const r=st.getBoundingClientRect(); return r.bottom>120 && r.top<innerHeight-80; }
+function updateMinibar(C){
+  const mb=document.getElementById('minibar'); if(!mb) return;
+  if(!C || ui.tab!=='mission' || !S()){ mb.classList.remove('show'); return; }
+  const r=RANKS[C.peak], nx=RANKS[C.peak+1];
+  const pct = nx ? clamp((C.total-r.xp)/(nx.xp-r.xp)*100,0,100) : 100;
+  const key=[C.peak,C.total,C.streak,C.study.streak,!!C.study.start].join('|');
+  if(mb.dataset.key!==key){
+    mb.dataset.key=key; mb.style.setProperty('--aura', r.aura);
+    const fill=mb.querySelector('.mb-fill');
+    if(fill && mb.dataset.rank===String(C.peak)){
+      fill.style.width=pct+'%';
+      mb.querySelector('.mb-xp-text').textContent=`${fmt(C.total)} XP`;
+      mb.querySelector('.mb-flame b').textContent=C.streak;
+      const sb=mb.querySelector('.mb-study b'); if(sb) sb.textContent=C.study.streak;
+    } else {
+      mb.dataset.rank=String(C.peak);
+      mb.innerHTML=`<div class="mb-face"><img src="${r.photo}" alt=""></div>
+        <div class="mb-mid"><div class="mb-top"><b>${esc(r.name)}</b><span class="mb-xp-text">${fmt(C.total)} XP</span></div><div class="mb-track"><div class="mb-fill" style="width:${pct}%"></div></div></div>
+        <div class="mb-streaks"><span class="mb-flame">${flame}<b>${C.streak}</b></span>${C.study.start?`<span class="mb-study">${ico.scrollS}<b>${C.study.streak}</b></span>`:''}</div>`;
+    }
+  }
+  mb.classList.toggle('show', !stageVisible() && !!document.querySelector('.stage'));
+}
+addEventListener('scroll', ()=>{ if(!updateMinibar.raf) updateMinibar.raf=requestAnimationFrame(()=>{ updateMinibar.raf=0; updateMinibar(lastC); }); }, {passive:true});
+function tapBurst(gained){
+  if(!lastTap || Date.now()-lastTap.t>4000 || !gained) return;
+  const f=document.createElement('div'); f.className='tap-xp'; f.textContent=`${signed(gained)} XP`;
+  f.style.left=lastTap.x+'px'; f.style.top=lastTap.y+'px'; document.body.appendChild(f); setTimeout(()=>f.remove(),1200);
+  const st=document.querySelector('.stage'); const col=(st && getComputedStyle(st).getPropertyValue('--aura').trim()) || '#ffd27a';
+  FX.sparkBurst(lastTap.x, lastTap.y, col);
+}
+function minibarPulse(gained){
+  const mb=document.getElementById('minibar'); if(!mb || !mb.classList.contains('show')) return;
+  mb.classList.remove('pulse'); void mb.offsetWidth; mb.classList.add('pulse'); clearTimeout(minibarPulse.t); minibarPulse.t=setTimeout(()=>mb.classList.remove('pulse'),950);
+  const f=document.createElement('div'); f.className='mb-xp'; f.textContent=`${signed(gained)} XP`; mb.appendChild(f); setTimeout(()=>f.remove(),1200);
+}
 function stagePowerUp(gained){
+  updateMinibar(lastC);
+  tapBurst(gained);
+  minibarPulse(gained);
   const st=document.querySelector('.stage'); if(!st) return;
   st.classList.remove('powerup'); void st.offsetWidth; st.classList.add('powerup');
   clearTimeout(stagePowerUp.t); stagePowerUp.t=setTimeout(()=>st.classList.remove('powerup'),950);
@@ -1073,7 +1162,7 @@ function ninjaHeader(C){
   const name = esc(s.name||'Ninja');
   const xpbar = `<div class="xpbar"><div class="xptrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Progress to next rank"><div class="xpfill" style="width:${pct}%"></div></div><div class="xprow">${left}${right}</div></div>`;
   if(r.cut){
-    const pw=todayPower(C), hasBg=!!bgRec(bgSlotNow());
+    const pw=todayPower(C), hasBg=!!bgShow(bgSlotNow());
     const sparks = pw>0 ? Array.from({length:Math.round(3+pw*7)},(_,i)=>`<i class="spark" style="--x:${12+((i*37)%76)}%;--d:${((i*0.61)%3).toFixed(2)}s;--t:${(2.4+(i%4)*.45).toFixed(2)}s"></i>`).join('') : '';
     return `
   <section class="stage${pw>=1?' charged':''}" style="--rk:${r.color};--aura:${r.aura};--power:${pw.toFixed(2)}" aria-label="Your rank">
@@ -2256,8 +2345,16 @@ const FOCUS_POS = {left:'20% center', center:'center', right:'80% center'};
 let bgShown=null, bgFront='bgA';
 function bgRec(slot){ const r=media().bg[slot]; return (r && r.id) ? {id:r.id, name:r.name||'Photo', url:blobUrl(r.id)} : null; }
 function bgSlotNow(){ return prefs.bgAll ? 'all' : ui.tab; }
+/* the wallpaper for the active rank theme, shown behind the Mission tab */
+function rankWall(){
+  if(prefs.rankWalls===false || !lastC || ui.tab!=='mission') return null;
+  const i = appliedTheme==null ? lastC.peak : appliedTheme, r=RANKS[i]; if(!r || !r.walls || !r.walls.length) return null;
+  const f = r.walls[Math.abs(daysBetween('2026-01-01', lastC.today)) % r.walls.length];
+  return {id:'rank-'+f, name:r.name+' wallpaper', url:'media/'+f+'.jpg', rank:true};
+}
+function bgShow(slot){ return rankWall() || bgRec(slot); }
 function applyBg(){
-  const slot=bgSlotNow(), rec=bgRec(slot), focus=(prefs.bgFocus||{})[slot]||'center';
+  const slot=bgSlotNow(), rec=bgShow(slot), focus=rec&&rec.rank ? 'center' : ((prefs.bgFocus||{})[slot]||'center');
   const key = rec ? `${slot}|${rec.id}|${focus}` : 'none';
   if(key!==bgShown){
     bgShown=key;
@@ -2301,6 +2398,7 @@ function bgCard(){
   return `<section class="card">
     <div class="section-head"><h2>Tab backgrounds</h2></div>
     <p class="muted small">Put a photo behind each tab. Photos are saved on this phone, so they stay after you close the app.</p>
+    <button type="button" class="switch" role="switch" aria-checked="${prefs.rankWalls!==false}" data-act="rank-walls"><span>Rank wallpaper on the Mission tab<small class="muted" style="display:block;font-weight:400">Changes when you rank up. Turn off to use your own Mission photo.</small></span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <button type="button" class="switch" role="switch" aria-checked="${prefs.bgAll}" data-act="bg-all"><span>Use one photo for all tabs</span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <label class="range"><span>Photo strength</span><input id="bg-strength" type="range" min="0" max="100" step="5" value="${Math.round(prefs.bgStrength*100)}" data-act="vol" data-k="bgStrength"></label>
     ${rows}
@@ -2534,10 +2632,60 @@ function render(){
   restoreFocus(f);
   renderOverlay(C);
   renderPlayer();
+  updateMinibar(C);
 }
 
+/* when a streak broke, and when a broken streak was rebuilt to 7 */
+function streakStory(C){
+  const out={broke:null, comeback:null, ever:false};
+  const scan=(list, kind, isBreak)=>{
+    let pending=null;
+    list.forEach((rec,i)=>{
+      if(isBreak(rec,i)){ pending=rec.date; if(!out.broke || rec.date>=out.broke.date) out.broke={date:rec.date, kind}; }
+      if(pending && rec.streak>=7){ out.ever=true; if(!out.comeback || rec.date>=out.comeback.date) out.comeback={date:rec.date, kind, since:pending}; pending=null; }
+    });
+  };
+  scan(C.days, 'workout', (rec,i)=>rec.status==='missed' && i>0 && (C.days[i-1].streak||0)>0);
+  let st=0; const sl=C.study.list.map(r=>{ if(r.status==='done') st++; else if(r.status==='missed') st=0; return {date:r.date, status:r.status, broke:r.broke, streak:st}; });
+  scan(sl, 'study', rec=>rec.broke);
+  return out;
+}
+function sceneSeen(key){ try{ return localStorage.getItem('leaf-scene-'+key)==='1'; }catch(e){ return true; } }
+function markScene(key){ try{ localStorage.setItem('leaf-scene-'+key,'1'); }catch(e){} }
 function renderOverlay(C){
   const s=S(), seen=s.celebrated||0, ov=document.getElementById('overlay');
+  const story = (!state.readOnly && C.peak<=seen && ui.viewRank==null) ? streakStory(C) : null;
+  const recent = d => d && daysBetween(d, C.today)<=1;
+  if(story && story.comeback && recent(story.comeback.date) && !sceneSeen('comeback-'+story.comeback.date)){
+    const key='comeback-'+story.comeback.date; if(ui.overlayKey===key) return; ui.overlayKey=key;
+    const what = story.comeback.kind==='study' ? 'study streak' : 'streak';
+    ov.innerHTML=`<div class="scene comeback" role="dialog" aria-modal="true" aria-labelledby="scene-title">
+      <img src="media/comeback.jpg" alt="${esc(s.name||'Ninja')} returned from the dead">
+      <div class="scene-body">
+        <div class="eyebrow">Comeback form</div>
+        <h2 id="scene-title">Back from the dead</h2>
+        <p>Your ${what} fell on ${esc(shortDate(story.comeback.since))}. Seven days later it stands again. Most ninja never return from that. You did.</p>
+        <p style="color:#a9d8ff"><b>Achievement unlocked:</b> Back from the Dead</p>
+        <button class="btn chakra-btn" data-act="scene-ok" data-key="${key}" style="width:100%">Rise</button>
+      </div>
+    </div>`;
+    FX.flash(); SFX.play('promo'); ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus(); return;
+  }
+  if(story && story.broke && recent(story.broke.date) && !sceneSeen('broke-'+story.broke.date)){
+    const key='broke-'+story.broke.date; if(ui.overlayKey===key) return; ui.overlayKey=key;
+    const what = story.broke.kind==='study' ? 'study streak' : 'workout streak';
+    ov.innerHTML=`<div class="scene funeral" role="dialog" aria-modal="true" aria-labelledby="scene-title">
+      <img src="media/wp-funeral.jpg" alt="A rainy memorial in the village">
+      <div class="scene-body">
+        <div class="eyebrow">${esc(shortDate(story.broke.date))}</div>
+        <h2 id="scene-title">The ${what} has fallen</h2>
+        <p><b>Third Hokage:</b> A streak is not lost when it breaks. It is lost when you stop. The will of fire passes to whoever picks it up again, and today that is you.</p>
+        <p style="color:#c9c3b8">Rebuild it to 7 days to earn your Comeback form.</p>
+        <button class="btn" data-act="scene-ok" data-key="${key}" style="width:100%;background:#f2efe9;color:#14110e;border-color:#f2efe9">Begin again</button>
+      </div>
+    </div>`;
+    ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus(); return;
+  }
   if(C.peak>seen && !state.readOnly){
     const key='promo-'+C.peak; if(ui.overlayKey===key) return;
     ui.overlayKey=key; ui.viewRank=null;
@@ -2545,7 +2693,7 @@ function renderOverlay(C){
     ov.innerHTML=`<div class="promo" role="dialog" aria-modal="true" aria-labelledby="promo-title" style="--rk:${r.color}">
       <img class="promo-scene" src="${r.scene}" alt="${esc(s.name||'Ninja')} as ${esc(r.name)}">
       <div class="promo-body">
-        <div class="eyebrow">${r.prestige?'Transformation unlocked':'Promotion'}</div>
+        <div class="eyebrow">${r.form?'Transformation unlocked':'Promotion'}</div>
         <h2 id="promo-title" style="color:${r.color}">${esc(r.name)}</h2>
         <p style="margin:0;font-size:14.5px"><b>Third Hokage:</b> ${esc(fillLine(SENSEI_LINES.hiruzen.promo[0],{rank:r.name}))}</p>
         <p class="muted" style="margin:0">${fmt(C.total)} XP earned. ${nx?`Next: ${esc(nx.name)} at ${fmt(nx.xp)} XP.`:'You have reached the final form.'}</p>
@@ -2562,7 +2710,7 @@ function renderOverlay(C){
     ov.innerHTML=`<div class="promo viewer" role="dialog" aria-modal="true" aria-labelledby="view-title" style="--rk:${r.color}">
       <img class="promo-scene${earned?'':' locked'}" src="${r.scene}" alt="${esc(s.name||'Ninja')} as ${esc(r.name)}">
       <div class="promo-body">
-        <div class="eyebrow">${r.prestige?'Beyond Hokage':`Rank ${i+1} of 9`}</div>
+        <div class="eyebrow">Rank ${i+1} of ${RANKS.length}</div>
         <h2 id="view-title" style="color:${r.color}">${esc(r.name)}</h2>
         <p class="muted" style="margin:0">${status}</p>
         ${earned?'':'<p class="muted" style="margin:0;font-size:13px">Its village theme is revealed when you earn it.</p>'}
@@ -2616,6 +2764,7 @@ document.addEventListener('click', e=>{
   if(act==='plan-day'||act==='test-ex') return;
   if(act==='step'){ const k=el.dataset.key; ui.reps[k]=clamp((ui.reps[k]||0)+Number(el.dataset.d),0,999); SFX.play('tick'); render(); return; }
   if(act==='sound'){ SFX.toggle(); render(); return; }
+  if(act==='rank-walls'){ prefs.rankWalls = prefs.rankWalls===false; savePrefs(); render(); return; }
   if(act==='pref-ambient'){ prefs.ambient=!prefs.ambient; savePrefs(); FX.refresh(); render(); return; }
   if(act==='pref-anim'){ prefs.anim=el.dataset.v==='subtle'?'subtle':'full'; savePrefs(); render(); return; }
   if(act==='pref-music-open'){ prefs.musicOnOpen=!prefs.musicOnOpen; savePrefs(); render(); return; }
@@ -2707,6 +2856,7 @@ document.addEventListener('click', e=>{
   }
   if(act==='view-rank'){ ui.viewRank=Number(el.dataset.i); if(lastC) renderOverlay(lastC); return; }
   if(act==='close-view'){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
+  if(act==='scene-ok'){ markScene(el.dataset.key); const ov=document.getElementById('overlay'); ov.hidden=true; ov.innerHTML=''; render(); return; }
   if(act==='promo-ok'){
     const C=lastC; const s=clone(S()); s.celebrated=C?C.peak:(s.celebrated||0); delete s.themeRank;
     document.getElementById('overlay').hidden=true; save('settings', null, s); return;
@@ -2814,6 +2964,7 @@ function studyFeedback(before, label){
   const gained=(a.xp||0)-(b.xp||0);
   const hitMin = a.status==='done' && b.status!=='done';
   const hitFull = a.tgt && a.mins>=a.tgt.full && !(b.mins>=a.tgt.full);
+  if(gained>0) stagePowerUp(gained);
   if(hitMin || hitFull){ SFX.play('complete'); FX.leafBurst(); toast(`${hitFull?'Study scroll full':'Study minimum reached'} · ${signed(gained)} XP`); }
   else { SFX.play('scroll'); toast(`${label} · ${signed(gained)} XP`); }
 }
