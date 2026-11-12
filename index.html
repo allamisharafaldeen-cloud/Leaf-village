@@ -634,24 +634,23 @@ body.has-player .wrap{padding-bottom:178px}
 'use strict';
 
 /* ---------- game constants ---------- */
-const CUT_AR = {"byakugan": 1.059, "akatsuki": 1.185, "susanoo": 1.002, "academy": 0.731, "genin": 0.714, "chunin": 0.609, "special-jonin": 1.178, "jonin": 1.041, "anbu": 0.771, "sannin": 0.887, "kage": 0.797, "hokage": 0.966, "sage": 1.168, "tailed-beast": 1.267, "six-paths": 0.738};
+const CUT_AR = {"eight-gates": 1.409, "byakugan": 1.059, "akatsuki": 1.185, "susanoo": 1.002, "academy": 0.731, "genin": 0.714, "chunin": 0.609, "special-jonin": 1.178, "jonin": 1.041, "anbu": 0.771, "sannin": 0.887, "kage": 0.797, "hokage": 0.966, "sage": 1.168, "tailed-beast": 1.267, "six-paths": 0.738};
 const CUT_V = {'academy':'-v2','genin':'-v2','six-paths':'-v2'};
-const AURA = {'byakugan':'#dfe3ff','akatsuki':'#ff4a4a','susanoo':'#ff5ea0','academy':'#6ec3ff','genin':'#6ec3ff','chunin':'#5fe0c0','special-jonin':'#ffcf6e','jonin':'#9ad4ff','anbu':'#b9c8ff','sannin':'#ff8fa6','kage':'#ff7b6b','hokage':'#ffb14a','sage':'#ff8a3d','tailed-beast':'#ffc229','six-paths':'#ffe27a'};
+const AURA = {'eight-gates':'#ff3b2f','byakugan':'#dfe3ff','akatsuki':'#ff4a4a','susanoo':'#ff5ea0','academy':'#6ec3ff','genin':'#6ec3ff','chunin':'#5fe0c0','special-jonin':'#ffcf6e','jonin':'#9ad4ff','anbu':'#b9c8ff','sannin':'#ff8fa6','kage':'#ff7b6b','hokage':'#ffb14a','sage':'#ff8a3d','tailed-beast':'#ffc229','six-paths':'#ffe27a'};
 const RANKS = [
   {id:'academy',      name:'Academy Student',   xp:0,     color:'#8a968c', walls:['wp-ichiraku']},
   {id:'genin',        name:'Genin',             xp:1500,  color:'#3e9150', focus:'58% 22%', walls:['wp-ground3','wp-bridge']},
-  {id:'chunin',       name:'Chunin',            xp:5000,  color:'#2a8c80', walls:['wp-arena']},
-  {id:'byakugan',     name:'Byakugan',          xp:9000,  color:'#7a7fc0', form:true, walls:['wp-byakugan']},
-  {id:'special-jonin',name:'Special Jonin',     xp:14000, color:'#3a72b8'},
-  {id:'jonin',        name:'Jonin',             xp:19500, color:'#5157b8', focus:'50% 30%'},
-  {id:'anbu',         name:'ANBU',              xp:25500, color:'#6b7a88'},
-  {id:'akatsuki',     name:'Akatsuki',          xp:32000, color:'#b3262e', walls:['wp-akatsuki']},
-  {id:'sannin',       name:'Sannin',            xp:39000, color:'#8550b3'},
-  {id:'sage',         name:'Sage Mode',         xp:46000, color:'#c9900f', form:true, walls:['wp-myoboku','wp-pain']},
+  {id:'chunin',       name:'Chunin',            xp:5000,  color:'#2a8c80', walls:['wp-arena','wp-byakugan']},
+  {id:'special-jonin',name:'Special Jonin',     xp:10000, color:'#3a72b8'},
+  {id:'jonin',        name:'Jonin',             xp:16000, color:'#5157b8', focus:'50% 30%'},
+  {id:'anbu',         name:'ANBU',              xp:22500, color:'#6b7a88'},
+  {id:'akatsuki',     name:'Akatsuki',          xp:29500, color:'#b3262e', walls:['wp-akatsuki']},
+  {id:'sannin',       name:'Sannin',            xp:37000, color:'#8550b3'},
+  {id:'sage',         name:'Sage Mode',         xp:45000, color:'#c9900f', form:true, walls:['wp-myoboku','wp-pain']},
   {id:'susanoo',      name:'Susanoo',           xp:53000, color:'#c2306a', form:true, walls:['wp-uchiha']},
-  {id:'tailed-beast', name:'Tailed Beast Mode', xp:60000, color:'#e04a12', form:true},
-  {id:'six-paths',    name:'Six Paths',         xp:67000, color:'#b99a24', form:true, walls:['wp-valley']},
-  {id:'kage',         name:'Kage',              xp:72500, color:'#c0393e'},
+  {id:'tailed-beast', name:'Tailed Beast Mode', xp:61000, color:'#e04a12', form:true},
+  {id:'eight-gates',  name:'Eight Gates',       xp:68500, color:'#d0281e', form:true},
+  {id:'kage',         name:'Kage',              xp:73500, color:'#c0393e', walls:['wp-valley']},
   {id:'hokage',       name:'Hokage',            xp:77500, color:'#e8620f'}
 ].map(r=>Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, aura:AURA[r.id]||r.color}));
 const XP = { gtgSet:10, gtgComplete:50, gtgFull:20, testRep:2, testComplete:100, pr:75, rest:10, missGtg:100, missTest:150 };
@@ -701,6 +700,9 @@ const THEMES = {
   'tailed-beast': {fx:'sparks',
     light:{paper:'#fbf3dc',ink:'#241a08',primary:'#a35f00',accent:'#f08c00',accent2:'#ffc933',seal:'#c0392b',rod:'#5a3c12',bgA:'#ffe08a',bgB:'#ffd3a0',fx:['#f08c00','#ffb300','#ff6a00']},
     dark: {paper:'#140f06',ink:'#f7efdc',primary:'#ffc24d',accent:'#ffab1f',accent2:'#ffe066',seal:'#ff6e5e',rod:'#d6b26e',bgA:'#3d2a05',bgB:'#2c1508',fx:['#ffb72e','#ffe066','#ff8a1f']}},
+  'eight-gates':  {fx:'embers',
+    light:{paper:'#f4ebe6',ink:'#1f1210',primary:'#2f5a2a',accent:'#d0281e',accent2:'#f08a24',seal:'#a8231b',rod:'#4a2f22',bgA:'#f2c9bf',bgB:'#d7e0cf',fx:['#ff3b2f','#f08a24','#3a2a24']},
+    dark: {paper:'#140b09',ink:'#f6e9e4',primary:'#8fd07e',accent:'#ff4b3a',accent2:'#ffa24a',seal:'#ff6e5e',rod:'#c49a86',bgA:'#3d0d08',bgB:'#14200f',fx:['#ff3b2f','#ffa24a','#ff7a3a']}},
   'byakugan':     {fx:'motes',
     light:{paper:'#eeeff8',ink:'#181a2c',primary:'#4b4f8f',accent:'#6a5acd',accent2:'#b7a8ff',seal:'#7a2e8f',rod:'#5b4a3a',bgA:'#e2e4f6',bgB:'#efeae0',fx:['#c9cdf6','#ffffff','#a59bdc']},
     dark: {paper:'#0d0e19',ink:'#eceef9',primary:'#aab0f2',accent:'#a99bff',accent2:'#d8d0ff',seal:'#d98cff',rod:'#b9a58c',bgA:'#1b1d3a',bgB:'#221d16',fx:['#d6d9ff','#ffffff','#b3a6ff']}},
