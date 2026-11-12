@@ -1886,7 +1886,7 @@ function ninjaView(C){
   const ladder = RANKS.map((r,i)=>{
     const cls = i===C.peak?'current':i<C.peak?'':'locked';
     const tag = i===C.peak?'<span class="tag" style="color:var(--chakra-ink)">Current</span>':i<C.peak?'<span class="tag" style="color:var(--leaf)">Earned</span>':`<span class="rx">${fmt(Math.max(0,r.xp-C.total))} to go</span>`;
-    return (i===9?'<li class="ladder-break" aria-hidden="true">Beyond Hokage</li>':'')+`<li class="${cls}"><button type="button" class="rank-btn" data-act="view-rank" data-i="${i}">${portrait(i,46)}<span><span class="rn">${esc(r.name)}</span><span class="rx">${fmt(r.xp)} XP</span></span>${tag}</button></li>`;
+    return `<li class="${cls}"><button type="button" class="rank-btn" data-act="view-rank" data-i="${i}">${portrait(i,46)}<span><span class="rn">${esc(r.name)}</span><span class="rx">${fmt(r.xp)} XP</span></span>${tag}</button></li>`;
   }).join('');
   const got = SCROLLS.filter(sc=>sc.test(C)).length;
   const scrolls = SCROLLS.map(sc=>{ const on=sc.test(C); return `<div class="sc${on?'':' locked'}">${scrollIcon(on)}<div><b>${esc(sc.name)}</b><span>${esc(sc.need)}</span></div></div>`; }).join('');
