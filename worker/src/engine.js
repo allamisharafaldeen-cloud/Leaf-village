@@ -29,10 +29,12 @@ const STUDY_DEFAULT = {week:{min:240, full:360}, end:{min:360, full:480}};
 
 /* ---------- dates ---------- */
 const pad = n => String(n).padStart(2, '0');
-export const dayMs = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
-export const ymd = msUtc => { const d = new Date(msUtc); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; };
+/* the engine asks for the same few thousand dates over and over, so the conversions are remembered */
+const MS = new Map(), YMD = new Map();
+export const dayMs = s => { let v = MS.get(s); if(v === undefined){ v = Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)); if(MS.size > 20000) MS.clear(); MS.set(s, v); } return v; };
+export const ymd = msUtc => { let v = YMD.get(msUtc); if(v === undefined){ const d = new Date(msUtc); v = `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`; if(YMD.size > 20000) YMD.clear(); YMD.set(msUtc, v); } return v; };
 export const addDays = (s, n) => ymd(dayMs(s) + n * 86400000);
-export const dow = s => new Date(dayMs(s)).getUTCDay();
+export const dow = s => (((dayMs(s) / 86400000) % 7) + 11) % 7;      // 1 Jan 1970 was a Thursday
 export const weekStart = s => addDays(s, -dow(s));
 /* the village date at a real instant, and the real instant a village day starts */
 export const dateAt = nowMs => ymd(nowMs + TZ_MS);
@@ -41,7 +43,13 @@ export const hourAt = nowMs => new Date(nowMs + TZ_MS).getUTCHours();
 export const rankFor = xp => { let i = 0; RANKS.forEach((r, k) => { if(xp >= r.xp) i = k; }); return i; };
 
 /* ---------- schedule ---------- */
-export function sortedHistory(s){ return ((s && s.scheduleHistory) || []).slice().sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0); }
+const HIST = new WeakMap();
+export function sortedHistory(s){
+  const list = (s && s.scheduleHistory) || [];
+  let h = HIST.get(list);
+  if(!h){ h = list.slice().sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0); HIST.set(list, h); }
+  return h;
+}
 export function entryFor(s, date){ const h = sortedHistory(s); let e = h[0]; for(const x of h){ if(x.from <= date) e = x; } return e; }
 export function planFor(s, date){
   const e = entryFor(s, date) || {plan:DEFAULT_PLAN, gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:['pullups','dips']}};
@@ -80,12 +88,13 @@ function hourTimes(segs){
   });
   return out;
 }
-export function computeStudy(data, today, nowMs){
-  const s = data.settings || {}, docs = data.study || {};
-  const res = {days:{}, list:[], streak:0, best:0, weeks:{}, awards:[], start:s.studyStart || null};
+export function computeStudy(data, today, nowMs, opts){
+  const s = data.settings || {}, docs = data.study || {}, o = opts || {}, from = o.resume || null, until = o.until || today;
+  const res = {days:{}, list:[], streak:from ? from.study.streak : 0, best:from ? from.study.best : 0, weeks:{}, awards:[], start:s.studyStart || null};
   if(!s.studyStart || s.studyStart > today) return res;
   const live = {}; provisionalPieces(data.timer, nowMs).forEach(p => { (live[p.date] = live[p.date] || []).push(p); });
-  for(let d = s.studyStart, g = 0; d <= today && g < 4000; d = addDays(d, 1), g++){
+  const first = from && addDays(from.date, 1) > s.studyStart ? addDays(from.date, 1) : s.studyStart;
+  for(let d = first, g = 0; d <= until && g < 4000; d = addDays(d, 1), g++){
     const doc = docs[d] || {}, entries = (doc.entries || []).map(e => ({start:+new Date(e.start || e.end), end:+new Date(e.end), min:+e.min || 0, src:e.src || 'manual'}));
     const segs = entries.concat(live[d] || []);
     const mins = segs.reduce((m, x) => m + x.min, 0), committed = entries.reduce((m, x) => m + x.min, 0);
@@ -118,20 +127,26 @@ function comboMatches(hours, sets){
 }
 
 /* ---------- the engine ---------- */
-export function computeAll(data, nowMs){
-  const s = data.settings || {}, today = dateAt(nowMs);
+/* opts.resume: a checkpoint (the `state` an earlier run returned) to continue from instead of starting at day one.
+   opts.until: the last day to process (default: today). A checkpoint must fall on a Saturday, so that weekly
+   counters start clean, and far enough back that every day up to it is final. */
+export function computeAll(data, nowMs, opts){
+  const s = data.settings || {}, today = dateAt(nowMs), o = opts || {}, from = o.resume || null, until = o.until || today;
   const dayDocs = data.days || {};
   const exIds = Object.keys(s.exercises || {});
   const maxes = {}, best = {}, totalReps = {};
   exIds.forEach(id => { const b = (s.baseline || {})[id] || {max:0, date:s.startDate}; maxes[id] = b.max; best[id] = b.max; totalReps[id] = 0; });
+  if(from){ Object.assign(maxes, from.maxes); Object.assign(best, from.best); Object.assign(totalReps, from.totalReps); }
   const days = [], prs = [], weeks = {}, awards = [];
   const bodyList = Object.values(data.body || {}).filter(b => b && typeof b.weight === 'number').sort((a, b) => a.date < b.date ? -1 : 1);
   const bodyDates = new Set(bodyList.map(b => b.date));
-  let total = 0, peak = 0, streak = 0, bestStreak = 0, doneCount = 0, missedCount = 0;
-  const study = computeStudy(data, today, nowMs);
+  let total = 0, peak = 0, streak = 0, bestStreak = 0, doneCount = 0, missedCount = 0, last = from ? from.date : null;
+  if(from){ total = from.total; peak = from.peak; streak = from.streak; bestStreak = from.bestStreak; doneCount = from.doneCount; missedCount = from.missedCount; }
+  const study = computeStudy(data, today, nowMs, o);
   if(s.startDate && s.startDate <= today){
     let guard = 0;
-    for(let d = s.startDate; d <= today && guard < 4000; d = addDays(d, 1), guard++){
+    for(let d = from ? addDays(from.date, 1) : s.startDate; d <= until && guard < 4000; d = addDays(d, 1), guard++){
+      last = d;
       const plan = planFor(s, d);
       const sets = ((dayDocs[d] || {}).sets) || [];
       const wk = weekStart(d);
@@ -196,13 +211,15 @@ export function computeAll(data, nowMs){
       total = Math.max(0, total + xp);
       W.xp += total - before;
       peak = Math.max(peak, rankFor(total));
-      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, maxes:Object.assign({}, maxes)});
+      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus});
     }
   }
   const todayRec = days.length && days[days.length - 1].date === today ? days[days.length - 1] : null;
   const weekNow = weeks[weekStart(today)] || {qual:0, weigh:0, prDone:false, days:0, missed:0};
   const r = RANKS[peak], nx = RANKS[peak + 1];
-  return { today, settings:s, study, awards, weekNow, weeks, todayRec, days, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount,
+  /* everything needed to carry on from the last processed day */
+  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), study:{streak:study.streak, best:study.best}} : null;
+  return { today, settings:s, study, awards, weekNow, weeks, todayRec, days, state, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount,
     maxes, best, prs, totalReps, exIds, body:bodyList, bodyDates,
     rank:r.name, nextRank:nx ? nx.name : null, xpToNext:nx ? Math.max(0, nx.xp - total) : null };
 }
@@ -220,4 +237,22 @@ export function snapshotFromDocs(map){
     else if(path.startsWith('leaf/main/body/')) out.body[path.slice(15)] = v;
   });
   return out;
+}
+
+/* ---------- checkpoints: keep the Worker's work small however long the history grows ---------- */
+/* the Saturday at least `back` days before today: everything up to it is settled history */
+export function checkpointTarget(today, back){ const d = addDays(today, -(back || 15)); return addDays(d, -((dow(d) + 1) % 7)); }
+/* a fingerprint of the settings that shape history; if it changes, old checkpoints no longer apply */
+export function historyKey(s){
+  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null]);
+  let h = 2166136261; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return `${t.length}.${h >>> 0}`;
+}
+/* move a checkpoint forward to `to` (a Saturday), at most `maxDays` at a time; returns the new state, or null if there is nothing to do yet */
+export function advanceCheckpoint(data, nowMs, resume, to, maxDays){
+  const s = data.settings || {}; if(!s.startDate || s.startDate > to) return null;
+  const start = resume ? addDays(resume.date, 1) : s.startDate; if(start > to) return resume;
+  let until = to;
+  if(maxDays && (dayMs(to) - dayMs(start)) / 86400000 >= maxDays){ const lim = addDays(start, maxDays - 1); until = addDays(lim, -((dow(lim) + 1) % 7)); if(until < start) until = addDays(until, 7); if(until > to) until = to; }
+  return computeAll(data, nowMs, {resume, until}).state;
 }

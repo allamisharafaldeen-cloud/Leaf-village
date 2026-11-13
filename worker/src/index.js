@@ -11,11 +11,12 @@
 
    Everything except /health needs the sync key. */
 import LeafMerge from '../../leaf-merge.js';
-import { snapshotFromDocs, dateAt } from './engine.js';
+import { snapshotFromDocs, dateAt, addDays, checkpointTarget, historyKey, advanceCheckpoint } from './engine.js';
 import { decide, slotAt, TITLES } from './reminders.js';
 import { generateVapid, sendPush, validEndpoint } from './webpush.js';
 
 const { kindOf, mergeEntries, unionKeys, same } = LeafMerge;
+const CHECKPOINT_STEP_DAYS = 120;
 const MAX_PUSH_DOCS = 24, PAGE = 300, MAX_DOC_BYTES = 400000, MAX_BODY_BYTES = 1500000, MAX_REMOVED = 500;
 const enc = new TextEncoder();
 
@@ -121,7 +122,7 @@ async function writeDocs(env, incoming, now){
   }
   if(todo.length) throw {status:409, error:'busy'};
 }
-/* documents changed after `since`, oldest change first, as ready-made JSON text */
+/* documents changed after `since`, oldest change first */
 async function readSince(env, since){
   let rows = (await env.DB.prepare('SELECT path, data, removed, mtime, seq FROM docs WHERE seq > ? ORDER BY seq, path LIMIT ?').bind(since, PAGE + 1).all()).results || [];
   let more = false, cursor;
@@ -133,18 +134,30 @@ async function readSince(env, since){
   } else {
     cursor = Math.max(since, Number(await metaGet(env, 'seq')) || 0);
   }
-  const docs = '[' + rows.map(r => `{"path":${JSON.stringify(r.path)},"data":${r.data},"removed":${r.removed || '[]'},"mtime":${r.mtime || 0},"seq":${r.seq}}`).join(',') + ']';
-  return {docs, more, cursor};
+  return {rows, more, cursor};
 }
-async function handleSync(req, env){
+async function handleSync(req, env, ctx){
   const body = await readJson(req), now = Date.now();
   const since = Math.max(0, Math.floor(Number(body.since) || 0));
   const incoming = cleanIncoming(body.docs).slice(0, MAX_PUSH_DOCS);
   const gen = await getGen(env);
-  if(incoming.length) await writeDocs(env, incoming, now);
+  if(incoming.length){
+    await writeDocs(env, incoming, now);
+    /* after the reply has gone, tidy the reminder checkpoint a little (see stepCheckpoint);
+       not while old history is still arriving (a first sync), when any checkpoint would be stale at once */
+    const settled = checkpointTarget(dateAt(now));
+    if(ctx && ctx.waitUntil && !incoming.some(d => /\/\d{4}-\d{2}-\d{2}$/.test(d.path) && d.path.slice(-10) <= settled)) ctx.waitUntil(stepCheckpoint(env, now).catch(() => {}));
+  }
   const page = await readSince(env, since);
+  /* the device always gets back the stored version of everything it sent, so it knows the verdict */
+  if(incoming.length){
+    const got = new Set(page.rows.map(r => r.path)), want = incoming.map(d => d.path).filter(p => !got.has(p));
+    if(want.length) ((await env.DB.prepare(`SELECT path, data, removed, mtime, seq FROM docs WHERE path IN (${want.map(() => '?').join(',')})`).bind(...want).all()).results || []).forEach(r => page.rows.push(r));
+  }
   const vapid = await getVapid(env);
-  return reply(req, env, 200, `{"ok":true,"gen":${JSON.stringify(gen)},"now":${now},"cursor":${page.cursor},"more":${page.more},"accepted":${incoming.length},"vapid":${JSON.stringify(vapid.publicKey)},"docs":${page.docs}}`);
+  /* stored documents are already JSON text, so the reply is stitched together without re-reading them */
+  const docs = '[' + page.rows.map(r => `{"path":${JSON.stringify(r.path)},"data":${r.data},"removed":${r.removed || '[]'},"mtime":${r.mtime || 0},"seq":${r.seq}}`).join(',') + ']';
+  return reply(req, env, 200, `{"ok":true,"gen":${JSON.stringify(gen)},"now":${now},"cursor":${page.cursor},"more":${page.more},"accepted":${incoming.length},"vapid":${JSON.stringify(vapid.publicKey)},"docs":${docs}}`);
 }
 
 /* ---------- push subscriptions ---------- */
@@ -183,11 +196,44 @@ async function deliver(env, subs, payload, opts){
 const allSubs = async env => (await env.DB.prepare('SELECT endpoint, p256dh, auth FROM push_subs ORDER BY updated DESC LIMIT 10').all()).results || [];
 
 /* ---------- reminders ---------- */
-/* settings, timer and the logs are all the senseis need; photos, prefs and the summary stay unread */
-async function loadSnapshot(env){
-  const rows = (await env.DB.prepare(`SELECT path, data FROM docs WHERE path = 'leaf/main' OR path = 'leaf/timer' OR path LIKE 'leaf/main/%'`).all()).results || [];
+/* settings, timer and the logs are all the senseis need; photos, prefs and the summary stay unread.
+   after / upto narrow the logs to dates in (after, upto]. */
+async function loadSnapshot(env, after, upto){
+  let sql = `SELECT path, data FROM docs WHERE path = 'leaf/main' OR path = 'leaf/timer' OR (path LIKE 'leaf/main/%/%'`; const args = [];
+  if(after){ sql += ' AND substr(path, -10) > ?'; args.push(after); }
+  if(upto){ sql += ' AND substr(path, -10) <= ?'; args.push(upto); }
+  const rows = (await env.DB.prepare(sql + ')').bind(...args).all()).results || [];
   const map = {}; rows.forEach(r => { const v = parseObj(r.data); if(v) map[r.path] = v; });
   return snapshotFromDocs(map);
+}
+/* XP, ranks and streaks depend on the whole history, but a free Worker only gets a few milliseconds per run.
+   So the engine's running totals are saved as a checkpoint at a Saturday at least 15 days back, and each
+   reminder only replays the days after it. This moves the checkpoint forward by at most 120 days per call
+   (a first sync of a long history catches up over a few calls). A checkpoint is thrown away, and rebuilt
+   from day one, if the plan/baselines/exam weeks change or if a log older than it arrives late. */
+async function stepCheckpoint(env, nowMs){
+  const row = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/main'`).first();
+  const settings = row ? parseObj(row.data) : null;
+  if(!settings || !settings.startDate) return null;
+  const target = checkpointTarget(dateAt(nowMs)), key = historyKey(settings);
+  if(settings.startDate > target) return null;
+  const seq = Number(await metaGet(env, 'seq')) || 0;
+  let cp = parseObj(await metaGet(env, 'checkpoint'));
+  if(cp && (cp.v !== 1 || cp.key !== key || !cp.state || !cp.state.date || cp.state.date > target)) cp = null;
+  if(cp && await env.DB.prepare(`SELECT 1 AS late FROM docs WHERE seq > ? AND path LIKE 'leaf/main/%/%' AND substr(path, -10) <= ? LIMIT 1`).bind(cp.seq, cp.state.date).first()) cp = null;
+  if(cp && cp.state.date >= target) return cp;
+  const start = cp ? addDays(cp.state.date, 1) : settings.startDate;
+  const upto = addDays(start, CHECKPOINT_STEP_DAYS) < target ? addDays(start, CHECKPOINT_STEP_DAYS) : target;
+  const state = advanceCheckpoint(await loadSnapshot(env, cp ? cp.state.date : null, upto), nowMs, cp ? cp.state : null, target, CHECKPOINT_STEP_DAYS);
+  if(!state || (cp && state.date <= cp.state.date)) return cp;
+  cp = {v:1, key, seq, state};
+  await metaSet(env, 'checkpoint', JSON.stringify(cp));
+  return cp;
+}
+/* what a slot would say right now */
+async function decideNow(env, nowMs, slot, picks){
+  const cp = await stepCheckpoint(env, nowMs);
+  return decide({data:await loadSnapshot(env, cp ? cp.state.date : null, null), nowMs, slot, picks, resume:cp ? cp.state : null});
 }
 async function runSlot(env, nowMs, slot){
   const report = {at:nowMs, slot, sent:0, status:[], note:''};
@@ -197,7 +243,7 @@ async function runSlot(env, nowMs, slot){
   const mark = `${dateAt(nowMs)}|${slot}`;
   if(await metaGet(env, 'last_sent') === mark){ report.note = 'already sent'; return report; }
   const picks = parseObj(await metaGet(env, 'picks')) || {};
-  const d = decide({data:await loadSnapshot(env), nowMs, slot, picks});
+  const d = await decideNow(env, nowMs, slot, picks);
   if(!d.send){ report.note = 'nothing to say'; await metaSet(env, 'last_run', JSON.stringify(report)); return report; }
   report.status = await deliver(env, subs, payloadFor(env, d.title, d.body, 'leaf-' + slot.toLowerCase()), {ttl:slot === 'LASTCALL' ? 3600 : 3 * 3600, nowMs});
   report.sent = report.status.filter(x => x >= 200 && x < 300).length;
@@ -211,13 +257,13 @@ async function runSlot(env, nowMs, slot){
 async function handlePreview(req, env, url){
   const slot = String(url.searchParams.get('slot') || '').toUpperCase();
   const at = Number(url.searchParams.get('at')) || Date.now();
-  const d = decide({data:await loadSnapshot(env), nowMs:at, slot:TITLES[slot] ? slot : slotAt(at) || 'MORNING', picks:parseObj(await metaGet(env, 'picks')) || {}});
+  const d = await decideNow(env, at, TITLES[slot] ? slot : slotAt(at) || 'MORNING', parseObj(await metaGet(env, 'picks')) || {});
   return reply(req, env, 200, {ok:true, send:d.send, slot:d.slot, today:d.today, title:d.title, body:d.body, chars:d.body.length});
 }
 async function handleTest(req, env){
   const subs = await allSubs(env);
   if(!subs.length) return reply(req, env, 200, {ok:true, sent:0, devices:0});
-  const s = (await loadSnapshot(env)).settings || {};
+  const srow = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/main'`).first(), s = (srow && parseObj(srow.data)) || {};
   const body = `Third Hokage: Notifications are working, ${s.name || 'ninja'}. The village will find you at 5:40, 11:40, 17:40 and 22:40.`;
   const status = await deliver(env, subs, payloadFor(env, 'The Leaf Village', body, 'leaf-test'), {ttl:600});
   return reply(req, env, 200, {ok:true, devices:subs.length, sent:status.filter(x => x >= 200 && x < 300).length, status});
@@ -228,7 +274,7 @@ async function handleStatus(req, env){
 }
 
 export default {
-  async fetch(req, env){
+  async fetch(req, env, ctx){
     const url = new URL(req.url), path = url.pathname.replace(/\/+$/, '') || '/';
     try{
       if(req.method === 'OPTIONS') return new Response(null, {status:204, headers:cors(req, env)});
@@ -236,7 +282,7 @@ export default {
       const o = req.headers.get('Origin');
       if(o && origins(env).indexOf(o) < 0) return reply(req, env, 403, {ok:false, error:'origin'});
       if(!(await authorized(req, env))) return reply(req, env, 401, {ok:false, error:'key'});
-      if(req.method === 'POST' && path === '/sync') return await handleSync(req, env);
+      if(req.method === 'POST' && path === '/sync') return await handleSync(req, env, ctx);
       if(req.method === 'POST' && path === '/push/subscribe') return await handleSubscribe(req, env);
       if(req.method === 'POST' && path === '/push/unsubscribe') return await handleUnsubscribe(req, env);
       if(req.method === 'POST' && path === '/push/test') return await handleTest(req, env);
@@ -253,4 +299,4 @@ export default {
     ctx.waitUntil(runSlot(env, event.scheduledTime, slotAt(event.scheduledTime)).then(r => console.log('reminder', r.slot, r.note || `sent to ${r.sent} of ${r.status.length}`)).catch(e => console.error('reminder failed', e && e.message)));
   }
 };
-export { runSlot };
+export { runSlot, stepCheckpoint };

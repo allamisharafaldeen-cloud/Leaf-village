@@ -34,13 +34,14 @@ function choose(key, picks, today){
   return pool[i];
 }
 
-export function decide({data, nowMs, slot, picks}){
+/* resume: an optional engine checkpoint (see engine.js) so only recent days are recomputed */
+export function decide({data, nowMs, slot, picks, resume}){
   const out = {send:false, slot, title:TITLES[slot] || 'The Leaf Village', body:'', lines:[], pieces:[], picks:Object.assign({}, picks || {}), today:null};
   const s = data && data.settings;
   if(!s || !s.startDate || !TITLES[slot]) return out;
   const n = Object.assign({}, NOTIFY_DEFAULT, s.notify || {});
   if(!n.enabled) return out;
-  const C = computeAll(data, nowMs), today = C.today;
+  const C = computeAll(data, nowMs, resume ? {resume} : null), today = C.today;
   out.today = today;
   if(s.startDate > today) return out;
   const name = s.name || 'ninja';

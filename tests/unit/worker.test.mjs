@@ -78,8 +78,8 @@ test('two devices log different sets on the same day: the server keeps every one
   const a2 = await sync(env, a.json.cursor);
   assert.equal(byPath(a2)[DAY].data.sets.length, 3, 'device A picks up B\'s set on its next sync');
   const again = await sync(env, b.json.cursor, [{path:DAY, data:{date:'2026-11-10', sets:[set('pullups', 7, '07:00')]}}]);
-  assert.deepEqual(again.json.docs, [], 'sending an older copy changes nothing and loses nothing');
-  assert.equal(again.json.cursor, b.json.cursor);
+  assert.equal(again.json.cursor, b.json.cursor, 'sending an older copy changes nothing');
+  assert.equal(byPath(again)[DAY].data.sets.length, 3, 'and the device is handed the full day back');
 });
 
 test('Undo travels: the removed set goes away on the server and on the other device, and stays away', async () => {
@@ -89,7 +89,9 @@ test('Undo travels: the removed set goes away on the server and on the other dev
   assert.equal(byPath(undone)[DAY].data.sets.length, 1);
   assert.equal(byPath(undone)[DAY].removed.length, 1, 'the other device is told what was removed');
   const stale = await sync(env, undone.json.cursor, [{path:DAY, data:full}]);
-  assert.deepEqual(stale.json.docs, [], 'a device that still has the undone set cannot bring it back');
+  assert.equal(stale.json.cursor, undone.json.cursor, 'a device that still has the undone set cannot bring it back');
+  assert.equal(byPath(stale)[DAY].data.sets.length, 1);
+  assert.equal(byPath(stale)[DAY].removed.length, 1, 'and it is told to drop that set too');
   assert.equal(byPath(await sync(env, 0))[DAY].data.sets.length, 1);
 });
 
