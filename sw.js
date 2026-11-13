@@ -1,14 +1,16 @@
-/* The Leaf Village · offline support.
+/* The Leaf Village · offline support and notifications.
    Keeps a copy of the app, your photos and your music on the phone so it opens without internet.
    The app page itself is always checked online first, so updates show up the next time you open it.
+   It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = 'b498f0cbc5';
+const VERSION = 'e5a2c9f31b';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
  "./",
  "index.html",
  "platform.js",
+ "leaf-merge.js",
  "manifest.webmanifest",
  "media/04baf85978a90d901be411fd8aabf43e.jpg",
  "media/0cf141c4617406724f4fc4d2148c5a4b.jpg",
@@ -188,4 +190,27 @@ self.addEventListener('fetch', e=>{
     if(req.headers.has('range')) return rangeResponse(req, hit.clone());
     return hit;
   })());
+});
+
+/* ---------- reminders ----------
+   The sync Worker sends {web_push:8030, notification:{title, body, navigate, tag}}. Newer iPadOS shows that by
+   itself; everywhere else this handler shows it. Every push must show a notification, or the system stops them. */
+self.addEventListener('push', e=>{
+  let d = {};
+  try{ d = e.data ? e.data.json() : {}; }catch(err){ try{ d = {notification:{body:e.data.text()}}; }catch(e2){} }
+  const n = (d && d.notification) || d || {};
+  e.waitUntil(self.registration.showNotification(n.title || 'The Leaf Village', {
+    body: n.body || 'Your senseis are waiting.', tag: n.tag || 'leaf', icon: 'icons/icon-192.png', badge: 'icons/icon-192.png',
+    data: {url: n.navigate || './'}
+  }));
+});
+/* tapping a reminder opens the village (or brings it to the front if it is already open) */
+self.addEventListener('notificationclick', e=>{
+  e.notification.close();
+  const target = new URL((e.notification.data && e.notification.data.url) || './', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({type:'window', includeUncontrolled:true}).then(list=>{
+    const open = list.find(c=>c.url.indexOf(self.registration.scope) === 0);
+    if(open && open.focus) return open.focus();
+    return self.clients.openWindow(target);
+  }));
 });

@@ -25,7 +25,7 @@ const settings = {
     {from:START, plan:PLAN1, gtg:{sets:6, minSets:5, pct:50}, test:{sets:2, ex:['pullups','dips']}},
     {from:'2026-10-18', plan:PLAN2, gtg:{sets:6, minSets:5, pct:50}, combo:{sets:3}, test:{sets:2, ex:['pullups','dips']}, study:{week:{min:240, full:360}, end:{min:360, full:480}}}
   ],
-  celebrated:1, studyStart:STUDY_START,
+  celebrated:5, studyStart:STUDY_START,
   examWeeks:[{start:'2026-10-04', end:'2026-10-10', created:'2026-10-03T09:00:00.000Z'}]
 };
 const planOn = d => (d >= '2026-10-18' ? PLAN2 : PLAN1)[dow(d)];

@@ -642,6 +642,7 @@ body.has-player .wrap{padding-bottom:178px}
 <div id="minibar" class="minibar" aria-hidden="true"></div>
 <div class="peekhint" aria-hidden="true">Tap anywhere to return</div>
 
+<script src="leaf-merge.js"></script>
 <script src="platform.js"></script>
 <script>
 (function(){
@@ -804,7 +805,7 @@ let duckHook=null;
 /* ---------- state & storage ---------- */
 const state = { mode:'loading', settings:null, media:null, prefs:null, timer:null, days:{}, body:{}, study:{}, loaded:{settings:false,days:false,body:false,media:false,prefs:false,study:false,timer:false}, stale:false, error:null, readOnly:false };
 const pending = { settings:null, media:null, prefs:null, timer:null, days:{}, body:{}, study:{} };
-const ui = { tab:'mission', reps:{}, draft:null, weigh:null, setup:null, newEx:{name:'',max:''}, confirm:null, confirmTimer:null, overlayKey:null, viewRank:null, scrollOpen:{work:false, study:false}, uploading:{}, statsMode:'workout', studyMonth:null, examStart:null };
+const ui = { tab:'mission', reps:{}, draft:null, weigh:null, setup:null, newEx:{name:'',max:''}, confirm:null, confirmTimer:null, overlayKey:null, viewRank:null, scrollOpen:{work:false, study:false}, uploading:{}, statsMode:'workout', studyMonth:null, examStart:null, syncKey:'', syncEdit:false, syncBusy:false, pushBusy:false, pushMsg:'' };
 let db = null;
 
 const S = () => pending.settings || state.settings;
@@ -1955,7 +1956,8 @@ function setupView(){
     <h2>Moving from the Claude version?</h2>
     <p class="muted small">Import your backup file instead, and your rank, XP, streaks and history come with you.</p>
     ${importBlock(false)}
-  </section>`;
+  </section>
+  ${setupSyncCard()}`;
 }
 
 /* ---------- ambient + burst particles ---------- */
@@ -2494,12 +2496,88 @@ function writeSummary(C){
   clearTimeout(summaryTimer);
   summaryTimer=setTimeout(()=>{ persist('leaf/summary', Object.assign({updated:new Date().toISOString()}, JSON.parse(j)), null); }, 1500);
 }
+/* ---------- sync and notifications (the work is done in platform.js and the Worker) ---------- */
+const Sync = (window.LeafSync && window.LeafSync.available) ? window.LeafSync : null;
+function agoText(t){
+  const sec=Math.max(0,Math.floor((Date.now()-t)/1000));
+  if(sec<90) return 'just now';
+  if(sec<3600) return `${Math.round(sec/60)} minutes ago`;
+  const d=new Date(t), time=`${pad(d.getHours())}:${pad(d.getMinutes())}`, day=ymd(d);
+  if(day===todayStr()) return `today at ${time}`;
+  if(day===addDays(todayStr(),-1)) return `yesterday at ${time}`;
+  return `on ${shortDate(day)} at ${time}`;
+}
+function syncStatusText(st){
+  if(st.state==='syncing') return st.everSynced ? 'Syncing…' : 'First sync: copying your village…';
+  const last = st.last ? ` Last synced ${agoText(st.last)}.` : '';
+  if(st.error==='key') return 'The sync key doesn\'t match the one saved online. Check it and type it again.';
+  if(st.error==='offline') return 'No internet right now. Your logs are safe on this device and will sync by themselves later.'+last;
+  if(st.error) return 'The online copy couldn\'t be reached just now. It will try again by itself.'+last;
+  if(!st.last) return 'Not synced yet.';
+  return `Synced ${agoText(st.last)}. ${st.waiting ? `${st.waiting} change${st.waiting===1?'':'s'} waiting to upload.` : 'Everything is saved online.'}`;
+}
+function syncKeyField(){
+  return `<label class="field"><span>Sync key</span><input id="sync-key" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" data-bind="syncKey" value="${esc(ui.syncKey||'')}" placeholder="The key you saved in GitHub"></label>`;
+}
+function syncCard(){
+  if(!Sync || state.mode!=='db') return `<section class="card"><h2>Sync</h2><p class="muted small">Sync isn't ready in this copy of the app yet. Close the app fully and open it again.</p></section>`;
+  const st=Sync.status(), busy=ui.syncBusy || st.state==='syncing';
+  if(!st.on) return `<section class="card">
+    <div class="section-head"><h2>Sync</h2><span class="eyebrow">Off</span></div>
+    <p class="muted small">Keep a second copy of your logs in your own online database, so they survive a lost iPad and follow you to another device. Type your sync key once; it is saved on this device.</p>
+    ${syncKeyField()}
+    <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="sync-on"${busy?' disabled':''}>${busy?'Syncing…':'Turn on sync'}</button></div>
+  </section>`;
+  const editing = ui.syncEdit || st.error==='key';
+  return `<section class="card">
+    <div class="section-head"><h2>Sync</h2><span class="eyebrow">${st.error?'Needs attention':'On'}</span></div>
+    <p class="notice" id="sync-status" role="status">${esc(syncStatusText(st))}</p>
+    ${editing ? `${syncKeyField()}<div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="sync-on"${busy?' disabled':''}>${busy?'Syncing…':'Save key and sync'}</button>${st.error==='key'?'':'<button type="button" class="btn small ghost" data-act="sync-cancel">Cancel</button>'}</div>`
+      : `<div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="sync-now"${busy?' disabled':''}>${busy?'Syncing…':'Sync now'}</button><button type="button" class="btn small ghost" data-act="sync-change">Change key</button></div>`}
+    <p class="muted small">It syncs by itself when you log something and when you open the app. Logs from two devices are joined, never replaced. Photos, sounds and music you added stay on the device you added them on.</p>
+  </section>`;
+}
+function setupSyncCard(){
+  if(!Sync || state.mode!=='db') return '';
+  const st=Sync.status(), busy=ui.syncBusy || st.state==='syncing';
+  return `<section class="card" style="margin-top:14px">
+    <h2>Already training on another device?</h2>
+    <p class="muted small">Type your sync key and your whole village comes here from your online copy: rank, XP, streaks and history.</p>
+    ${syncKeyField()}
+    ${st.on ? `<p class="notice" role="status">${esc(st.state==='idle' && !st.error && st.last ? 'Sync is on, but nothing is saved online yet. Set up your village above and it will be copied online.' : syncStatusText(st))}</p>` : ''}
+    <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="sync-on"${busy?' disabled':''}>${busy?'Bringing your village…':'Bring my village here'}</button></div>
+  </section>`;
+}
+const NOTIFY_ROWS=[['briefing','Morning briefing'],['streak','Mission reminders'],['test','Test-day messages'],['study','Study reminders'],['promotion','Promotion is close'],['weekly','Sunday weekly report']];
+function pushErrorText(e){
+  const c=e && e.code;
+  if(c==='denied') return 'Notifications were not allowed. To change that, open the iPad\'s Settings app → Notifications → Leaf Village.';
+  if(c==='offline') return 'No internet right now. Try again when you are online.';
+  if(c==='key') return 'The sync key doesn\'t match. Fix it in the Sync card first.';
+  if(c==='nosync') return 'Turn on Sync first.';
+  if(c==='unsupported') return 'Notifications only work from the home-screen icon, on iPadOS 16.4 or newer.';
+  return 'Notifications couldn\'t be turned on. Close the app fully, open it again and try once more.';
+}
 function notifyCard(){
   const row=(t,l)=>`<li><b>${t}</b><span>${l}</span></li>`;
+  const n=Object.assign({}, NOTIFY_DEFAULT, (S()||{}).notify||{});
+  const P = Sync ? Sync.push.status() : {supported:false, permission:'unsupported', on:false};
+  let body;
+  if(!Sync || !Sync.hasKey()) body='<p class="notice">Turn on Sync first (the card just above). The senseis write each reminder from your synced logs.</p>';
+  else if(!P.supported) body='<p class="notice">Notifications only work when you open the village from its home-screen icon, on iPadOS 16.4 or newer.</p>';
+  else if(P.permission==='denied') body='<p class="notice">Notifications are blocked for the Leaf Village. Allow them in the iPad\'s Settings app → Notifications → Leaf Village, then come back here.</p>';
+  else if(P.on) body=`<p class="notice" role="status">Notifications are on for this device.</p><div class="btnrow"><button type="button" class="btn small ghost" data-act="push-test">Send a test</button><button type="button" class="btn small ghost" data-act="push-off">Turn off on this device</button></div>`;
+  else body=`<div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="push-on"${ui.pushBusy?' disabled':''}>${ui.pushBusy?'Turning on…':'Turn on notifications'}</button></div>`;
+  if(ui.pushMsg) body+=`<p class="notice" role="alert">${esc(ui.pushMsg)}</p>`;
+  const sw=(k,label,dis)=>`<button type="button" class="switch" role="switch" aria-checked="${!!n[k]}" data-act="notify" data-k="${k}"${dis||state.readOnly?' disabled':''}><span>${label}</span><span class="switch-track" aria-hidden="true"><span></span></span></button>`;
   return `<section class="card">
-    <div class="section-head"><h2>Reminders</h2><span class="eyebrow">Phone alarms</span></div>
-    <p class="muted small">This version lives only on your phone, so it can't send reminders by itself. Set these as repeating alarms in the Clock app and open the village when they ring.</p>
+    <div class="section-head"><h2>Reminders</h2><span class="eyebrow">${P.on?'On':'Off'}</span></div>
+    <p class="muted small">Your senseis send one short notification at each of these times, written from what you have really logged that day. When nothing needs saying, they stay quiet.</p>
     <ul class="alarm-list">${row('5:40 am','Morning briefing · today\'s mission and study target')}${row('11:40 am','Midday check · sets and study hours so far')}${row('5:40 pm','Evening check · finish the mission')}${row('10:40 pm','Last call · protect both streaks before midnight')}</ul>
+    ${body}
+    ${sw('enabled','All reminders')}
+    ${NOTIFY_ROWS.map(([k,l])=>sw(k,l,!n.enabled)).join('')}
+    <p class="muted small">These switches follow you to every synced device. In an exam week the senseis send only one good-luck line each morning.</p>
   </section>`;
 }
 
@@ -2538,6 +2616,7 @@ function settingsView(C){
     ${sw('pref-ambient',prefs.ambient,'Moving background')}
     ${reduceMotion()?'<p class="notice">Reduce Motion is on in your phone settings, so effects are already toned down.</p>':''}
   </section>
+  ${syncCard()}
   ${notifyCard()}
   ${examCard(C)}
   <section class="card">
@@ -2554,7 +2633,7 @@ function settingsView(C){
   ${soundCard()}
   <section class="card">
     <h2>Backup</h2>
-    <p class="muted small">Everything lives on this phone only. Download a backup every Sunday and keep it in Files or iCloud Drive. If the app is deleted, that file is your only copy.</p>
+    <p class="muted small">${Sync && Sync.hasKey() ? 'Sync keeps an online copy of your logs. A backup file is still your safety net: download one every Sunday and keep it in Files or iCloud Drive.' : 'Everything lives on this phone only. Download a backup every Sunday and keep it in Files or iCloud Drive. If the app is deleted, that file is your only copy.'}</p>
     <p class="muted small" style="margin:0">${backupAgeText()}</p>
     ${importBlock(true)}
   </section>`;
@@ -2592,7 +2671,7 @@ function importBlock(withDownload){
   return btns+`<div class="import-panel" role="group" aria-label="Import backup">
       <p><b>Backup from ${esc(when)}</b></p>
       <p>${n(d.days)} workout days · ${n(d.study)} study days · ${n(d.body)} weigh-ins</p>
-      <p class="muted">${here?'This replaces everything already saved on this phone with the backup.':'This brings your whole history onto this phone.'}${d.study?'':' This backup has no study hours in it.'}</p>
+      <p class="muted">${here?'This replaces everything already saved on this phone with the backup.':'This brings your whole history onto this phone.'}${Sync && Sync.hasKey() ? ' With sync on, logs already saved online are joined back in afterwards.' : ''}${d.study?'':' This backup has no study hours in it.'}</p>
       <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="import-yes">${here?'Replace with backup':'Import'}</button><button type="button" class="btn small ghost" data-act="import-no">Cancel</button></div>
     </div>`;
 }
@@ -2849,6 +2928,31 @@ document.addEventListener('click', e=>{
   if(act==='sensei-clear'){ const id=el.dataset.id, old=media().senseis[id]; if(!old) return; saveMedia(m=>{ m.senseis=Object.assign({}, m.senseis); delete m.senseis[id]; }); deleteAsset(old.id); toast('Picture removed'); return; }
   if(act==='peek'){ document.body.classList.add('peek'); return; }
   if(act==='notify'){ if(state.readOnly) return; const k=el.dataset.k; const s2=clone(S()); s2.notify=Object.assign({}, NOTIFY_DEFAULT, s2.notify||{}); s2.notify[k]=!s2.notify[k]; save('settings', null, s2); SFX.play('tick'); return; }
+  if(act==='sync-on'){
+    if(!Sync || ui.syncBusy) return;
+    const k=(ui.syncKey||'').trim(); if(!k){ toast('Type your sync key first.'); return; }
+    ui.syncBusy=true; render();
+    Sync.setKey(k).then(ok=>{
+      ui.syncBusy=false;
+      if(ok){ ui.syncKey=''; ui.syncEdit=false; toast(S() ? 'Sync is on' : 'Sync is on. Nothing is saved online yet.'); }
+      else toast(syncStatusText(Sync.status()));
+      render();
+    });
+    return;
+  }
+  if(act==='sync-now'){ if(!Sync) return; Sync.syncNow().then(ok=>{ toast(ok ? 'Synced' : syncStatusText(Sync.status())); render(); }); render(); return; }
+  if(act==='sync-change'){ ui.syncEdit=true; ui.syncKey=''; render(); return; }
+  if(act==='sync-cancel'){ ui.syncEdit=false; ui.syncKey=''; render(); return; }
+  if(act==='push-on'){
+    if(!Sync || ui.pushBusy) return;
+    ui.pushBusy=true; ui.pushMsg='';
+    /* the permission question must be asked straight from this tap */
+    const asking=Sync.push.enable(); render();
+    asking.then(()=>{ toast('Notifications are on'); }, e=>{ ui.pushMsg=pushErrorText(e); }).then(()=>{ ui.pushBusy=false; render(); });
+    return;
+  }
+  if(act==='push-off'){ if(!Sync) return; Sync.push.disable().then(()=>{ toast('Notifications are off on this device'); render(); }); return; }
+  if(act==='push-test'){ if(!Sync) return; toast('Sending a test…'); Sync.push.test().then(r=>toast(r && r.sent ? 'Test sent. It should arrive in a few seconds.' : 'The test could not be delivered. Turn notifications off and on again.'), e=>toast(pushErrorText(e))); return; }
   if(act==='bg-all'){ prefs.bgAll=!prefs.bgAll; savePrefs(); render(); return; }
   if(act==='bg-focus'){ const sl=el.dataset.slot; prefs.bgFocus=Object.assign({},prefs.bgFocus,{[sl]:el.dataset.v}); savePrefs(); render(); return; }
   if(act==='bg-clear'){ const sl=el.dataset.slot, old=media().bg[sl]; if(!old) return; saveMedia(m=>{ delete m.bg[sl]; }); deleteAsset(old.id); toast('Background removed'); return; }
@@ -3117,6 +3221,7 @@ document.addEventListener('click', firstTouch, {capture:true, passive:true});
 try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }); }catch(e){}
 try{ new MutationObserver(()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']}); }catch(e){}
 
+if(Sync) Sync.onChange(()=>{ if(ui.tab==='settings' || !S()) render(); });
 readHash();
 initStore();
 try{ if(sessionStorage.getItem('leaf-imported')){ sessionStorage.removeItem('leaf-imported'); setTimeout(()=>toast('Backup imported. Welcome back to the village.'), 1200); } }catch(e){}
