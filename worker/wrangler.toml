@@ -1,0 +1,25 @@
+# The Leaf Village · sync and sensei reminders (Cloudflare Worker, free tier)
+name = "leaf-village-sync"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+preview_urls = false
+
+[vars]
+# only the app on GitHub Pages may call this Worker from a browser
+ALLOWED_ORIGIN = "https://allamisharafaldeen-cloud.github.io"
+APP_URL = "https://allamisharafaldeen-cloud.github.io/Leaf-village/"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "leaf-village"
+# the deploy workflow fills in the real id (it creates the database the first time)
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[triggers]
+# 5:40, 11:40, 17:40 and 22:40 in Baghdad (UTC+3)
+crons = ["40 2,8,14,19 * * *"]
+
+[observability]
+enabled = true
