@@ -2383,7 +2383,8 @@ function rankWall(){
   if(prefs.rankWalls===false || !lastC) return null;
   const i = appliedTheme==null ? lastC.peak : appliedTheme, r=RANKS[i]; if(!r || !r.walls || !r.walls.length) return null;
   const tabIdx = Math.max(0, ['mission','stats','plan','ninja','settings'].indexOf(ui.tab));
-  const n = Math.abs(daysBetween('2026-01-01', lastC.today)) + tabIdx;
+  /* a full set of five = one fixed picture per tab; a smaller set rotates daily until the rest arrive */
+  const n = r.walls.length>=5 ? tabIdx : Math.abs(daysBetween('2026-01-01', lastC.today)) + tabIdx;
   const f = r.walls[n % r.walls.length];
   return {id:'rank-'+f, name:r.name+' wallpaper', url:'media/'+f+'.jpg', rank:true};
 }
