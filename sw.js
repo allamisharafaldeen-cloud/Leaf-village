@@ -2,7 +2,7 @@
    Keeps a copy of the app, your photos and your music on the phone so it opens without internet.
    The app page itself is always checked online first, so updates show up the next time you open it.
    Bump VERSION whenever files change. */
-const VERSION = '29bc66ee59';
+const VERSION = 'e30e35b272';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
@@ -117,7 +117,12 @@ const FILES = [
  "media/wp-genin-5.jpg",
  "ranks/genin-cut-v3.webp",
  "ranks/chunin-cut-v2.webp",
- "ranks/special-jonin-cut-v2.webp"
+ "ranks/special-jonin-cut-v2.webp",
+ "ranks/chunin-aura.webp",
+ "ranks/genin-aura.webp",
+ "ranks/jonin-aura.webp",
+ "ranks/jonin-cut-v2.webp",
+ "ranks/special-jonin-aura.webp"
 ];
 
 self.addEventListener('install', e=>{
