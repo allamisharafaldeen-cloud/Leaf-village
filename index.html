@@ -603,13 +603,17 @@ body.has-player .wrap{padding-bottom:178px}
 @keyframes revive{0%{filter:grayscale(1) brightness(.4) blur(3px); transform:scale(1.08)}60%{filter:grayscale(.3) brightness(1.1)}100%{filter:none; transform:scale(1)}}
 /* drawn aura: grows through the rank, flickers harder as today's mission fills, flares on every log */
 .aura-box{position:absolute; bottom:0; left:50%; height:94%; aspect-ratio:var(--ar); transform:translateX(-50%); pointer-events:none}
-.aura-art{position:absolute; max-width:none; transform-origin:50% 92%; scale:calc(.92 + .16*var(--rankp,0));
-  opacity:min(1, calc(.6 + .3*var(--rankp,0) + .2*var(--power,0))); filter:saturate(1.6) brightness(1.35) drop-shadow(0 0 10px var(--aura));
+.aura-art{position:absolute; max-width:none;
+  --glow:calc(6px + 14px*var(--rankp,0));
+  opacity:min(1, calc(.6 + .3*var(--rankp,0) + .2*var(--power,0))); filter:saturate(1.6) brightness(1.35) drop-shadow(0 0 var(--glow) var(--aura));
   animation:auraflick calc(3.4s - 1.8s*var(--power,0)) ease-in-out infinite}
-@keyframes auraflick{0%,100%{transform:scale(1) translateY(0); filter:saturate(1.6) brightness(1.3) drop-shadow(0 0 8px var(--aura))}50%{transform:scale(1.03) translateY(-.8%); filter:saturate(1.8) brightness(1.6) drop-shadow(0 0 16px var(--aura))}}
+/* the aura never moves or resizes, so it stays locked to the body: it only breathes in light */
+@keyframes auraflick{0%,100%{filter:saturate(1.6) brightness(1.25) drop-shadow(0 0 var(--glow) var(--aura))}50%{filter:saturate(1.85) brightness(1.6) drop-shadow(0 0 calc(var(--glow) * 1.8) var(--aura))}}
 .stage.has-art .char-glow-wrap{display:none}
 .stage.powerup .aura-art{animation:auraflare 1.2s cubic-bezier(.2,.9,.3,1)}
-@keyframes auraflare{0%{opacity:1; transform:scale(1.14); filter:saturate(2) brightness(2.2) drop-shadow(0 0 24px var(--aura))}35%{opacity:1; transform:scale(1.08); filter:saturate(1.7) brightness(1.6)}100%{transform:scale(1); filter:saturate(1.6) brightness(1.3) drop-shadow(0 0 8px var(--aura))}}
+.stage.powerup .aura-box{animation:flexbox .7s cubic-bezier(.2,1.5,.4,1)}
+@keyframes flexbox{0%{transform:translateX(-50%) scale(1)}35%{transform:translateX(-50%) scale(1.07)}100%{transform:translateX(-50%) scale(1)}}
+@keyframes auraflare{0%{opacity:1; filter:saturate(2.2) brightness(2.4) drop-shadow(0 0 36px var(--aura))}35%{opacity:1; filter:saturate(1.9) brightness(1.8) drop-shadow(0 0 24px var(--aura))}100%{filter:saturate(1.6) brightness(1.25) drop-shadow(0 0 var(--glow) var(--aura))}}
 @media (prefers-reduced-motion: reduce){.aura-art{animation:none}}
 </style>
 </head>
