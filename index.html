@@ -648,11 +648,11 @@ body.has-player .wrap{padding-bottom:178px}
 'use strict';
 
 /* ---------- game constants ---------- */
-const CUT_AR = {"eight-gates": 1.409, "byakugan": 1.059, "akatsuki": 1.185, "susanoo": 1.002, "academy": 0.731, "genin": 0.531, "chunin": 0.532, "special-jonin": 0.718, "jonin": 0.527, "anbu": 0.771, "sannin": 0.887, "kage": 0.797, "hokage": 0.966, "sage": 1.168, "tailed-beast": 1.267, "six-paths": 0.738};
+const CUT_AR = {"eight-gates": 0.505, "byakugan": 1.059, "akatsuki": 0.382, "susanoo": 1.002, "academy": 0.731, "genin": 0.531, "chunin": 0.532, "special-jonin": 0.657, "jonin": 0.533, "anbu": 0.551, "sannin": 0.556, "kage": 0.693, "hokage": 0.56, "sage": 1.168, "tailed-beast": 0.693, "six-paths": 0.738};
 /* the aura Gemini drew around each character, cut out as its own layer: [left, top, width, height] in % of the character box */
-const AURA_BOX = {'genin':[-3.06,-1.72,105.16,103.53],'chunin':[-3.05,-2.09,105.49,103.85],'special-jonin':[-2.91,-1.86,103.75,103.91],'jonin':[-3.76,-1.66,107.07,102.81]};
-const CUT_V = {'academy':'-v2','genin':'-v3','chunin':'-v2','special-jonin':'-v2','jonin':'-v2','six-paths':'-v2'};
-const AURA = {'eight-gates':'#ff3b2f','byakugan':'#dfe3ff','akatsuki':'#ff4a4a','susanoo':'#ff5ea0','academy':'#6ec3ff','genin':'#6ec3ff','chunin':'#5fe0c0','special-jonin':'#ffcf6e','jonin':'#9ad4ff','anbu':'#b9c8ff','sannin':'#ff8fa6','kage':'#ff7b6b','hokage':'#ffb14a','sage':'#ff8a3d','tailed-beast':'#ffc229','six-paths':'#ffe27a'};
+const AURA_BOX = {"genin": [-3.06, -1.72, 105.16, 103.53], "chunin": [-2.62, -2.0, 106.72, 103.16], "special-jonin": [-5.68, -1.75, 108.35, 102.86], "jonin": [-2.71, -2.09, 106.98, 103.3], "anbu": [-1.41, -0.32, 101.49, 100.96], "akatsuki": [-3.98, -1.29, 108.19, 103.08], "sannin": [-7.67, -2.43, 114.19, 104.13], "tailed-beast": [-3.39, 0.13, 104.22, 101.06], "eight-gates": [-11.53, -0.04, 123.48, 102.67], "kage": [-2.57, -2.01, 105.07, 103.93], "hokage": [-4.41, -2.28, 108.15, 104.84]};
+const CUT_V = {"academy": "-v2", "genin": "-v3", "chunin": "-v3", "special-jonin": "-v3", "jonin": "-v3", "six-paths": "-v2", "anbu": "-v2", "akatsuki": "-v2", "sannin": "-v2", "tailed-beast": "-v2", "eight-gates": "-v2", "kage": "-v2", "hokage": "-v2"};
+const AURA = {"eight-gates": "#ff3b2f", "byakugan": "#dfe3ff", "akatsuki": "#ff4a4a", "susanoo": "#ff5ea0", "academy": "#6ec3ff", "genin": "#6ec3ff", "chunin": "#5fe0c0", "special-jonin": "#a9c8ff", "jonin": "#4a7dff", "anbu": "#b9c8ff", "sannin": "#ffb84a", "kage": "#f2f0ea", "hokage": "#ffb14a", "sage": "#ff8a3d", "tailed-beast": "#ffc229", "six-paths": "#ffe27a"};
 const RANKS = [
   {id:'academy',      name:'Academy Student',   xp:0,     color:'#8a968c', walls:['wp-konoha-roof','wp-ichiraku','wp-konoha-street','wp-konoha-naruto','wp-konoha-classic']},
   {id:'genin',        name:'Genin',             xp:1500,  color:'#3e9150', focus:'58% 22%', walls:['wp-genin-1','wp-genin-2','wp-genin-3','wp-genin-4','wp-genin-5']},

@@ -2,7 +2,7 @@
    Keeps a copy of the app, your photos and your music on the phone so it opens without internet.
    The app page itself is always checked online first, so updates show up the next time you open it.
    Bump VERSION whenever files change. */
-const VERSION = 'b699d5af2f';
+const VERSION = 'b498f0cbc5';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
@@ -33,7 +33,6 @@ const FILES = [
  "ranks/academy-cut.webp",
  "ranks/academy-face.jpg",
  "ranks/academy.jpg",
- "ranks/anbu-cut.webp",
  "ranks/anbu-face.jpg",
  "ranks/anbu.jpg",
  "ranks/chunin-cut.webp",
@@ -42,19 +41,16 @@ const FILES = [
  "ranks/genin-cut.webp",
  "ranks/genin-face.jpg",
  "ranks/genin.jpg",
- "ranks/hokage-cut.webp",
  "ranks/hokage-face.jpg",
  "ranks/hokage.jpg",
  "ranks/jonin-cut.webp",
  "ranks/jonin-face.jpg",
  "ranks/jonin.jpg",
- "ranks/kage-cut.webp",
  "ranks/kage-face.jpg",
  "ranks/kage.jpg",
  "ranks/sage-cut.webp",
  "ranks/sage-face.jpg",
  "ranks/sage.jpg",
- "ranks/sannin-cut.webp",
  "ranks/sannin-face.jpg",
  "ranks/sannin.jpg",
  "ranks/six-paths-cut-v2.webp",
@@ -64,13 +60,11 @@ const FILES = [
  "ranks/special-jonin-cut.webp",
  "ranks/special-jonin-face.jpg",
  "ranks/special-jonin.jpg",
- "ranks/tailed-beast-cut.webp",
  "ranks/tailed-beast-face.jpg",
  "ranks/tailed-beast.jpg",
  "icons/icon-180.png",
  "icons/icon-192.png",
  "icons/icon-512.png",
- "ranks/akatsuki-cut.webp",
  "ranks/akatsuki-face.jpg",
  "ranks/akatsuki.jpg",
  "ranks/byakugan-cut.webp",
@@ -92,7 +86,6 @@ const FILES = [
  "media/wp-pain.jpg",
  "media/wp-uchiha.jpg",
  "media/wp-valley.jpg",
- "ranks/eight-gates-cut.webp",
  "ranks/eight-gates-face.jpg",
  "ranks/eight-gates.jpg",
  "media/wp-forest-death.jpg",
@@ -116,13 +109,27 @@ const FILES = [
  "media/wp-genin-4.jpg",
  "media/wp-genin-5.jpg",
  "ranks/genin-cut-v3.webp",
- "ranks/chunin-cut-v2.webp",
- "ranks/special-jonin-cut-v2.webp",
  "ranks/chunin-aura.webp",
  "ranks/genin-aura.webp",
  "ranks/jonin-aura.webp",
- "ranks/jonin-cut-v2.webp",
- "ranks/special-jonin-aura.webp"
+ "ranks/special-jonin-aura.webp",
+ "ranks/chunin-cut-v3.webp",
+ "ranks/jonin-cut-v3.webp",
+ "ranks/special-jonin-cut-v3.webp",
+ "ranks/anbu-cut-v2.webp",
+ "ranks/anbu-aura.webp",
+ "ranks/akatsuki-cut-v2.webp",
+ "ranks/akatsuki-aura.webp",
+ "ranks/sannin-cut-v2.webp",
+ "ranks/sannin-aura.webp",
+ "ranks/tailed-beast-cut-v2.webp",
+ "ranks/tailed-beast-aura.webp",
+ "ranks/eight-gates-cut-v2.webp",
+ "ranks/eight-gates-aura.webp",
+ "ranks/kage-cut-v2.webp",
+ "ranks/kage-aura.webp",
+ "ranks/hokage-cut-v2.webp",
+ "ranks/hokage-aura.webp"
 ];
 
 self.addEventListener('install', e=>{
