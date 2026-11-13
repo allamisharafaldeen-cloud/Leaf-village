@@ -26,6 +26,15 @@ Keep everything consistent with the existing look (scroll cards, sensei voices, 
 7. **Focus cycles**: an optional study-timer mode: 50 minutes of work, then a 10-minute "chakra recovery" break with a gentle sound. Only work time counts as study. The existing 3-hour "Still studying?" check must keep working.
 8. **Jutsu unlocks**: harder pull-up and dip variations unlock at ranks (for example archer pull-ups, L-sit pull-ups, weighted dips). Unlocking only makes them available. They join the plan only if Sharaf adds them, and they need their own baseline test.
 
+## Things built since this brief was first written (keep them working)
+
+- The rank ladder has 14 ranks (Academy Student to Hokage, Hokage at 77,500 XP), with Akatsuki, Susanoo and Eight Gates added.
+- Rank wallpapers: each rank has a set in `RANKS[].walls`; a full set of five gives each tab its own fixed picture.
+- Characters: body cut-outs (`ranks/<id>-cut*.webp`) plus a separate drawn-aura layer (`ranks/<id>-aura.webp`, positioned by `AURA_BOX`). The aura starts each day at zero and grows one equal step per logged set or study hour (`todayPower`), flares on every log, and must never move or scale apart from the body.
+- A mini ninja bar and tap XP bursts show rewards when the stage is scrolled away.
+- Study targets per day in the Plan tab, Thursday off-day study, and a reworked music player (in-memory tracks, pause in background, lock-screen controls).
+- Streak-broken and Comeback scenes.
+
 ## Rules
 
 - XP thresholds (Hokage at 77,500), existing XP rules, streak rules, shields, exam weeks and Thursday off-day rules must not change unless a fix requires it. If one does, explain why in your final message.
