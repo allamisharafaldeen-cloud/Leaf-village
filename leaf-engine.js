@@ -35,6 +35,16 @@ const CHALLENGES = {
 };
 const STUDY = {halfXp:20, minBonus:50, fullBonus:30, combo:10, comboWindow:60*60000, weekGoal:1800, weekXp:400, capMs:3*3600000, offFull:480};
 const STUDY_DEFAULT = {week:{min:240, full:360}, end:{min:360, full:480}};
+/* the shadow clone: each finished week races the same week four weeks earlier on XP, reps and study minutes.
+   Winning two of the three earns a small bonus, credited to that Saturday once the week is over.
+   Only weeks from the Sunday this rule arrived count, so no XP appears in the past. */
+const RIVAL = {from:'2026-11-15', xp:50, back:28};
+function raceResult(me, clone){
+  if(!me || !clone || me.days !== 7 || clone.days !== 7 || me.ex || clone.ex || me.start < RIVAL.from) return null;
+  let wins = 0, losses = 0;
+  ['xp', 'repsAll', 'mins'].forEach(k => { const a = me[k] || 0, b = clone[k] || 0; if(a > b) wins++; else if(a < b) losses++; });
+  return {win:wins >= 2, wins, losses};
+}
 /* only the first sets of a groove day count for XP, but never fewer than the plan asks for */
 const SET_CAP = 10;
 
@@ -187,8 +197,8 @@ function compute(data, nowMs){
       const plan = planFor(s, d);
       const sets = setsOf(dayDocs[d]);
       const wk = weekStart(d);
-      const W = weeks[wk] || (weeks[wk] = {start:wk, reps:{}, missed:0, days:0, done:0, qual:0, weigh:0, prDone:false, open:false});
-      sets.forEach(x => { totalReps[x.ex] = (totalReps[x.ex] || 0) + x.reps; W.reps[x.ex] = (W.reps[x.ex] || 0) + x.reps; });
+      const W = weeks[wk] || (weeks[wk] = {start:wk, reps:{}, missed:0, days:0, done:0, qual:0, weigh:0, prDone:false, open:false, xp:0, repsAll:0, mins:0});
+      sets.forEach(x => { totalReps[x.ex] = (totalReps[x.ex] || 0) + x.reps; W.reps[x.ex] = (W.reps[x.ex] || 0) + x.reps; W.repsAll += x.reps; });
       let base = 0, complete = false, info = {};
       if(plan.type === 'gtg'){
         const ex = plan.ex, g = plan.gtg, target = gtgTarget(maxes[ex], g.pct);
@@ -239,6 +249,7 @@ function compute(data, nowMs){
       if(bodyDates.has(d)){ W.weigh++; if(W.weigh === CHALLENGES.jiraiya.goal) bonus.push('jiraiya'); }
       W.open = status === 'open';
       if(status === 'exam') W.exam = (W.exam || 0) + 1;
+      if(isExam(s, d)) W.ex = (W.ex || 0) + 1;                     // any day of an exam-week pass: that week does not race
       if(dowOf(d) === 6 && W.days === 7 && W.missed === 0 && status !== 'open') bonus.push('hiruzen');
       bonus.forEach(id => { xp += CHALLENGES[id].xp; awards.push({key:id, sensei:id, date:d, week:wk, xp:CHALLENGES[id].xp, title:CHALLENGES[id].title}); });
       const srec = study.days[d];
@@ -247,8 +258,11 @@ function compute(data, nowMs){
       const beforeTotal = total;
       if(srec){ total = Math.max(0, total + srec.xp); if(srec.award) awards.push(study.awards.find(a => a.date === d)); }
       total = Math.max(0, total + xp);
+      W.xp += total - beforeTotal; if(srec) W.mins += srec.mins;
+      let rival = 0;
+      if(dowOf(d) === 6 && d < today){ W.rival = raceResult(W, weeks[addDays(wk, -RIVAL.back)]); if(W.rival && W.rival.win){ rival = RIVAL.xp; xp += rival; total += rival; } }
       peak = Math.max(peak, rankFor(total));
-      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, sxp:srec ? srec.xp : 0, gain:total - beforeTotal, total, peak, maxes:plan.type === 'test' ? Object.assign({}, maxes) : null});
+      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, rival, sxp:srec ? srec.xp : 0, gain:total - beforeTotal, total, peak, maxes:plan.type === 'test' ? Object.assign({}, maxes) : null});
     }
   }
   const todayRec = days.length && days[days.length-1].date === today ? days[days.length-1] : null;
@@ -593,11 +607,26 @@ function examCountdown(C){
     banked, daysCounted:n, suggestPass:days >= 0 && days <= 7 && !covered && !passUsed};
 }
 
+/* ---------- shadow clone rival: this week so far against the same weekdays four weeks ago ---------- */
+function rival(C){
+  const ws = weekStart(C.today), cs = addDays(ws, -RIVAL.back), k = dowOf(C.today);
+  const byDate = {}; C.days.forEach(d => { byDate[d.date] = d; });
+  const sum = (start, n) => { const t = {xp:0, repsAll:0, mins:0, days:0, exam:0};
+    for(let i = 0; i < n; i++){ const d = addDays(start, i), r = byDate[d]; if(!r) continue; t.days++; t.xp += r.gain - (r.rival || 0); r.sets.forEach(x => { t.repsAll += x.reps; }); if(isExam(C.settings, d)) t.exam++; const sr = C.study.days[d]; if(sr) t.mins += sr.mins; }
+    return t; };
+  const lastWk = addDays(ws, -7), L = C.weeks[lastWk], last = (L && L.rival) ? Object.assign({week:lastWk, xp:L.rival.win ? RIVAL.xp : 0}, L.rival) : null;
+  const themWeek = sum(cs, 7), me = sum(ws, k + 1), them = sum(cs, k + 1), meWeek = sum(ws, 7);
+  let on = ws >= RIVAL.from && themWeek.days === 7 && me.days === k + 1 && byDate[ws] !== undefined, why = null;
+  if(on && (themWeek.exam || meWeek.exam)){ on = false; why = 'exam'; }
+  else if(!on) why = ws < RIVAL.from ? 'soon' : 'young';
+  return {on, why, week:ws, clone:cs, day:k, me, them, themWeek, last, bonus:RIVAL.xp};
+}
+
 return {
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
-  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown
+  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival
 };
 });

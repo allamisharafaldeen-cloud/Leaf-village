@@ -552,6 +552,29 @@ test('achievements wall: every scroll with its date, hidden ones masked, and a m
   noErrors();
 });
 
+test('shadow clone race: the Mission tab compares this week with four weeks ago, and Sunday brings the result', async () => {
+  const B = await fresh('rival');
+  const card = async () => (await B.page.locator('#rival-card').textContent()).replace(/\s+/g, ' ');
+  assert.match(await card(), /Shadow clone race/); assert.match(await card(), /week of 18 Oct/);
+  assert.equal(await B.page.locator('#rival-line').textContent(), 'Your shadow clone had 438 XP by Sunday. You have 0 XP.');
+  assert.match(await card(), /The clone leads 3–0 so far\. Win two of the three by Saturday night for \+50 XP/);
+  assert.equal(await B.page.locator('#rival-last').count(), 0, 'the week before the race began has no result');
+  /* study past the clone's Sunday and log more reps: two of three now lead */
+  await B.setTime(T0 + min(2));
+  for(let i = 0; i < 5; i++) await B.page.evaluate(() => document.querySelector('.mscroll.study [data-act="st-add"][data-min="60"]').click());
+  await until(async () => ((await B.docs())['leaf/main/study/2026-11-15'] || {entries:[]}).entries.length === 5, 'five study hours');
+  for(let i = 0; i < 6; i++){ await B.setTime(T0 + min(3 + i)); await B.logSet(8); await until(async () => ((await B.docs())[TODAY] || {sets:[]}).sets.length === i + 1, `set ${i + 1}`); }
+  await until(async () => /You lead (2–1|3–0) so far/.test(await card()), 'the lead to show');
+  assert.match(await card(), /Study\s*5h\s*4h by Sun/); assert.match(await card(), /Reps\s*48 reps\s*43 reps by Sun/);
+  await B.close();
+  /* the next Sunday: last week's result (nothing was logged after the import, so the clone won) */
+  const S = await fresh('rival-sunday', {now:at('2026-11-22', 9, 0)});
+  await closeScenes(S);
+  assert.equal(await S.page.locator('#rival-last').textContent(), 'Last week your shadow clone won 3–0. A new race starts today.');
+  await S.close();
+  noErrors();
+});
+
 test('iPad screenshots of every tab, landscape and portrait (looked at by hand)', async () => {
   for(const [name, viewport] of [['landscape', {width:1148, height:802}], ['portrait', {width:820, height:1180}]]){
     const B = await rig.device('shots-' + name, {now:T0 + min(30), viewport});

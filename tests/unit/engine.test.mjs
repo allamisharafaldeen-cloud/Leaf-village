@@ -271,6 +271,7 @@ function agree(data, now, label){
   assert.deepEqual(A.study.list.map(r => [r.date, r.status, r.mins, r.xp]), W.study.list.map(r => [r.date, r.status, r.mins, r.xp]), label);
   assert.deepEqual(A.awards.map(a => [a.key, a.date, a.xp]), W.awards.map(a => [a.key, a.date, a.xp]), label);
   assert.deepEqual(A.prs.map(p => [p.date, p.ex, p.v]), W.prs.map(p => [p.date, p.ex, p.v]), label);
+  assert.deepEqual(Object.values(A.weeks).filter(w => w.rival).map(w => [w.start, w.rival.win, w.rival.wins]), Object.values(W.weeks).filter(w => w.rival).map(w => [w.start, w.rival.win, w.rival.wins]), label);
   assert.equal(A.study.streak, W.study.streak, label); assert.equal(A.study.best, W.study.best, label);
   return A;
 }
@@ -294,6 +295,8 @@ test('the two engines agree with a study timer running over midnight, and on the
   agree(V, at('2026-11-08', 9), 'long plan');
   const X = cleanWeek(); X.settings.studyStart = START; X.settings.examWeeks = [{start:'2026-11-08', end:'2026-11-14'}]; study(X, '2026-11-09', 60); sets(X, '2026-11-09', 'dips', 11, 2);
   agree(X, at('2026-11-16', 9), 'exam week');
+  const R = raceVillage([5, 5, 5, 5, 6, 5], [240, 240, 240, 240, 300, 240], {examWeeks:[{start:'2026-12-14', end:'2026-12-15'}]});
+  agree(R, at('2026-12-21', 9), 'race week with exam days');
 });
 
 /* ---------- monthly report, achievements, chapters ---------- */
@@ -407,4 +410,68 @@ test('exam countdown: days left, hours banked since it was set, and when to sugg
   assert.equal(X(at('2026-11-20', 7)).days, 0); assert.equal(X(at('2026-11-21', 7)).passed, true);
   assert.equal(E.examCountdown(E.compute(village({exam:{name:'x', date:'soon'}}), at(START, 9))), null);
   assert.equal(E.examCountdown(E.compute(village(), at(START, 9))), null);
+});
+
+/* ---------- shadow clone rival ---------- */
+/* six weeks from Sunday 15 Nov 2026 (the first week the race counts). perDay(week, date) says how many sets and study minutes */
+function raceVillage(setsIn, minsIn, over){
+  const S0 = '2026-11-15';
+  const V = village(Object.assign({startDate:S0, studyStart:S0, baseline:{pullups:{max:10, date:S0}, dips:{max:20, date:S0}},
+    scheduleHistory:[{from:S0, plan:E.DEFAULT_PLAN.map(p => p.type === 'test' ? {type:'rest'} : p), gtg:{sets:6, minSets:5, pct:50}, test:{sets:2, ex:['pullups','dips']}}]}, over || {}));
+  for(let w = 0; w < 6; w++) for(let k = 0; k < 7; k++){
+    const d = E.addDays(S0, w * 7 + k), p = E.planFor(V.settings, d);
+    if(p.type === 'gtg' && setsIn[w]) sets(V, d, p.ex, p.ex === 'pullups' ? 5 : 10, setsIn[w]);
+    if(k !== 4 && minsIn[w]) study(V, d, (k === 5 || k === 6) ? minsIn[w] + 120 : minsIn[w]);
+  }
+  return V;
+}
+test('shadow clone: a finished week races the week four weeks earlier; two wins of three earn +50 on that Saturday, from Sunday on', () => {
+  const V = raceVillage([5, 5, 5, 5, 6, 5], [240, 240, 240, 240, 300, 240]);
+  const sat = '2026-12-19', before = E.compute(V, at(sat, 23, 30)), after = E.compute(V, at('2026-12-20', 0, 30));
+  assert.equal(day(before, sat).rival, 0, 'no result while the week is still running');
+  assert.equal(day(after, sat).rival, 50); assert.equal(day(after, sat).xp, day(before, sat).xp + 50);
+  assert.deepEqual(after.weeks['2026-12-13'].rival, {win:true, wins:3, losses:0});
+  /* the first four weeks have nobody to race */
+  ['2026-11-15', '2026-11-22', '2026-11-29', '2026-12-06'].forEach(w => assert.equal(after.weeks[w].rival, null, w));
+  const base = E.compute(raceVillage([5, 5, 5, 5, 6, 5], [240, 240, 240, 240, 300, 240]), at('2026-12-19', 23, 30));
+  assert.equal(after.days.filter(d => d.date <= sat).reduce((n, d) => n + d.rival, 0), 50, 'exactly one bonus');
+  assert.equal(base.total + 50 + after.todayRec.gain, after.total);
+  /* same reps and study, so only XP differs (the streak multiplier is higher by week 5): 1 win, 2 level = no bonus */
+  let C = E.compute(raceVillage([5, 5, 5, 5, 5, 5], [240, 240, 240, 240, 240, 240]), at('2026-12-21', 9));
+  assert.deepEqual(C.weeks['2026-12-13'].rival, {win:false, wins:1, losses:0}); assert.equal(day(C, sat).rival, 0);
+  /* fewer sets and less study: the clone wins */
+  C = E.compute(raceVillage([6, 5, 5, 5, 0, 5], [300, 240, 240, 240, 100, 240]), at('2026-12-21', 9));
+  assert.deepEqual(C.weeks['2026-12-13'].rival, {win:false, wins:0, losses:3});
+  /* an exam week on either side: no race */
+  C = E.compute(raceVillage([5, 5, 5, 5, 6, 5], [240, 240, 240, 240, 300, 240], {examWeeks:[{start:'2026-12-14', end:'2026-12-15'}]}), at('2026-12-21', 9));
+  assert.equal(C.weeks['2026-12-13'].rival, null); assert.equal(day(C, sat).rival, 0);
+  /* weeks before the rule arrived never race */
+  const F = E.compute(FIX, at('2026-11-15', 10));
+  assert.ok(Object.values(F.weeks).every(w => !w.rival)); assert.ok(F.days.every(d => d.rival === 0));
+  assert.equal(E.raceResult({start:'2026-11-08', days:7, xp:9, repsAll:9, mins:9}, {start:'2026-10-11', days:7, xp:1, repsAll:1, mins:1}), null);
+});
+test('shadow clone card: weekday by weekday against four weeks ago, and last week\'s result on Sunday', () => {
+  const V = raceVillage([5, 5, 5, 5, 6, 5], [240, 240, 240, 240, 300, 240]);
+  let R = E.rival(E.compute(V, at('2026-12-16', 21)));                        // Wednesday of the race week
+  assert.equal(R.on, true); assert.equal(R.week, '2026-12-13'); assert.equal(R.clone, '2026-11-15'); assert.equal(R.day, 3);
+  assert.equal(R.me.repsAll, 6 * 5 + 6 * 10 + 6 * 5 + 6 * 10); assert.equal(R.them.repsAll, 5 * 5 + 5 * 10 + 5 * 5 + 5 * 10);
+  assert.equal(R.me.mins, 4 * 300); assert.equal(R.them.mins, 4 * 240); assert.equal(R.themWeek.mins, 4 * 240 + 2 * 360);
+  assert.ok(R.me.xp > R.them.xp); assert.equal(R.last, null);
+  R = E.rival(E.compute(V, at('2026-12-20', 9)));
+  assert.deepEqual(R.last, {week:'2026-12-13', xp:50, win:true, wins:3, losses:0}); assert.equal(R.day, 0); assert.equal(R.on, true);
+  assert.equal(E.rival(E.compute(V, at('2026-11-18', 9))).on, false, 'no clone in the first four weeks');
+  assert.equal(E.rival(E.compute(FIX, at('2026-11-10', 9))).why, 'soon');
+  const X = raceVillage([5, 5, 5, 5, 6, 5], [240, 240, 240, 240, 300, 240], {examWeeks:[{start:'2026-12-14', end:'2026-12-15'}]});
+  assert.equal(E.rival(E.compute(X, at('2026-12-16', 9))).why, 'exam');
+});
+test('the Worker credits the same shadow clone bonus, also when it resumes from a checkpoint', () => {
+  const V = raceVillage([5, 5, 5, 5, 6, 6], [240, 240, 240, 240, 300, 300]);
+  ['2026-12-19', '2026-12-20', '2026-12-26', '2026-12-27', '2026-12-30'].forEach(d => { const now = at(d, 12); agree(asOf(V, now), now, 'race ' + d); });
+  const now = at('2026-12-28', 9), full = computeAll(V, now);
+  assert.deepEqual(Object.values(full.weeks).filter(w => w.rival && w.rival.win).map(w => w.start), ['2026-12-13', '2026-12-20']);
+  const cp = computeAll(V, now, {until:'2026-12-12'}).state;
+  assert.equal(cp.tail.length, 4); assert.deepEqual(cp.tail.map(w => w.start), ['2026-11-15', '2026-11-22', '2026-11-29', '2026-12-06']);
+  const recent = clone(V); ['days', 'study', 'body'].forEach(k => Object.keys(recent[k]).forEach(d => { if(d <= cp.date) delete recent[k][d]; }));
+  const resumed = computeAll(recent, now, {resume:cp});
+  assert.equal(resumed.total, full.total); assert.equal(resumed.total, E.compute(V, now).total);
 });

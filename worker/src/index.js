@@ -219,14 +219,14 @@ async function stepCheckpoint(env, nowMs){
   if(settings.startDate > target) return null;
   const seq = Number(await metaGet(env, 'seq')) || 0;
   let cp = parseObj(await metaGet(env, 'checkpoint'));
-  if(cp && (cp.v !== 1 || cp.key !== key || !cp.state || !cp.state.date || cp.state.date > target)) cp = null;
+  if(cp && (cp.v !== 2 || cp.key !== key || !cp.state || !cp.state.date || cp.state.date > target)) cp = null;
   if(cp && await env.DB.prepare(`SELECT 1 AS late FROM docs WHERE seq > ? AND path LIKE 'leaf/main/%/%' AND substr(path, -10) <= ? LIMIT 1`).bind(cp.seq, cp.state.date).first()) cp = null;
   if(cp && cp.state.date >= target) return cp;
   const start = cp ? addDays(cp.state.date, 1) : settings.startDate;
   const upto = addDays(start, CHECKPOINT_STEP_DAYS) < target ? addDays(start, CHECKPOINT_STEP_DAYS) : target;
   const state = advanceCheckpoint(await loadSnapshot(env, cp ? cp.state.date : null, upto), nowMs, cp ? cp.state : null, target, CHECKPOINT_STEP_DAYS);
   if(!state || (cp && state.date <= cp.state.date)) return cp;
-  cp = {v:1, key, seq, state};
+  cp = {v:2, key, seq, state};
   await metaSet(env, 'checkpoint', JSON.stringify(cp));
   return cp;
 }

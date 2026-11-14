@@ -618,6 +618,14 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .achpop .eyebrow{color:var(--chakra-ink)}
 .achpop.go{animation:achpop 3.6s cubic-bezier(.2,1,.3,1) forwards}
 @keyframes achpop{0%{opacity:0; transform:translate(-50%,-30px) scale(.94)}8%{opacity:1; transform:translate(-50%,0) scale(1.03)}13%{transform:translate(-50%,0) scale(1)}86%{opacity:1; transform:translate(-50%,0)}100%{opacity:0; transform:translate(-50%,-18px)}}
+.race{display:grid; grid-template-columns:auto 1fr; gap:6px 12px; align-items:center; font-size:13px}
+.race > span{font-family:var(--f-data); font-weight:700; letter-spacing:.06em; text-transform:uppercase; font-size:11.5px; color:var(--muted)}
+.race-bars{display:grid; gap:3px; min-width:0}
+.race-bars div{display:flex; align-items:center; gap:8px; min-width:0}
+.race-bars i{display:block; height:9px; border-radius:5px; background:var(--primary); min-width:3px; transition:width .5s ease}
+.race-bars .them i{background:var(--muted); opacity:.55}
+.race-bars b{font-family:var(--f-data); font-size:13px; white-space:nowrap}
+.race-bars .them b{font-weight:500; color:var(--muted)}
 /* monthly mission report */
 .report{position:relative; width:min(640px,100%); max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--card); border-radius:18px; border:3px solid var(--rk); display:flex; flex-direction:column; animation:pop .4s cubic-bezier(.2,1.3,.4,1)}
 .report-head{padding:18px 20px 14px; background:var(--rk); color:#fff}
@@ -1634,6 +1642,27 @@ function senseisCard(C){
     <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday. Pictures you add are saved on this phone.</p>${rows}</section>`;
 }
 
+/* ---------- shadow clone rival ---------- */
+function rivalCard(C){
+  const R=C._rival||(C._rival=E.rival(C)), k=R.day, dayName=DOW[k];
+  const last = (k===0 && R.last) ? (R.last.win ? `Last week you beat your shadow clone ${R.last.wins}–${R.last.losses}. +${R.bonus} XP.`
+    : R.last.losses>R.last.wins ? `Last week your shadow clone won ${R.last.losses}–${R.last.wins}. A new race starts today.` : `Last week ended level, ${R.last.wins}–${R.last.losses}. A new race starts today.`) : '';
+  if(!R.on && !last && R.why!=='exam') return '';
+  const head=`<div class="say-head"><span class="sensei-av" style="--sc:var(--rk);width:48px;height:48px;font-size:20px" aria-hidden="true">影</span><div style="min-width:0"><b>Shadow clone race</b><span>You this week against you four weeks ago · week of ${esc(shortDate(R.clone))}</span></div></div>`;
+  const wrap=body=>`<section class="card say" id="rival-card" style="--sc:${RANKS[C.peak].color};--rk:${RANKS[C.peak].color}" aria-label="Shadow clone race">${head}${last?`<p id="rival-last"><b>${esc(last)}</b></p>`:''}${body}</section>`;
+  if(!R.on) return wrap(R.why==='exam' ? '<p class="muted small">No race in an exam week. It starts again next Sunday.</p>' : '');
+  const M=[['xp','XP',v=>fmt(v)+' XP'],['repsAll','Reps',v=>fmt(v)+' reps'],['mins','Study',v=>fmtH(v)]];
+  let lead=0, trail=0, worst=null;
+  M.forEach(([key])=>{ const a=R.me[key], b=R.them[key]; if(a>b) lead++; else if(a<b){ trail++; const gap=(b-a)/Math.max(1,Math.abs(b)); if(!worst || gap>worst.gap) worst={key, gap}; } });
+  const fm=key=>M.find(m=>m[0]===key)[2];
+  const line = worst ? `Your shadow clone had ${fm(worst.key)(R.them[worst.key])} by ${dayName}. You have ${fm(worst.key)(R.me[worst.key])}.`
+    : `You are level with or ahead of your shadow clone on all three. It finished that week with ${fmt(R.themWeek.xp)} XP, ${fmt(R.themWeek.repsAll)} reps and ${fmtH(R.themWeek.mins)}.`;
+  const rows=M.map(([key,label,f])=>{ const a=R.me[key], b=R.them[key], top=Math.max(1,a,b);
+    return `<span>${label}</span><div class="race-bars"><div><i style="width:${Math.max(0,Math.round(72*a/top))}%"></i><b>${f(a)}</b></div><div class="them"><i style="width:${Math.max(0,Math.round(72*b/top))}%"></i><b>${f(b)} by ${dayName.slice(0,3)}</b></div></div>`; }).join('');
+  return wrap(`<p id="rival-line">${esc(line)}</p><div class="race">${rows}</div>
+    <p class="muted small">${lead>trail?`You lead ${lead}–${trail} so far.`:lead<trail?`The clone leads ${trail}–${lead} so far.`:`Level at ${lead}–${trail} so far.`} Win two of the three by Saturday night for +${R.bonus} XP. The result arrives on Sunday.</p>`);
+}
+
 /* ---------- exam countdown ---------- */
 const examInfo = C => C._exam===undefined ? (C._exam=E.examCountdown(C)) : C._exam;
 function examCountCard(C){
@@ -1710,7 +1739,7 @@ function progressionAction(act){
   } else { save('settings', null, s); SFX.play('tick'); toast(P.changed ? 'Keeping your own settings.' : 'Settings stay as they are.'); }
 }
 function missionView(C){
-  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + weekStrip(C) + upNext(C);
+  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + rivalCard(C) + weekStrip(C) + upNext(C);
 }
 
 /* --- charts --- */
@@ -1868,6 +1897,7 @@ function planView(C){
       <span>Study minimum reached (set in Study days)</span><b>+${STUDY.minBonus}</b>
       <span>Study goal reached, scroll full (off-day Thursday: 8h)</span><b>+${STUDY.fullBonus}</b>
       <span>Combo: a set within an hour of a study hour</span><b>+${STUDY.combo}</b>
+      <span>Shadow clone: beat your week from four weeks ago on two of XP, reps and study hours</span><b>+${E.RIVAL.xp} weekly</b>
       <span>Third Hokage: 30 study hours in a week</span><b>+${STUDY.weekXp} weekly</b>
       <span>Missed study minimum</span><b>No XP lost, study streak resets</b>
       <span>Test set</span><b>+${XP.testRep}/rep</b>

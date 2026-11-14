@@ -27,6 +27,15 @@ export const CHALLENGES = {
 };
 export const STUDY = {halfXp:20, minBonus:50, fullBonus:30, combo:10, comboWindow:60*60000, weekGoal:1800, weekXp:400, capMs:3*3600000, offFull:480};
 const STUDY_DEFAULT = {week:{min:240, full:360}, end:{min:360, full:480}};
+/* the shadow clone: a finished week races the same week four weeks earlier on XP, reps and study minutes;
+   two wins out of three earn the bonus on that Saturday (same rule and start date as leaf-engine.js) */
+export const RIVAL = {from:'2026-11-15', xp:50, back:28};
+function raceResult(me, clone){
+  if(!me || !clone || me.days !== 7 || clone.days !== 7 || me.ex || clone.ex || me.start < RIVAL.from) return null;
+  let wins = 0, losses = 0;
+  ['xp', 'repsAll', 'mins'].forEach(k => { const a = me[k] || 0, b = clone[k] || 0; if(a > b) wins++; else if(a < b) losses++; });
+  return {win:wins >= 2, wins, losses};
+}
 
 /* ---------- dates ---------- */
 const pad = n => String(n).padStart(2, '0');
@@ -141,6 +150,8 @@ export function computeAll(data, nowMs, opts){
   exIds.forEach(id => { const b = (s.baseline || {})[id] || {max:0, date:s.startDate}; maxes[id] = b.max; best[id] = b.max; totalReps[id] = 0; });
   if(from){ Object.assign(maxes, from.maxes); Object.assign(best, from.best); Object.assign(totalReps, from.totalReps); }
   const days = [], prs = [], weeks = {}, awards = [];
+  /* the four weeks before a checkpoint are carried along, so the shadow clone still has someone to race */
+  if(from && Array.isArray(from.tail)) from.tail.forEach(w => { weeks[w.start] = {start:w.start, reps:{}, missed:0, days:w.days, done:0, qual:0, weigh:0, prDone:false, open:false, xp:w.xp, prs:[], repsAll:w.repsAll, mins:w.mins, ex:w.ex, past:true}; });
   const bodyList = Object.values(data.body || {}).filter(b => b && typeof b.weight === 'number').sort((a, b) => a.date < b.date ? -1 : 1);
   const bodyDates = new Set(bodyList.map(b => b.date));
   let total = 0, peak = 0, streak = 0, bestStreak = 0, doneCount = 0, missedCount = 0, last = from ? from.date : null;
@@ -153,8 +164,8 @@ export function computeAll(data, nowMs, opts){
       const plan = planFor(s, d);
       const sets = ((dayDocs[d] || {}).sets) || [];
       const wk = weekStart(d);
-      const W = weeks[wk] || (weeks[wk] = {start:wk, reps:{}, missed:0, days:0, done:0, qual:0, weigh:0, prDone:false, open:false, xp:0, prs:[]});
-      sets.forEach(x => { totalReps[x.ex] = (totalReps[x.ex] || 0) + x.reps; W.reps[x.ex] = (W.reps[x.ex] || 0) + x.reps; });
+      const W = weeks[wk] || (weeks[wk] = {start:wk, reps:{}, missed:0, days:0, done:0, qual:0, weigh:0, prDone:false, open:false, xp:0, prs:[], repsAll:0, mins:0});
+      sets.forEach(x => { totalReps[x.ex] = (totalReps[x.ex] || 0) + x.reps; W.reps[x.ex] = (W.reps[x.ex] || 0) + x.reps; W.repsAll += x.reps; });
       let base = 0, complete = false, info = {};
       if(plan.type === 'gtg'){
         const ex = plan.ex, g = plan.gtg, target = gtgTarget(maxes[ex], g.pct);
@@ -205,6 +216,7 @@ export function computeAll(data, nowMs, opts){
       if(bodyDates.has(d)){ W.weigh++; if(W.weigh === CHALLENGES.jiraiya.goal) bonus.push('jiraiya'); }
       W.open = status === 'open';
       if(status === 'exam') W.exam = (W.exam || 0) + 1;
+      if(isExam(s, d)) W.ex = (W.ex || 0) + 1;
       if(dow(d) === 6 && W.days === 7 && W.missed === 0 && status !== 'open') bonus.push('hiruzen');
       bonus.forEach(id => { xp += CHALLENGES[id].xp; awards.push({key:id, sensei:id, date:d, week:wk, xp:CHALLENGES[id].xp, title:CHALLENGES[id].title}); });
       const srec = study.days[d];
@@ -212,7 +224,8 @@ export function computeAll(data, nowMs, opts){
       const before = total;
       if(srec){ total = Math.max(0, total + srec.xp); if(srec.award) awards.push(study.awards.find(a => a.date === d)); }
       total = Math.max(0, total + xp);
-      W.xp += total - before;
+      W.xp += total - before; if(srec) W.mins += srec.mins;
+      if(dow(d) === 6 && d < today){ W.rival = raceResult(W, weeks[addDays(wk, -RIVAL.back)]); if(W.rival && W.rival.win){ xp += RIVAL.xp; total += RIVAL.xp; } }
       peak = Math.max(peak, rankFor(total));
       days.push({date:d, plan, sets, status, xp, base, info, streak, bonus});
     }
@@ -221,7 +234,8 @@ export function computeAll(data, nowMs, opts){
   const weekNow = weeks[weekStart(today)] || {qual:0, weigh:0, prDone:false, days:0, missed:0};
   const r = RANKS[peak], nx = RANKS[peak + 1];
   /* everything needed to carry on from the last processed day */
-  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), study:{streak:study.streak, best:study.best}} : null;
+  const tail = last ? Object.keys(weeks).filter(k => k <= last).sort().slice(-4).map(k => { const w = weeks[k]; return {start:w.start, days:w.days, xp:w.xp, repsAll:w.repsAll, mins:w.mins, ex:w.ex || 0}; }) : [];
+  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), study:{streak:study.streak, best:study.best}, tail} : null;
   return { today, settings:s, study, awards, weekNow, weeks, todayRec, days, state, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount,
     maxes, best, prs, totalReps, exIds, body:bodyList, bodyDates,
     rank:r.name, nextRank:nx ? nx.name : null, xpToNext:nx ? Math.max(0, nx.xp - total) : null };
