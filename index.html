@@ -609,6 +609,17 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .count .big small{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:3px}
 .count b{font-size:16px; align-self:end}
 .count span{font-size:13px; color:var(--muted); align-self:start}
+/* jutsu scrolls */
+.jutsu{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.jutsu li{display:flex; flex-direction:column; gap:8px; padding:10px 12px; border-radius:12px; background:var(--paper)}
+body.has-bg .jutsu li{background:var(--paper-glass)}
+.jutsu li.locked{opacity:.55}
+.jutsu-top{display:flex; justify-content:space-between; align-items:baseline; gap:10px}
+.jutsu-top b{font-size:14.5px}
+.jutsu-top span{font-family:var(--f-data); font-weight:700; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; white-space:nowrap; color:var(--muted)}
+.jutsu li.learned .jutsu-top span{color:var(--leaf)}
+.jutsu li.open .jutsu-top span{color:var(--chakra-ink)}
+.jutsu p{margin:0; font-size:13px; color:var(--muted)}
 /* achievements wall + the moment one is earned */
 .ach-cat{display:flex; flex-direction:column; gap:8px}
 .ach-date{color:var(--leaf)!important; font-family:var(--f-data); font-weight:700; margin-top:2px}
@@ -1938,6 +1949,35 @@ function planView(C){
   </section>`;
 }
 
+/* --- jutsu unlocks --- */
+function jutsuCard(C){
+  const list=E.jutsu(C), open=list.filter(j=>j.unlocked).length;
+  const rows=list.map(j=>{
+    if(!j.unlocked) return `<li class="locked" data-jutsu="${j.id}"><div class="jutsu-top"><b>${esc(j.name)}</b><span>Unlocks at ${esc(j.rankName)}</span></div></li>`;
+    if(j.learned) return `<li class="learned" data-jutsu="${j.id}"><div class="jutsu-top"><b>${esc(j.name)}</b><span>Learned</span></div><p>${esc(j.how)}</p><p>Baseline ${j.baseline?`${j.baseline.max} on ${esc(shortDate(j.baseline.date))}`:'saved'}${j.max!=null && j.baseline && j.max!==j.baseline.max?` · max now ${j.max}`:''}. Choose it for a day in the Plan tab when you want it in your week.</p></li>`;
+    const form = ui.jutsu && ui.jutsu.id===j.id;
+    return `<li class="open" data-jutsu="${j.id}"><div class="jutsu-top"><b>${esc(j.name)}</b><span>Unlocked</span></div><p>${esc(j.how)}</p>
+      ${state.readOnly?'':form?`<p>Baseline test: when you are fresh, do one strict set to failure and enter the reps. That number sets its groove targets.</p>
+        <div class="form-grid"><label class="field"><span>Strict reps in one set</span><input id="jutsu-max" type="number" inputmode="numeric" min="1" max="200" data-bind="jutsu.max" value="${esc(ui.jutsu.max||'')}"></label></div>
+        <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="jutsu-learn" data-id="${j.id}">Save baseline and learn</button><button type="button" class="btn small ghost" data-act="jutsu-cancel">Not yet</button></div>`
+        :`<div class="btnrow"><button type="button" class="btn small ghost" data-act="jutsu-open" data-id="${j.id}">Take the baseline test</button></div>`}</li>`;
+  }).join('');
+  return `<section class="card" id="jutsu-card"><div class="section-head"><h2>Jutsu scrolls</h2><span class="eyebrow">${open} / ${list.length} unlocked</span></div>
+    <p class="muted" style="margin:0;font-size:13px">Harder variations unlock as you rise in rank. Unlocking only makes one available: it needs its own baseline test, and it enters your week only if you add it in the Plan tab.</p>
+    <ul class="jutsu">${rows}</ul></section>`;
+}
+function jutsuAction(act, el){
+  if(state.readOnly || !lastC) return;
+  if(act==='jutsu-open'){ ui.jutsu={id:el.dataset.id, max:''}; render(); const f=document.getElementById('jutsu-max'); if(f) f.focus({preventScroll:true}); return; }
+  if(act==='jutsu-cancel'){ ui.jutsu=null; render(); return; }
+  const j=E.jutsu(lastC).find(x=>x.id===el.dataset.id); if(!j || !j.unlocked || j.learned) return;
+  const max=Math.round(Number((ui.jutsu||{}).max));
+  if(!(max>=1 && max<=200)){ toast('Enter the reps from your baseline set.'); return; }
+  const s=clone(S()); s.exercises=s.exercises||{}; s.baseline=s.baseline||{};
+  s.exercises[j.id]={name:j.name, jutsu:true}; s.baseline[j.id]={max, date:todayStr()};
+  ui.jutsu=null; save('settings', null, s); SFX.play('complete'); toast(`${j.name} learned. Add it to a day in the Plan tab.`, 4500);
+}
+
 /* --- story arcs: each month is a chapter --- */
 const wallOf = i => { const r=RANKS[i]; return (r.walls && r.walls.length) ? `media/${r.walls[0]}.jpg` : r.scene; };
 function storyCard(C){
@@ -2036,6 +2076,7 @@ function ninjaView(C){
   </section>`}
   ${senseisCard(C)}
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
+  ${jutsuCard(C)}
   ${storyCard(C)}
   ${achievementsCard(C)}`;
 }
@@ -3163,6 +3204,7 @@ function renderOverlay(C){
         <h2 id="promo-title" style="color:${r.color}">${esc(r.name)}</h2>
         <p style="margin:0;font-size:14.5px"><b>Third Hokage:</b> ${esc(fillLine(SENSEI_LINES.hiruzen.promo[0],{rank:r.name}))}</p>
         <p class="muted" style="margin:0">${fmt(C.total)} XP earned. ${nx?`Next: ${esc(nx.name)} at ${fmt(nx.xp)} XP.`:'You have reached the final form.'}</p>
+        ${(()=>{ const nj=E.JUTSU.filter(j=>rankIdx(j.rank)>seen && rankIdx(j.rank)<=C.peak); return nj.length?`<p id="promo-jutsu" style="margin:0;font-size:14px"><b>New jutsu unlocked:</b> ${nj.map(j=>esc(j.name)).join(', ')}. ${nj.length===1?'Its scroll is':'Their scrolls are'} in the Ninja tab.</p>`:''; })()}
         <button class="btn chakra-btn" data-act="promo-ok" style="width:100%">Accept rank</button>
       </div>
     </div>`;
@@ -3363,6 +3405,7 @@ document.addEventListener('click', e=>{
   }
   if(act==='prog-accept' || act==='prog-keep'){ progressionAction(act); return; }
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
+  if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
@@ -3461,7 +3504,7 @@ setInterval(checkDay, 60000);
 addEventListener('pageshow', checkDay); addEventListener('focus', checkDay);
 /* anything that writes to "today" must mean the real today. If midnight passed while the page sat open, the page still
    shows yesterday's mission: show the new day instead of writing into a day that is closed. */
-const DAY_BOUND=/^(log|undo|weigh-save|plan-save|add-ex|setup-save|st-|exam-|examc-|prog-)/;
+const DAY_BOUND=/^(log|undo|weigh-save|plan-save|add-ex|setup-save|jutsu-learn|st-|exam-|examc-|prog-)/;
 function dayRolled(){
   if(!lastC || todayStr()===lastC.today) return false;
   lastDay=null; checkDay();

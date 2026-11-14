@@ -494,3 +494,25 @@ test('focus cycles: 50 minutes count, the 10-minute breaks do not, across midnig
   /* the Worker counts the same minutes */
   [at('2026-11-02', 0, 10), at('2026-11-02', 0, 25), at('2026-11-02', 1, 0), at('2026-11-02', 6, 0)].forEach(now => agree(V, now, 'focus ' + now));
 });
+
+/* ---------- jutsu unlocks ---------- */
+test('jutsu: each unlocks at its rank, is only an exercise once its own baseline is saved, and never joins the plan by itself', () => {
+  assert.equal(new Set(E.JUTSU.map(j => j.id)).size, E.JUTSU.length);
+  E.JUTSU.forEach(j => assert.ok(E.RANKS.some(r => r.id === j.rank), `${j.id} names a real rank`));
+  const C = E.compute(FIX, at('2026-11-15', 10)), J = Object.fromEntries(E.jutsu(C).map(j => [j.id, j]));
+  assert.deepEqual(E.jutsu(C).filter(j => j.unlocked).map(j => j.id), ['chest-to-bar-pullups', 'archer-pullups', 'lsit-pullups', 'weighted-dips', 'ring-dips'], 'ANBU and below');
+  assert.equal(J['weighted-pullups'].unlocked, false); assert.equal(J['weighted-pullups'].rankName, 'Akatsuki'); assert.equal(J['archer-pullups'].learned, false);
+  assert.equal(E.jutsu(E.compute(village(), at(START, 9))).filter(j => j.unlocked).length, 0, 'an Academy Student has none');
+  /* learning one adds an exercise with its own baseline; history and the plan are exactly as before */
+  const L = clone(FIX); L.settings.exercises['archer-pullups'] = {name:'Archer pull-ups', jutsu:true}; L.settings.baseline['archer-pullups'] = {max:4, date:'2026-11-15'};
+  const C2 = E.compute(L, at('2026-11-15', 10)), j = E.jutsu(C2).find(x => x.id === 'archer-pullups');
+  assert.equal(j.learned, true); assert.deepEqual(j.baseline, {max:4, date:'2026-11-15'}); assert.equal(j.max, 4);
+  assert.equal(C2.total, C.total); assert.deepEqual(C2.days.map(d => [d.date, d.plan.type, d.status, d.xp]), C.days.map(d => [d.date, d.plan.type, d.status, d.xp]));
+  for(let k = 0; k < 14; k++){ const p = E.planFor(L.settings, E.addDays('2026-11-15', k)); assert.ok(p.ex !== 'archer-pullups' && !(p.exs || []).includes('archer-pullups')); }
+  /* once picked for a day it is a groove day with targets from its own max */
+  const plan = clone(L.settings.scheduleHistory[1].plan); plan[2] = {type:'gtg', ex:'archer-pullups'};
+  L.settings.scheduleHistory.push(Object.assign({}, L.settings.scheduleHistory[1], {from:'2026-11-16', plan}));
+  const C3 = E.compute(L, at('2026-11-17', 9));
+  assert.equal(C3.todayRec.plan.ex, 'archer-pullups'); assert.equal(C3.todayRec.info.target, 2);
+  agree(L, at('2026-11-17', 9), 'jutsu day');
+});

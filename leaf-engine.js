@@ -69,9 +69,9 @@ const HIST = new WeakMap(), NORM = new WeakMap();
 function sortedHistory(s){
   const list = (s && Array.isArray(s.scheduleHistory)) ? s.scheduleHistory : null;
   if(!list) return [];
-  let h = HIST.get(list);
-  if(!h){ h = list.filter(isObj).sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0); HIST.set(list, h); }
-  return h;
+  let c = HIST.get(list);
+  if(!c || c.n !== list.length){ c = {n:list.length, h:list.filter(isObj).sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0)}; HIST.set(list, c); }
+  return c.h;
 }
 function entryFor(s, date){ const h = sortedHistory(s); let e = h[0]; for(const x of h){ if(x.from <= date) e = x; } return e; }
 /* a schedule entry with every number filled in, so a half-written entry (a damaged backup) cannot break a day */
@@ -633,11 +633,32 @@ function rival(C){
   return {on, why, week:ws, clone:cs, day:k, me, them, themWeek, last, bonus:RIVAL.xp};
 }
 
+/* ---------- jutsu: harder variations that become available at a rank ----------
+   Reaching the rank only unlocks one. It becomes an exercise when its own baseline is tested and saved,
+   and it joins the plan only when it is picked for a day in the Plan tab. */
+const JUTSU = [
+  {id:'chest-to-bar-pullups', name:'Chest-to-bar pull-ups', of:'pullups', rank:'genin',         how:'Pull until the bar touches your chest. Same strict form, a longer path.'},
+  {id:'archer-pullups',       name:'Archer pull-ups',       of:'pullups', rank:'chunin',        how:'One arm pulls while the other stays long on the bar. Alternate sides.'},
+  {id:'lsit-pullups',         name:'L-sit pull-ups',        of:'pullups', rank:'special-jonin', how:'Legs held straight out in front for the whole set.'},
+  {id:'weighted-dips',        name:'Weighted dips',         of:'dips',    rank:'jonin',         how:'Dips with added weight on a belt or in a backpack. Keep the same depth.'},
+  {id:'ring-dips',            name:'Ring dips',             of:'dips',    rank:'anbu',          how:'Dips on rings. The rings move, so every rep has to be controlled.'},
+  {id:'weighted-pullups',     name:'Weighted pull-ups',     of:'pullups', rank:'akatsuki',      how:'Pull-ups with added weight, from a dead hang to chin over the bar.'},
+  {id:'typewriter-pullups',   name:'Typewriter pull-ups',   of:'pullups', rank:'sannin',        how:'Pull up, then travel from hand to hand with your chin above the bar.'},
+  {id:'korean-dips',          name:'Korean dips',           of:'dips',    rank:'sage',          how:'Dips with the bar behind your back. Go only as deep as your shoulders allow.'},
+  {id:'muscle-ups',           name:'Muscle-ups',            of:'pullups', rank:'susanoo',       how:'From a dead hang to straight arms above the bar in one movement.'},
+  {id:'one-arm-negatives',    name:'One-arm negatives',     of:'pullups', rank:'kage',          how:'Lower yourself slowly on one arm. Each slow descent is one rep.'}
+];
+function jutsu(C){
+  const ex = isObj(C.settings.exercises) ? C.settings.exercises : {}, base = C.settings.baseline || {};
+  return JUTSU.map(j => { const at = RANKS.findIndex(r => r.id === j.rank), learned = !!ex[j.id];
+    return Object.assign({}, j, {at, rankName:RANKS[at].name, unlocked:C.peak >= at, learned, baseline:learned && base[j.id] ? base[j.id] : null, max:learned ? C.maxes[j.id] : null}); });
+}
+
 return {
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
-  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival, FOCUS, focusSpans, timerSpans
+  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival, FOCUS, focusSpans, timerSpans, JUTSU, jutsu
 };
 });

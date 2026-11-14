@@ -642,6 +642,52 @@ test('focus cycles: 50 minutes of work, a 10-minute break that is not counted, a
   noErrors();
 });
 
+test('jutsu unlocks: available at a rank, learned through its own baseline test, and only in the plan if it is added there', async () => {
+  const B = await fresh('jutsu');
+  await B.tab('ninja');
+  const card = B.page.locator('#jutsu-card');
+  assert.match(await card.locator('.section-head').textContent(), /5 \/ 10 unlocked/);
+  assert.equal(await card.locator('li.open').count(), 5); assert.equal(await card.locator('li.locked').count(), 5);
+  assert.match(await card.locator('[data-jutsu="weighted-pullups"]').textContent(), /Unlocks at Akatsuki/);
+  assert.equal(await card.locator('li.locked button').count(), 0, 'a locked jutsu cannot be started');
+  await card.locator('[data-act="jutsu-open"][data-id="archer-pullups"]').click();
+  await card.locator('[data-act="jutsu-learn"]').click();
+  assert.match(await toastText(B), /Enter the reps from your baseline set/);
+  await B.page.fill('#jutsu-max', '4');
+  await card.locator('[data-act="jutsu-learn"]').click();
+  const s = await until(async () => { const x = (await B.docs())['leaf/main']; return x.exercises['archer-pullups'] ? x : null; }, 'the jutsu to be saved');
+  assert.deepEqual(s.exercises['archer-pullups'], {name:'Archer pull-ups', jutsu:true});
+  assert.deepEqual(s.baseline['archer-pullups'], {max:4, date:'2026-11-15'});
+  assert.deepEqual(s.scheduleHistory, fixture.settings.scheduleHistory, 'the plan is untouched');
+  assert.match(await card.locator('[data-jutsu="archer-pullups"]').textContent(), /Learned.*Baseline 4 on 15 Nov.*Choose it for a day in the Plan tab/);
+  assert.equal(await card.locator('li.learned').count(), 1);
+  await B.tab('mission');
+  assert.match(await B.page.locator('.mscroll[data-sid="work"] .roll-label b').textContent(), /Pull-up Groove/, 'today\'s mission is the same');
+  /* it can now be chosen in the Plan tab, and starts tomorrow like any plan change */
+  await B.tab('plan');
+  const options = await B.page.locator('#plan-day-2 option').allTextContents();
+  assert.ok(options.includes('Archer pull-ups groove'), options.join(' | '));
+  assert.equal(await B.page.locator('[data-act="test-ex"][data-ex="archer-pullups"]').isChecked(), false, 'not on test days unless ticked');
+  await B.page.selectOption('#plan-day-2', 'gtg:archer-pullups');
+  await B.page.locator('[data-act="plan-save"]').click();
+  const s2 = await until(async () => { const x = (await B.docs())['leaf/main']; return x.scheduleHistory.length === 3 ? x : null; }, 'the plan to be saved');
+  assert.equal(s2.scheduleHistory[2].from, '2026-11-16'); assert.deepEqual(s2.scheduleHistory[2].plan[2], {type:'gtg', ex:'archer-pullups'});
+  await B.setTime(at('2026-11-17', 9, 0));
+  await until(async () => /17 November/.test(await B.page.evaluate(() => { location.hash = 'mission'; const e = document.querySelector('.stage .eyebrow'); return e ? e.textContent : ''; })), 'Tuesday');
+  await closeScenes(B);
+  assert.match(await B.page.locator('.mscroll[data-sid="work"] .roll-label b').textContent(), /Archer pull-up Groove/);
+  await openScroll(B, 'work');
+  assert.match(await B.page.locator('.mscroll[data-sid="work"] .mission-sub').textContent(), /6 mini-sets of 2 strict archer pull-ups/);
+  await B.close();
+  /* a promotion names the jutsu it unlocks */
+  const behind = clone(fixture); behind.settings.celebrated = 4;
+  const P = await fresh('jutsu-promo', {file:tmpFile('behind2.json', behind)});
+  await P.page.waitForSelector('#overlay .promo');
+  assert.match(await P.page.locator('#promo-jutsu').textContent(), /New jutsu unlocked: Ring dips\. Its scroll is in the Ninja tab/);
+  await P.close();
+  noErrors();
+});
+
 test('iPad screenshots of every tab, landscape and portrait (looked at by hand)', async () => {
   for(const [name, viewport] of [['landscape', {width:1148, height:802}], ['portrait', {width:820, height:1180}]]){
     const B = await rig.device('shots-' + name, {now:T0 + min(30), viewport});

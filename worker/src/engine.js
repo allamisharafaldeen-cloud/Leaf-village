@@ -56,9 +56,9 @@ export const rankFor = xp => { let i = 0; RANKS.forEach((r, k) => { if(xp >= r.x
 const HIST = new WeakMap();
 export function sortedHistory(s){
   const list = (s && s.scheduleHistory) || [];
-  let h = HIST.get(list);
-  if(!h){ h = list.slice().sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0); HIST.set(list, h); }
-  return h;
+  let c = HIST.get(list);
+  if(!c || c.n !== list.length){ c = {n:list.length, h:list.slice().sort((a, b) => a.from < b.from ? -1 : a.from > b.from ? 1 : 0)}; HIST.set(list, c); }
+  return c.h;
 }
 export function entryFor(s, date){ const h = sortedHistory(s); let e = h[0]; for(const x of h){ if(x.from <= date) e = x; } return e; }
 export function planFor(s, date){
