@@ -12,7 +12,8 @@ Sharaf's personal training and study tracker: pull-up and dip missions, study ho
 
 | File | What it is |
 |---|---|
-| `index.html` | The whole app: screens, game rules, styles |
+| `index.html` | The app: screens, styles and what each tap does |
+| `leaf-engine.js` | The game rules: XP, ranks, streaks, study statuses, challenges. Pure functions, so the tests can run them at any date |
 | `platform.js` | Saving on the device (IndexedDB), added photos and sounds, the backup download, and background sync (`window.LeafSync`) |
 | `leaf-merge.js` | The merge rules shared by the app and the Worker: days are joined, never replaced |
 | `sw.js` | Offline support (keeps the app, photos and music cached) and showing notifications |
@@ -20,7 +21,7 @@ Sharaf's personal training and study tracker: pull-up and dip missions, study ho
 | `.github/workflows/worker.yml` | Deploys `worker/` to Cloudflare on every push to `main` that touches it |
 | `media/`, `ranks/` | Photos, music, sound effects and rank art |
 | `icons/`, `manifest.webmanifest` | Home-screen icon and app name |
-| `tests/` | Automated tests (see below) |
+| `tests/`, `package.json` | Automated tests and the command that runs them (see below) |
 
 When a file the app loads changes, update the `VERSION` in `sw.js` (and add new files to `FILES`) so devices fetch the new copies.
 
@@ -38,16 +39,24 @@ Pushing to `main` runs the workflow, which creates the D1 database the first tim
 
 ## Tests
 
-Needs Node 22+. The browser tests also need Playwright with Chromium.
+Needs Node 22+ and Playwright with Chromium (nothing to install in the project itself). One command runs everything:
 
 ```bash
-node --test "tests/unit/*.test.mjs"
+npm test
+```
+
+Or one half at a time:
+
+```bash
+npm run test:unit
 ```
 
 ```bash
-node --test tests/e2e/app.test.mjs
+npm run test:e2e
 ```
 
-- `tests/unit`: merge rules, the reminder decisions at fixed dates (groove day behind, mixed day partly done, test day, rest day, Thursday, shield used, exam week, Sunday report, last call with the shield available, switches), push encryption, the sync endpoints against a real SQLite database, and the engine checkpoint.
-- `tests/e2e`: the real app in Chromium served under `/Leaf-village/`, syncing against the real Worker code: import/export unchanged, the Worker's engine agrees with the app's, offline use, two devices merging without losing entries, Undo, settings, and the notification path end to end.
+- `tests/unit/engine.test.mjs`: the game rules in `leaf-engine.js` at fixed dates, with hand-checked numbers: XP for groove, mixed and test days, streak tiers, rank thresholds, study statuses, shields, Thursday off-day study, combos, exam weeks, midnight in Baghdad, the study timer over midnight, plan changes that start tomorrow, damaged data. It also checks that the Worker's copy of the rules gives the same answer on every day of the fixture.
+- `tests/unit` (the rest): merge rules, the reminder decisions, push encryption, the sync endpoints against a real SQLite database, and the engine checkpoint.
+- `tests/e2e/ui.test.mjs`: the real app in Chromium at iPad size: logging a set (the scroll stays open and the page does not move), undo, the study timer (also over midnight and the 3-hour check), import of good and damaged files, backup, the theme picker, rank wallpapers on every tab, a full disk, and screenshots of every tab in landscape and portrait (saved in `tests/.tmp`).
+- `tests/e2e/app.test.mjs`: sync against the real Worker code: import/export unchanged, the Worker's engine agrees with the app's, offline use, two devices merging without losing entries, Undo, settings, and the notification path end to end.
 - `tests/fixtures/backup.json` is a backup-shaped file with ten weeks of made-up history (`node tests/make-fixture.mjs` rebuilds it).

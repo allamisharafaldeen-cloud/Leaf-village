@@ -276,10 +276,100 @@ function streakStory(C){
   return out;
 }
 
+/* ---------- checking a backup file before it replaces anything ----------
+   A good backup comes through exactly as it is. A damaged one is either refused (nothing sensible to open) or
+   repaired by leaving out the entries that cannot be read; `fixed` counts what was left out or reset. */
+function cleanBackup(d, nowMs){
+  if(!isObj(d) || d.app !== 'The Leaf Village' || !isObj(d.settings)) return {ok:false, why:'not'};
+  let s; try{ s = JSON.parse(JSON.stringify(d.settings)); }catch(e){ return {ok:false, why:'not'}; }
+  let fixed = 0;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const okTime = v => typeof v === 'string' && !isNaN(Date.parse(v));
+  if(!isDate(s.startDate)) return {ok:false, why:'start'};
+  if(!isObj(s.exercises)){ s.exercises = {}; fixed++; }
+  Object.keys(s.exercises).forEach(id => { const e = s.exercises[id]; if(!isObj(e)){ delete s.exercises[id]; fixed++; } else if(typeof e.name !== 'string' || !e.name){ e.name = id; fixed++; } });
+  if(!Object.keys(s.exercises).length) return {ok:false, why:'exercises'};
+  if(!isObj(s.baseline)){ s.baseline = {}; fixed++; }
+  Object.keys(s.exercises).forEach(id => {
+    const b = s.baseline[id];
+    if(!isObj(b) || !(typeof b.max === 'number' && isFinite(b.max) && b.max >= 0)){ s.baseline[id] = {max:posNum(b && +b.max, 1), date:(b && isDate(b.date)) ? b.date : s.startDate}; fixed++; }
+    else if(!isDate(b.date)){ b.date = s.startDate; fixed++; }
+  });
+  const rawHist = Array.isArray(s.scheduleHistory) ? s.scheduleHistory : [];
+  const planDay = p => {
+    if(isObj(p)){
+      if(p.type === 'rest' || p.type === 'test') return p;
+      if(p.type === 'gtg' && typeof p.ex === 'string') return p;
+      if(p.type === 'combo' && Array.isArray(p.exs) && p.exs.length && p.exs.every(x => typeof x === 'string')) return p;
+    }
+    return {type:'rest'};
+  };
+  const hist = [];
+  rawHist.forEach(e => {
+    if(!isObj(e) || !isDate(e.from)){ fixed++; return; }
+    const n = normEntry(e), out = Object.assign({}, e);
+    const plan = Array.from({length:7}, (_, k) => planDay(Array.isArray(e.plan) ? e.plan[k] : DEFAULT_PLAN[k]));
+    if(!same(plan, e.plan)){ out.plan = plan; fixed++; }
+    if(!same(n.gtg, e.gtg)){ out.gtg = n.gtg; fixed++; }
+    if(!same(n.test, e.test)){ out.test = n.test; fixed++; }
+    if(e.combo !== undefined && !same(n.combo, e.combo)){ out.combo = n.combo; fixed++; }
+    if(e.study !== undefined){
+      const sp = studyPlanOf(e), okT = t => posNum(t.min, 0) && posNum(t.full, 0) && t.min <= t.full;
+      const st = {week:okT(sp.week) ? sp.week : STUDY_DEFAULT.week, end:okT(sp.end) ? sp.end : STUDY_DEFAULT.end};
+      if(!same(st, e.study)){ out.study = st; fixed++; }
+    }
+    hist.push(out);
+  });
+  if(!hist.length){ hist.push({from:s.startDate, plan:JSON.parse(JSON.stringify(DEFAULT_PLAN)), gtg:Object.assign({}, DEFAULT_GTG), test:{sets:2, ex:Object.keys(s.exercises).slice(0, 2)}}); fixed++; }
+  if(!same(hist, s.scheduleHistory)) s.scheduleHistory = hist;
+  if(s.studyStart !== undefined && s.studyStart !== null && !isDate(s.studyStart)){ delete s.studyStart; fixed++; }
+  const studyStart = d.studyStart;
+  if(s.examWeeks !== undefined){
+    const ex = (Array.isArray(s.examWeeks) ? s.examWeeks : []).filter(e => isObj(e) && isDate(e.start) && isDate(e.end) && e.start <= e.end);
+    if(!Array.isArray(s.examWeeks) || ex.length !== s.examWeeks.length){ s.examWeeks = ex; fixed++; }
+  }
+  if(s.celebrated !== undefined && !(typeof s.celebrated === 'number' && isFinite(s.celebrated) && s.celebrated >= 0)){ s.celebrated = 0; delete s.celebratedId; fixed++; }
+  if(s.themeRank !== undefined && !(Number.isInteger(s.themeRank) && s.themeRank >= 0 && s.themeRank < RANKS.length)){ delete s.themeRank; delete s.themeRankId; fixed++; }
+  if(typeof s.name !== 'string'){ s.name = 'Ninja'; fixed++; }
+  if(s.notify !== undefined && !isObj(s.notify)){ delete s.notify; fixed++; }
+
+  const coll = (src, fn) => { const out = {}; if(!isObj(src)){ if(src != null) fixed++; return out; } Object.keys(src).forEach(k => { if(!isDate(k) || !isObj(src[k])){ fixed++; return; } const v = fn(k, src[k]); if(v) out[k] = v; else fixed++; }); return out; };
+  const days = coll(d.days, (k, doc) => {
+    const list = Array.isArray(doc.sets) ? doc.sets : [];
+    const okS = x => okSet(x) && x.reps >= 0 && x.reps <= 999 && okTime(x.t);
+    const good = list.filter(okS);
+    if(Array.isArray(doc.sets) && good.length === list.length && doc.date === k) return doc;
+    fixed += list.length - good.length;
+    return Object.assign({}, doc, {date:k, sets:good});
+  });
+  const study = coll(d.study, (k, doc) => {
+    const list = Array.isArray(doc.entries) ? doc.entries : [];
+    const okE = e => isObj(e) && typeof e.min === 'number' && isFinite(e.min) && e.min >= 0 && e.min <= 1440 && okTime(e.end) && (e.start == null || okTime(e.start));
+    const good = list.filter(okE);
+    if(Array.isArray(doc.entries) && good.length === list.length && doc.date === k) return doc;
+    fixed += list.length - good.length;
+    return Object.assign({}, doc, {date:k, entries:good});
+  });
+  const body = coll(d.body, (k, doc) => (typeof doc.weight === 'number' && isFinite(doc.weight) && doc.weight >= 20 && doc.weight <= 500) ? (doc.date === k ? doc : Object.assign({}, doc, {date:k})) : null);
+  let timer = d.timer;
+  if(timer != null){
+    const now = nowMs == null ? Date.now() : nowMs;
+    const okRun = isObj(timer) && timer.state === 'running' && typeof timer.segStart === 'number' && timer.segStart <= now + 60000 && timer.segStart > now - 2*86400000 && (timer.checkAt == null || typeof timer.checkAt === 'number');
+    const okIdle = isObj(timer) && (timer.state === 'idle' || (timer.state === 'paused' && (timer.sessionMs == null || (typeof timer.sessionMs === 'number' && timer.sessionMs >= 0))));
+    if(!okRun && !okIdle){ timer = {state:'idle'}; if(!(isObj(d.timer) && d.timer.state === 'running')) fixed++; }
+  }
+  const out = Object.assign({}, d, {settings:s, days, study, body, timer});
+  if(!isObj(d.prefs)) delete out.prefs;
+  if(!isObj(d.media)) delete out.media;
+  if(studyStart != null && !isDate(studyStart)) delete out.studyStart;
+  if(d.examWeeks !== undefined && !Array.isArray(d.examWeeks)) delete out.examWeeks;
+  return {ok:true, data:out, fixed};
+}
+
 return {
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
-  splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory
+  splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup
 };
 });

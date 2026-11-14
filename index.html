@@ -457,17 +457,18 @@ select,input[type=number],input[type=text],input[type=date]{width:100%; min-widt
 .theme-sw.locked span{font-family:var(--f-display); font-size:22px}
 
 /* event effects */
-.mscroll.flash .chakra i.on{animation:flow 2.4s linear infinite, zap .8s ease-out}
+.mscroll.zapped .chakra i.on{animation:flow 2.4s linear infinite, zap .8s ease-out}
 @keyframes zap{0%{filter:brightness(2.1) saturate(1.4); box-shadow:0 0 30px var(--chakra)}100%{filter:none}}
-.mscroll.flash .sets li:last-child,.mscroll.flash .slot.filled{animation:chippop .5s cubic-bezier(.2,1.6,.4,1)}
+.mscroll.zapped .sets li:last-child,.mscroll.zapped .slot.filled{animation:chippop .5s cubic-bezier(.2,1.6,.4,1)}
 @keyframes chippop{0%{transform:scale(.55)}100%{transform:scale(1)}}
 .shake{animation:shake .5s cubic-bezier(.36,.07,.19,.97)}
 @keyframes shake{10%,90%{transform:translate(-2px,1px)}20%,80%{transform:translate(4px,-2px)}30%,50%,70%{transform:translate(-8px,3px)}40%,60%{transform:translate(8px,-3px)}}
 .stamp{position:fixed; left:50%; top:40%; z-index:42; transform:translate(-50%,-50%) rotate(-8deg); padding:12px 22px 14px; border:6px solid var(--seal); border-radius:14px; color:var(--seal); background:var(--card); font-family:var(--f-display); font-size:44px; line-height:1; letter-spacing:.03em; white-space:nowrap; pointer-events:none; box-shadow:0 10px 40px rgba(0,0,0,.25)}
 .stamp.go{animation:stampin 1.7s cubic-bezier(.2,.9,.3,1) forwards}
 @keyframes stampin{0%{opacity:0; transform:translate(-50%,-50%) scale(2.8) rotate(-18deg)}15%{opacity:1; transform:translate(-50%,-50%) scale(.92) rotate(-8deg)}22%{transform:translate(-50%,-50%) scale(1.05) rotate(-8deg)}30%,80%{opacity:1; transform:translate(-50%,-50%) scale(1) rotate(-8deg)}100%{opacity:0; transform:translate(-50%,-50%) scale(1) rotate(-8deg)}}
-.flash{position:fixed; inset:0; z-index:43; background:var(--on-image); pointer-events:none; opacity:0}
-.flash.go{animation:flashgo 1s ease-out}
+/* the full-screen flash is only ever the #flash layer: a class with this name on anything else must not turn it into one */
+#flash.flash{position:fixed; inset:0; z-index:43; background:var(--on-image); pointer-events:none; opacity:0}
+#flash.flash.go{animation:flashgo 1s ease-out}
 @keyframes flashgo{0%{opacity:0}12%{opacity:.92}100%{opacity:0}}
 
 /* set sound */
@@ -552,6 +553,7 @@ body.has-player .wrap{padding-bottom:178px}
 @keyframes pop{from{transform:scale(.7); opacity:0}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .toast{position:fixed; left:50%; bottom:calc(84px + env(safe-area-inset-bottom,0px)); transform:translateX(-50%); z-index:30; background:var(--ink); color:var(--paper); padding:10px 16px; border-radius:12px; font-size:14px; font-weight:500; max-width:calc(100% - 32px); box-shadow:0 8px 24px rgba(0,0,0,.25)}
+body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .loading{padding:60px 0; text-align:center; color:var(--muted)}
 .loading b{display:block; font-family:var(--f-display); font-size:22px; color:var(--ink); font-weight:400; margin-bottom:6px}
 @media (prefers-reduced-motion: reduce){
@@ -822,16 +824,18 @@ async function initStore(){
   const fresh = {settings:false,days:false,body:false,media:false,prefs:false,study:false,timer:false};
   const onFresh = (k, meta) => { if(meta && !meta.fromCache){ fresh[k]=true; if(Object.values(fresh).every(Boolean)){ clearTimeout(timer); state.stale=false; } } };
   const onErr = e => { clearTimeout(timer); state.error = (e && e.code==='revoked') ? 'This page lost access to your saved data. Reopen it to continue.' : 'Your saved data could not be loaded. Close the app fully and open it again.'; render(); };
-  db.doc(PATH.settings).onSnapshot(s=>{ state.settings = s.exists ? clone(s.data()) : null; state.loaded.settings=true; onFresh('settings', s.metadata); render(); }, onErr);
-  db.collection(PATH.days).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.days=m; state.loaded.days=true; onFresh('days', q.metadata); render(); }, onErr);
-  db.doc(PATH.media).onSnapshot(s=>{ state.media = s.exists ? clone(s.data()) : null; state.loaded.media=true; onFresh('media', s.metadata); render(); }, onErr);
-  db.doc(PATH.prefs).onSnapshot(s=>{ state.prefs = s.exists ? clone(s.data()) : null; state.loaded.prefs=true; onFresh('prefs', s.metadata); render(); }, onErr);
-  db.collection(PATH.study).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.study=m; state.loaded.study=true; onFresh('study', q.metadata); render(); }, onErr);
-  db.doc(PATH.timer).onSnapshot(s=>{ state.timer = s.exists ? clone(s.data()) : null; state.loaded.timer=true; onFresh('timer', s.metadata); render(); }, onErr);
-  db.collection(PATH.body).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.body=m; state.loaded.body=true; onFresh('body', q.metadata); render(); }, onErr);
+  db.doc(PATH.settings).onSnapshot(s=>{ state.settings = s.exists ? clone(s.data()) : null; state.loaded.settings=true; dataRev++; onFresh('settings', s.metadata); render(); }, onErr);
+  db.collection(PATH.days).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.days=m; state.loaded.days=true; dataRev++; onFresh('days', q.metadata); render(); }, onErr);
+  db.doc(PATH.media).onSnapshot(s=>{ state.media = s.exists ? clone(s.data()) : null; state.loaded.media=true; dataRev++; onFresh('media', s.metadata); render(); }, onErr);
+  db.doc(PATH.prefs).onSnapshot(s=>{ state.prefs = s.exists ? clone(s.data()) : null; state.loaded.prefs=true; dataRev++; onFresh('prefs', s.metadata); render(); }, onErr);
+  db.collection(PATH.study).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.study=m; state.loaded.study=true; dataRev++; onFresh('study', q.metadata); render(); }, onErr);
+  db.doc(PATH.timer).onSnapshot(s=>{ state.timer = s.exists ? clone(s.data()) : null; state.loaded.timer=true; dataRev++; onFresh('timer', s.metadata); render(); }, onErr);
+  db.collection(PATH.body).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.body=m; state.loaded.body=true; dataRev++; onFresh('body', q.metadata); render(); }, onErr);
 }
 const allLoaded = () => Object.values(state.loaded).every(Boolean);
 
+/* dataRev goes up whenever anything the engine reads may have changed, so render() can reuse its last result */
+let dataRev=0;
 const queues = {};
 function persist(path, data, onDrain){
   let q = queues[path] || (queues[path]={running:false,has:false,data:null,onDrain:null});
@@ -839,36 +843,48 @@ function persist(path, data, onDrain){
   if(!q.running) drain(path);
 }
 async function drain(path){
-  const q=queues[path]; q.running=true;
+  const q=queues[path]; q.running=true; let ok=false;
   while(q.has){
-    q.has=false; const data=q.data;
+    q.has=false; const data=q.data; ok=false;
     for(let attempt=0; attempt<2; attempt++){
-      try{ await db.doc(path).set(data); break; }
+      try{ await db.doc(path).set(data); ok=true; break; }
       catch(e){
         if(e && e.code==='unavailable' && attempt===0){ await sleep(400+Math.random()*700); continue; }
         writeError(e); break;
       }
     }
   }
-  q.running=false; if(q.onDrain) q.onDrain(); render();
+  /* a save that worked clears an earlier "could not be saved" banner */
+  if(ok && state.errorFrom==='write'){ state.error=null; state.errorFrom=null; }
+  q.running=false; if(q.onDrain) q.onDrain(ok, q.data); dataRev++; render();
 }
 function writeError(e){
   const code = e && e.code;
   if(code==='invalid_argument'){ state.readOnly=true; state.error='Only the owner of this village can log here. You are viewing a read-only copy.'; }
   else if(code==='quota_exceeded'){ state.error='Storage for this page is full, so that entry was not saved.'; }
-  else { state.error='That entry could not be saved. Check your connection and log it again.'; }
+  else { state.error='That entry could not be saved on this device. Close the app fully, open it again and log it once more.'; }
+  state.errorFrom='write';
+  /* the banner sits at the top of the page, so say it where it will be seen too */
+  if(code!=='invalid_argument') toast(state.error, 7000);
 }
 function save(kind, key, data){
   if(state.readOnly) return;
+  if(kind==='settings') stampRankIds(data);
   if(state.mode==='db'){
     const single = SINGLE_DOCS.includes(kind);
     const path = single ? PATH[kind] : `${PATH[kind]}/${key}`;
     if(single) pending[kind]=data; else pending[kind][key]=data;
-    persist(path, data, ()=>{ if(single) pending[kind]=null; else delete pending[kind][key]; });
+    /* when the save worked, show the saved copy straight away: the storage layer's own notice arrives a moment later,
+       and without this the page would flick back to the old state in between */
+    persist(path, data, (ok, d)=>{
+      if(single){ if(ok) state[kind]=d; if(pending[kind]===d || !ok) pending[kind]=null; }
+      else { if(ok) state[kind][key]=d; if(pending[kind][key]===d || !ok) delete pending[kind][key]; }
+    });
   } else {
     if(SINGLE_DOCS.includes(kind)) state[kind]=data; else state[kind][key]=data;
     saveLocal();
   }
+  dataRev++;
   render();
 }
 
@@ -880,6 +896,7 @@ const {STUDY, studyPlanOf, splitByDay} = E;
 const studyTarget = d => E.studyTarget(S()||{}, d);
 const isExam = d => E.isExam(S()||{}, d);
 const examFor = d => E.examFor(S()||{}, d);
+const examWeeks = () => (Array.isArray((S()||{}).examWeeks) ? S().examWeeks : []).filter(e=>e && E.isDate(e.start) && E.isDate(e.end));
 const getStudy = d => pending.study[d] || state.study[d];
 const timerDoc = () => pending.timer || state.timer || {state:'idle'};
 const fmtH = m => { m=Math.max(0,Math.round(m)); const h=Math.floor(m/60), r=m%60; return h ? (r?`${h}h ${r}m`:`${h}h`) : `${r}m`; };
@@ -892,6 +909,14 @@ function engineData(){
   return {settings:S(), days:over(state.days,pending.days), study:over(state.study,pending.study), body:over(state.body,pending.body), timer:timerDoc()};
 }
 function compute(){ return E.compute(engineData(), Date.now()); }
+/* the engine walks the whole history, so its result is kept until the data or the day changes
+   (a running study timer changes every second, so then it is always worked out fresh) */
+let cachedKey=null;
+function computeCached(){
+  const key=dataRev+'|'+todayStr();
+  if(lastC && cachedKey===key && timerDoc().state!=='running') return lastC;
+  cachedKey=key; return compute();
+}
 
 /* ---------- achievements ---------- */
 const SCROLLS = [
@@ -964,8 +989,8 @@ function todayPower(C){
   if(sr && sr.tgt){ const n=(sr.tgt.off ? sr.tgt.full : sr.tgt.min)/60; need+=n; done+=Math.min(sr.mins/60, n); }
   return need ? clamp(done/need,0,1) : 0;
 }
-let lastTap=null;
-document.addEventListener('pointerdown', e=>{ const b=e.target.closest && e.target.closest('button,.btn'); if(!b) return; const r=b.getBoundingClientRect(); lastTap={x:r.left+r.width/2, y:r.top+r.height/2, t:Date.now()}; }, {capture:true, passive:true});
+let lastTap=null, lastTouch=null;
+document.addEventListener('pointerdown', e=>{ const c=e.target.closest && e.target.closest('[data-act],button,.btn,label,select,input,a'); if(c) lastTouch={el:c, at:performance.now()}; const b=e.target.closest && e.target.closest('button,.btn'); if(!b) return; const r=b.getBoundingClientRect(); lastTap={x:r.left+r.width/2, y:r.top+r.height/2, t:Date.now()}; }, {capture:true, passive:true});
 function stageVisible(){ const st=document.querySelector('.stage'); if(!st) return false; const r=st.getBoundingClientRect(); return r.bottom>120 && r.top<innerHeight-80; }
 function updateMinibar(C){
   const mb=document.getElementById('minibar'); if(!mb) return;
@@ -1010,7 +1035,7 @@ function stagePowerUp(gained){
   const st=document.querySelector('.stage'); if(!st) return;
   st.classList.remove('powerup'); void st.offsetWidth; st.classList.add('powerup');
   clearTimeout(stagePowerUp.t); stagePowerUp.t=setTimeout(()=>st.classList.remove('powerup'),950);
-  const f=document.createElement('div'); f.className='xp-float'; f.textContent=`${signed(gained)} XP`; st.appendChild(f); setTimeout(()=>f.remove(),1300);
+  const f=document.createElement('div'); f.className='xp-float'; f.dataset.morph='keep'; f.textContent=`${signed(gained)} XP`; st.appendChild(f); setTimeout(()=>f.remove(),1300);
   const r=st.getBoundingClientRect(); FX.sparkBurst(r.left+r.width/2, r.top+r.height*.55, getComputedStyle(st).getPropertyValue('--aura').trim()||'#ffd27a');
 }
 function ninjaHeader(C){
@@ -1151,10 +1176,11 @@ function missionCard(C){
   else { const tot=t.info.per.length*t.info.sets, got=t.info.per.reduce((n,p)=>n+p.sets.length,0); progress=`${got} of ${tot} test sets`; }
   const done = t.status==='done' || t.plan.type==='rest';
   const ready = C.readyUntil && Date.now()<C.readyUntil && !state.readOnly;
-  return `<section class="mscroll${done?' done':''}${ready?' ready':''}" data-sid="work" aria-label="Today's mission">
+  const open=!!ui.scrollOpen.work;
+  return `<section class="mscroll${done?' done':''}${ready?' ready':''}${open?' open':''}" data-sid="work" aria-label="Today's mission">
     ${ready?`<span class="ready-pill" title="Log a set before ${timeOf(new Date(C.readyUntil).toISOString())} for combo XP">Set ready · +${STUDY.combo} combo</span>`:''}
-    <button type="button" class="ms-rod ms-top" data-act="scroll-toggle" aria-controls="ms-paper" aria-expanded="false" aria-label="Open or roll up today's mission"><span class="cap l"></span><span class="cap r"></span></button>
-    <div class="ms-paper-wrap"><div class="ms-paper-clip" id="ms-paper"><div class="ms-paper">
+    <button type="button" class="ms-rod ms-top" data-act="scroll-toggle" aria-controls="ms-paper" aria-expanded="${open}" aria-label="Open or roll up today's mission"><span class="cap l"></span><span class="cap r"></span></button>
+    <div class="ms-paper-wrap"><div class="ms-paper-clip" id="ms-paper"${open?'':' inert'}><div class="ms-paper">
       <div class="zig" aria-hidden="true"></div>
       <div class="ms-inner">
         <div class="seal" aria-hidden="true">${m.seal}<small>${m.grade}</small></div>
@@ -1166,7 +1192,7 @@ function missionCard(C){
       </div>
       <div class="zig flip" aria-hidden="true"></div>
     </div></div></div>
-    <button type="button" class="ms-roll" data-act="scroll-toggle" aria-controls="ms-paper" aria-expanded="false">
+    <button type="button" class="ms-roll" data-act="scroll-toggle" aria-controls="ms-paper" aria-expanded="${open}">
       <span class="roll-wood" aria-hidden="true"></span>
       <span class="roll-paper"><span class="roll-band l"></span><span class="roll-band r"></span><span class="roll-cord"></span>
         <span class="roll-label"><span class="roll-seal" aria-hidden="true">${done?ico.check:m.seal}</span><span><b>${esc(m.title)}</b><small>${esc(progress)} · <span class="roll-hint">Tap to unroll</span></small></span></span></span>
@@ -1291,9 +1317,10 @@ function studyCard(C){
   const title = off ? 'Off-Day Study' : tgt ? 'Study Scroll' : 'Study Rest Day';
   const offBtn = (!tgt && isThu && !state.readOnly) ? `<button class="btn chakra-btn" data-act="st-offday">Study on an off day</button><p class="muted" style="margin:0;font-size:13px">8 hours fills the scroll. There's no minimum, so any hour today adds 1 to your study streak.</p>` : '';
   const seal = '学';
-  return `<section class="mscroll study${done||(!tgt&&!offBtn)?' done':''}" data-sid="study" aria-label="Today's study mission">
-    <button type="button" class="ms-rod ms-top" data-act="scroll-toggle" aria-expanded="false" aria-label="Open or roll up today's study mission"><span class="cap l"></span><span class="cap r"></span></button>
-    <div class="ms-paper-wrap"><div class="ms-paper-clip"><div class="ms-paper">
+  const open=!!ui.scrollOpen.study;
+  return `<section class="mscroll study${done||(!tgt&&!offBtn)?' done':''}${open?' open':''}" data-sid="study" aria-label="Today's study mission">
+    <button type="button" class="ms-rod ms-top" data-act="scroll-toggle" aria-expanded="${open}" aria-label="Open or roll up today's study mission"><span class="cap l"></span><span class="cap r"></span></button>
+    <div class="ms-paper-wrap"><div class="ms-paper-clip"${open?'':' inert'}><div class="ms-paper">
       <div class="zig" aria-hidden="true"></div>
       <div class="ms-inner">
         <div class="seal" aria-hidden="true">${seal}<small>STUDY</small></div>
@@ -1311,7 +1338,7 @@ function studyCard(C){
       </div>
       <div class="zig flip" aria-hidden="true"></div>
     </div></div></div>
-    <button type="button" class="ms-roll" data-act="scroll-toggle" aria-expanded="false">
+    <button type="button" class="ms-roll" data-act="scroll-toggle" aria-expanded="${open}">
       <span class="roll-wood" aria-hidden="true"></span>
       <span class="roll-paper"><span class="roll-band l"></span><span class="roll-band r"></span><span class="roll-cord"></span>
         <span class="roll-label"><span class="roll-seal" aria-hidden="true">${done?ico.check:seal}</span><span><b>${title}</b><small>${esc(progress)}${timerDoc().state==='running'?' · timer running':''}</small></span></span></span>
@@ -1402,7 +1429,7 @@ function studyStatsView(C){
   return tiles+week+month+year+totals;
 }
 function examCard(C){
-  const s=S(), list=(s.examWeeks||[]).slice().sort((a,b)=>a.start<b.start?-1:1), today=C.today;
+  const s=S(), list=examWeeks().sort((a,b)=>a.start<b.start?-1:1), today=C.today;
   const active=examFor(today), upcoming=list.find(e=>e.start>today);
   const monthKey=today.slice(0,7), usedThisMonth=list.find(e=>e.start.slice(0,7)===monthKey);
   let body;
@@ -1514,7 +1541,7 @@ function senseiCard(C){
   const sd=SENSEIS[L.id];
   return `<section class="sensei-card" style="--sc:${sd.color}" aria-label="Today's sensei">
     <button type="button" class="sensei-talk" data-act="sensei-talk" aria-label="Another line from ${esc(sd.name)}">${senseiAvatar(L.id,64)}</button>
-    <div class="bubble" aria-live="polite"><span class="bubble-name"><i></i>${esc(sd.name)} · ${esc(L.label||sd.role.split(',')[0])}</span><p>${esc(L.text)}</p></div>
+    <div class="bubble" data-k="b${hashStr(L.id+L.text)}" aria-live="polite"><span class="bubble-name"><i></i>${esc(sd.name)} · ${esc(L.label||sd.role.split(',')[0])}</span><p>${esc(L.text)}</p></div>
   </section>`;
 }
 function challengeState(C, id){
@@ -1656,16 +1683,16 @@ function statsView(C){
 }
 
 /* --- plan --- */
-function currentEntry(){ const h=sortedHistory(S()); return h[h.length-1]; }
+function currentEntry(){ const h=sortedHistory(S()); return h[h.length-1] || {from:S().startDate}; }
+const entryDraft = e => { const n=E.normEntry(e); return {plan:Array.from({length:7},(_,k)=>(n.plan[k] && typeof n.plan[k]==='object') ? n.plan[k] : {type:'rest'}), gtg:n.gtg, test:n.test, combo:n.combo, study:studyPlanOf(e)}; };
 function ensureDraft(){
   if(ui.draft) return;
-  const e=currentEntry();
-  ui.draft = clone({plan:e.plan, gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo||{}), study:studyPlanOf(e)});
+  ui.draft = clone(entryDraft(currentEntry()));
 }
 function planView(C){
   ensureDraft();
   const s=S(), d=ui.draft, e=currentEntry();
-  const dirty = JSON.stringify(d)!==JSON.stringify({plan:e.plan,gtg:e.gtg,test:e.test,combo:Object.assign({sets:3}, e.combo||{}),study:studyPlanOf(e)});
+  const dirty = JSON.stringify(d)!==JSON.stringify(entryDraft(e));
   const comboIds = (C.exIds.includes('pullups') && C.exIds.includes('dips')) ? ['pullups','dips'] : C.exIds.slice(0,2);
   const opts = cur => {
     const list=[...C.exIds.map(id=>({v:'gtg:'+id, l:`${exName(id)} groove`})), ...(comboIds.length===2?[{v:'combo:'+comboIds.join(','), l:`${comboIds.map(exName).join(' + ')} groove`}]:[]), {v:'test',l:'Max test'}, {v:'rest',l:'Rest'}];
@@ -2506,14 +2533,15 @@ function importBlock(withDownload){
   return btns+`<div class="import-panel" role="group" aria-label="Import backup">
       <p><b>Backup from ${esc(when)}</b></p>
       <p>${n(d.days)} workout days · ${n(d.study)} study days · ${n(d.body)} weigh-ins</p>
-      <p class="muted">${here?'This replaces everything already saved on this phone with the backup.':'This brings your whole history onto this phone.'}${Sync && Sync.hasKey() ? ' With sync on, logs already saved online are joined back in afterwards.' : ''}${d.study?'':' This backup has no study hours in it.'}</p>
+      <p class="muted">${here?'This replaces everything already saved on this phone with the backup.':'This brings your whole history onto this phone.'}${Sync && Sync.hasKey() ? ' With sync on, logs already saved online are joined back in afterwards.' : ''}${d.study?'':' This backup has no study hours in it.'}${ui.importFixed?` ${ui.importFixed} damaged ${ui.importFixed===1?'entry in the file was':'entries in the file were'} left out.`:''}</p>
       <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="import-yes">${here?'Replace with backup':'Import'}</button><button type="button" class="btn small ghost" data-act="import-no">Cancel</button></div>
     </div>`;
 }
 async function readImport(file){
   let d=null; try{ d=JSON.parse(await file.text()); }catch(e){}
-  if(!d || d.app!=='The Leaf Village' || !d.settings || typeof d.settings!=='object'){ toast('That file isn\'t a Leaf Village backup.'); return; }
-  ui.importData=d; render();
+  const r=E.cleanBackup(d, Date.now());
+  if(!r.ok){ toast(r.why==='not' ? 'That file isn\'t a Leaf Village backup.' : 'That backup file is damaged, so nothing was imported. Your village here is unchanged.', 5000); return; }
+  ui.importData=r.data; ui.importFixed=r.fixed; render();
 }
 async function applyImport(){
   const d=ui.importData; if(!d || !window.LeafLocal) return;
@@ -2548,10 +2576,45 @@ function applyTheme(i, force){
   if(!first && changed){ const r=document.documentElement; r.classList.add('theme-shift'); clearTimeout(applyTheme._t); applyTheme._t=setTimeout(()=>r.classList.remove('theme-shift'),1200); }
   FX.setMode(t.fx, (dark?t.dark:t.light).fx);
 }
+/* settings remember two ranks: the last promotion accepted and the chosen theme. They are kept by rank id as well
+   as by position, so adding or removing a rank in the ladder cannot silently point them at a different rank. */
+const rankIdx = id => RANKS.findIndex(r=>r.id===id);
+function seenRank(C){
+  const s=S(), i=s.celebratedId ? rankIdx(s.celebratedId) : -1;
+  if(i>=0) return i;
+  return clamp(Math.round(+s.celebrated||0), 0, C.peak);
+}
+function themeChoice(s){
+  if(s.themeRankId){ const i=rankIdx(s.themeRankId); return i>=0 ? i : null; }
+  return (typeof s.themeRank==='number' && RANKS[s.themeRank]) ? s.themeRank : null;
+}
+function stampRankIds(s){
+  if(!s || typeof s!=='object' || !lastC || !settled()) return;
+  if(!s.celebratedId || rankIdx(s.celebratedId)<0){ const i=clamp(Math.round(+s.celebrated||0), 0, lastC.peak); s.celebrated=i; s.celebratedId=RANKS[i].id; }
+  else s.celebrated=rankIdx(s.celebratedId);
+  if(s.themeRankId){ const i=rankIdx(s.themeRankId); if(i>=0) s.themeRank=i; else { delete s.themeRank; delete s.themeRankId; } }
+  else if(typeof s.themeRank==='number'){ if(RANKS[s.themeRank]) s.themeRankId=RANKS[s.themeRank].id; else delete s.themeRank; }
+}
+/* an old backup may remember a promotion from an earlier ladder that is above the rank it now computes to;
+   left alone, the next real promotions would pass without their ceremony. The fix waits until the data has
+   been still for a few seconds, because a village arriving through sync is briefly "all settings, no logs". */
+const settled = () => allLoaded() && !(Sync && Sync.status().state==='syncing');
+const rankStale = (s, C) => (!s.celebratedId || rankIdx(s.celebratedId)<0) && Math.round(+s.celebrated||0)>C.peak;
+let rankFixTimer=null;
+function fixRankRefs(C){
+  if(state.readOnly || rankFixTimer || !rankStale(S(), C)) return;
+  const rev=dataRev;
+  rankFixTimer=setTimeout(()=>{
+    rankFixTimer=null; const cur=S(), C2=lastC;
+    if(!cur || !C2 || state.readOnly) return;
+    if(dataRev!==rev || !settled()){ fixRankRefs(C2); return; }
+    if(rankStale(cur, C2)) save('settings', null, clone(cur));
+  }, 4000);
+}
 function themeIndex(C){
-  const s=S(); const t=s.themeRank;
-  if(C.peak>(s.celebrated||0)) return C.peak;
-  return (typeof t==='number' && t>=0 && t<=C.peak) ? t : C.peak;
+  const t=themeChoice(S());
+  if(C.peak>seenRank(C)) return C.peak;
+  return (t!=null && t>=0 && t<=C.peak) ? t : C.peak;
 }
 function topbar(title, noWindow){
   const bg=!!bgRec(bgSlotNow());
@@ -2582,27 +2645,109 @@ function updateTabs(show){
   nav.querySelectorAll('a').forEach(a=>{ if(a.dataset.tab===ui.tab) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
 }
 let lastC=null;
-let lastHtml='';
-function setView(html){ if(html!==lastHtml){ document.getElementById('view').innerHTML=html; lastHtml=html; } }
+let lastHtml='', lastViewId='';
+
+/* ---------- patching the page ----------
+   A render builds the whole view as text, but only the parts that differ are changed on the page. Everything else
+   keeps its place: the open scroll stays open, the page does not jump, a typed-in field keeps its cursor, and
+   pictures and running animations are not restarted. */
+const KEEP_CLASSES=['powerup','zapped','no-anim','shake','pulse'];
+const isKeep = n => n.nodeType===1 && n.getAttribute('data-morph')==='keep';
+const nodeKey = n => n.nodeType!==1 ? '#'+n.nodeType : n.nodeName+'|'+(n.id || n.getAttribute('data-k') || n.getAttribute('data-sid') || (n.getAttribute('class')||'').split(' ')[0]);
+const sameNode = (a,b) => a.nodeType===b.nodeType && (a.nodeType!==1 || nodeKey(a)===nodeKey(b));
+function morphAttrs(o, n){
+  const oa=o.attributes, na=n.attributes;
+  for(let i=oa.length-1;i>=0;i--){
+    const name=oa[i].name; if(n.hasAttribute(name)) continue;
+    if(name==='class'){ const keep=KEEP_CLASSES.filter(c=>o.classList.contains(c)).join(' '); if(keep){ if(oa[i].value!==keep) o.setAttribute('class',keep); } else o.removeAttribute('class'); }
+    else o.removeAttribute(name);
+  }
+  for(let i=0;i<na.length;i++){
+    const name=na[i].name; let v=na[i].value;
+    if(name==='class'){ const keep=KEEP_CLASSES.filter(c=>o.classList.contains(c) && (' '+v+' ').indexOf(' '+c+' ')<0); if(keep.length) v=(v+' '+keep.join(' ')).trim(); }
+    if(o.getAttribute(name)!==v) o.setAttribute(name,v);
+  }
+  const tag=o.nodeName;
+  if(tag==='INPUT'){
+    if(o.type==='checkbox' || o.type==='radio') o.checked=n.hasAttribute('checked');
+    else if(o.type!=='file' && o!==document.activeElement){ const v=n.getAttribute('value'); if(v!=null && o.value!==v) o.value=v; }
+  } else if(tag==='OPTION'){ const sel=n.hasAttribute('selected'); if(o.selected!==sel) o.selected=sel; }
+}
+function morphNode(o, n){
+  if(o.nodeType!==1){ if(o.nodeValue!==n.nodeValue) o.nodeValue=n.nodeValue; return; }
+  morphAttrs(o, n);
+  morphChildren(o, n);
+}
+function morphChildren(from, to){
+  let o=from.firstChild, n=to.firstChild;
+  while(n){
+    const nNext=n.nextSibling;
+    while(o && isKeep(o)) o=o.nextSibling;
+    if(!o){ from.appendChild(n); n=nNext; continue; }
+    if(sameNode(o,n)){ morphNode(o,n); o=o.nextSibling; n=nNext; continue; }
+    /* not the same thing in the same place: was something added before it, or taken away? */
+    let m=null, k=0; for(let x=o.nextSibling; x && k<12; x=x.nextSibling, k++){ if(!isKeep(x) && sameNode(x,n)){ m=x; break; } }
+    let needed=false; k=0; for(let x=nNext; x && k<12; x=x.nextSibling, k++){ if(sameNode(o,x)){ needed=true; break; } }
+    if(m && !needed){ while(o!==m){ const nx=o.nextSibling; if(!isKeep(o)) from.removeChild(o); o=nx; } morphNode(o,n); o=o.nextSibling; }
+    else if(m){ from.insertBefore(m,o); morphNode(m,n); }
+    else if(needed){ from.insertBefore(n,o); }
+    else { const nx=o.nextSibling; from.replaceChild(n,o); o=nx; }
+    n=nNext;
+  }
+  while(o){ const nx=o.nextSibling; if(!isKeep(o)) from.removeChild(o); o=nx; }
+}
+const morphTpl=document.createElement('template');
+/* keep what the user is looking at where it is: the control just tapped, or else the first block on screen */
+function anchorBefore(){
+  let el = (lastTouch && lastTouch.el.isConnected && performance.now()-lastTouch.at<1500 && document.getElementById('view').contains(lastTouch.el)) ? lastTouch.el : null;
+  if(!el){ const kids=document.getElementById('view').children; for(let i=0;i<kids.length;i++){ if(kids[i].getBoundingClientRect().bottom>70){ el=kids[i]; break; } } }
+  return el ? {el, top:el.getBoundingClientRect().top} : null;
+}
+function anchorAfter(a){
+  if(!a || !a.el.isConnected) return;
+  const d=a.el.getBoundingClientRect().top-a.top;
+  if(Math.abs(d)>=1) window.scrollBy(0, d);
+}
+function setView(html, id){
+  id=id||'view';
+  if(html===lastHtml && id===lastViewId) return;
+  const view=document.getElementById('view');
+  if(!lastHtml || id!==lastViewId){ const f=captureFocus(); view.innerHTML=html; restoreFocus(f); }
+  else {
+    const a=anchorBefore();
+    try{ morphTpl.innerHTML=html; morphChildren(view, morphTpl.content); }catch(e){ view.innerHTML=html; }
+    anchorAfter(a);
+  }
+  lastHtml=html; lastViewId=id;
+}
+function rescueView(err){
+  return `<section class="card" style="margin-top:14px" id="rescue"><h2>The village gates are stuck</h2>
+    <p class="muted small">Something in the saved data could not be read, so the app stopped rather than show you wrong numbers. Your logs are still on this device. Download a backup now, then import your last good backup file.</p>
+    <p class="muted small num">${esc(err && err.message || err)}</p>${importBlock(true)}</section>`;
+}
 function render(){
-  const f=captureFocus();
   renderBanner();
-  if(state.mode==='loading' || !allLoaded()){ if(appliedTheme==null) applyTheme(0); setView(`<div class="loading"><b>Opening the village gates</b>Loading your training records.</div>`); updateTabs(false); return; }
-  if(!S()){ if(appliedTheme==null) applyTheme(0); setView(setupView()); updateTabs(false); restoreFocus(f); return; }
-  let C;
-  try{ C=compute(); }catch(err){ setView(`<div class="loading"><b>Something went wrong</b>${esc(err.message)}</div>`); return; }
-  lastC=C;
-  syncPrefsFromStore();
-  syncMedia();
-  if(state.mode==='db' && !migrationDone) setTimeout(migrateDeviceFiles, 2500);
-  applyTheme(themeIndex(C));
-  const html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
-  setView(html);
-  applyScrollState(false);
+  if(state.mode==='loading' || !allLoaded()){ if(appliedTheme==null) applyTheme(0); setView(`<div class="loading"><b>Opening the village gates</b>Loading your training records.</div>`, 'loading'); updateTabs(false); return; }
+  if(!S()){ if(appliedTheme==null) applyTheme(0); setView(setupView(), 'setup'); updateTabs(false); return; }
+  let C, html;
+  try{
+    C=computeCached();
+    lastC=C;
+    syncPrefsFromStore();
+    syncMedia();
+    if(state.mode==='db' && !migrationDone) setTimeout(migrateDeviceFiles, 2500);
+    fixRankRefs(C);
+    applyTheme(themeIndex(C));
+    html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
+  }catch(err){
+    try{ console.warn('render failed', err); }catch(e){}
+    if(appliedTheme==null) applyTheme(0);
+    setView(rescueView(err), 'rescue'); updateTabs(false); document.getElementById('overlay').hidden=true; return;
+  }
+  setView(html, 'tab-'+ui.tab);
   applyBg();
   writeSummary(C);
   updateTabs(true);
-  restoreFocus(f);
   renderOverlay(C);
   renderPlayer();
   updateMinibar(C);
@@ -2613,7 +2758,7 @@ const streakStory = C => C._story || (C._story=E.streakStory(C));
 function sceneSeen(key){ try{ return localStorage.getItem('leaf-scene-'+key)==='1'; }catch(e){ return true; } }
 function markScene(key){ try{ localStorage.setItem('leaf-scene-'+key,'1'); }catch(e){} }
 function renderOverlay(C){
-  const s=S(), seen=s.celebrated||0, ov=document.getElementById('overlay');
+  const s=S(), seen=seenRank(C), ov=document.getElementById('overlay');
   const story = (!state.readOnly && C.peak<=seen && ui.viewRank==null) ? streakStory(C) : null;
   const recent = d => d && daysBetween(d, C.today)<=1;
   if(story && story.comeback && recent(story.comeback.date) && !sceneSeen('comeback-'+story.comeback.date)){
@@ -2682,11 +2827,11 @@ function renderOverlay(C){
 }
 
 let toastTimer=null;
-function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.hidden=true;},2600); }
+function toast(msg, ms){ const t=document.getElementById('toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.hidden=true;}, ms||2600); }
 
 /* ---------- actions ---------- */
 function setPath(path, val){ const [a,b]=path.split('.'); if(b===undefined){ ui[a]=val; return; } if(!ui[a]) ui[a]={}; ui[a][b]=val; }
-function flashMission(){ const sc=document.querySelector('.mscroll[data-sid="work"]'); if(!sc) return; sc.classList.remove('flash'); void sc.offsetWidth; sc.classList.add('flash'); clearTimeout(flashMission.t); flashMission.t=setTimeout(()=>sc.classList.remove('flash'),900); }
+function flashMission(){ const sc=document.querySelector('.mscroll[data-sid="work"]'); if(!sc) return; sc.classList.remove('zapped'); void sc.offsetWidth; sc.classList.add('zapped'); clearTimeout(flashMission.t); flashMission.t=setTimeout(()=>sc.classList.remove('zapped'),900); }
 function logSet(ex, key){
   const C=lastC; if(!C||!C.todayRec||state.readOnly) return;
   const reps=Math.round(ui.reps[key]||0); if(reps<1){ toast('Add at least one rep.'); return; }
@@ -2722,6 +2867,7 @@ document.addEventListener('click', e=>{
   const el=e.target.closest('[data-act]'); if(!el) return;
   const act=el.dataset.act;
   if(act==='plan-day'||act==='test-ex') return;
+  if(DAY_BOUND.test(act) && dayRolled()) return;
   if(act==='step'){ const k=el.dataset.key; ui.reps[k]=clamp((ui.reps[k]||0)+Number(el.dataset.d),0,999); SFX.play('tick'); render(); return; }
   if(act==='sound'){ SFX.toggle(); render(); return; }
   if(act==='rank-walls'){ prefs.rankWalls = prefs.rankWalls===false; savePrefs(); render(); return; }
@@ -2781,7 +2927,7 @@ document.addEventListener('click', e=>{
   if(act==='snd-test'){ if(!SFX.on){ toast('Sound effects are off. Turn them on above.'); return; } SFX.play(el.dataset.slot); return; }
   if(act==='snd-len'){ const sl=el.dataset.slot; SFX.setLen(sl, Number(el.dataset.v)); SFX.play(sl); render(); return; }
   if(act==='snd-clear'){ const sl=el.dataset.slot, old=media().sounds[sl]; if(!old) return; SFX.setSource(sl,null); saveMedia(m=>{ delete m.sounds[sl]; }); deleteAsset(old.id); toast(`${slotDef(sl).label}: back to the ${slotDef(sl).name.toLowerCase()}`); return; }
-  if(act==='theme'){ const i=Number(el.dataset.i), C=lastC; if(!C||i>C.peak||state.readOnly) return; const s=clone(S()); if(i===C.peak) delete s.themeRank; else s.themeRank=i; SFX.play('tick'); save('settings', null, s); toast(`${RANKS[i].name} theme on`); return; }
+  if(act==='theme'){ const i=Number(el.dataset.i), C=lastC; if(!C||i>C.peak||state.readOnly) return; const s=clone(S()); if(i===C.peak){ delete s.themeRank; delete s.themeRankId; } else { s.themeRank=i; s.themeRankId=RANKS[i].id; } SFX.play('tick'); save('settings', null, s); toast(`${RANKS[i].name} theme on`); return; }
   if(act==='log'){ logSet(el.dataset.ex, el.dataset.key); return; }
   if(act==='undo'){
     if(ui.confirm!=='undo'){ ui.confirm='undo'; clearTimeout(ui.confirmTimer); ui.confirmTimer=setTimeout(()=>{ ui.confirm=null; render(); },4000); render(); return; }
@@ -2806,6 +2952,7 @@ document.addEventListener('click', e=>{
   if(act==='plan-reset'){ ui.draft=null; render(); return; }
   if(act==='plan-save'){
     const s=clone(S()), today=todayStr();
+    if(ui.draft.plan.some(p=>p.type==='test') && !ui.draft.test.ex.some(id=>(s.exercises||{})[id])){ toast('Tick at least one exercise for your test days first.'); return; }
     const from = s.startDate>today ? s.startDate : addDays(today,1);
     s.scheduleHistory = sortedHistory(s).filter(h=>h.from<from).concat([Object.assign({from}, clone(ui.draft))]);
     save('settings', null, s); ui.draft=null; toast(`Plan saved. It starts ${shortDate(from)}.`); return;
@@ -2834,7 +2981,7 @@ document.addEventListener('click', e=>{
       exercises:{pullups:{name:'Pull-ups'}, dips:{name:'Dips'}},
       baseline:{pullups:{max:pull,date:start}, dips:{max:dip,date:start}},
       scheduleHistory:[{from:start, plan:clone(DEFAULT_PLAN), gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:['pullups','dips']}}],
-      celebrated:0 };
+      celebrated:0, celebratedId:RANKS[0].id, studyStart:start };
     save('settings', null, s);
     if(wt>=20 && wt<=300) save('body', todayStr(), {date:todayStr(), weight:Math.round(wt*10)/10});
     ui.setup=null; return;
@@ -2843,7 +2990,7 @@ document.addEventListener('click', e=>{
   if(act==='close-view'){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='scene-ok'){ markScene(el.dataset.key); const ov=document.getElementById('overlay'); ov.hidden=true; ov.innerHTML=''; render(); return; }
   if(act==='promo-ok'){
-    const C=lastC; const s=clone(S()); s.celebrated=C?C.peak:(s.celebrated||0); delete s.themeRank;
+    const C=lastC; const s=clone(S()); if(C){ s.celebrated=C.peak; s.celebratedId=RANKS[C.peak].id; } delete s.themeRank; delete s.themeRankId;
     document.getElementById('overlay').hidden=true; save('settings', null, s); return;
   }
 });
@@ -2927,8 +3074,18 @@ document.addEventListener('input', e=>{
 function readHash(){ const h=(location.hash||'').replace('#',''); ui.tab=['mission','stats','plan','ninja','settings'].includes(h)?h:'mission'; }
 window.addEventListener('hashchange', ()=>{ readHash(); window.scrollTo(0,0); render(); });
 let lastDay=todayStr();
-function checkDay(){ const t=todayStr(); if(t!==lastDay){ lastDay=t; ui.reps={}; ui.weigh=null; render(); } }
+function checkDay(){ const t=todayStr(); if(t!==lastDay){ lastDay=t; ui.reps={}; ui.weigh=null; ui.examStart=null; ui.confirm=null; render(); } }
 setInterval(checkDay, 60000);
+addEventListener('pageshow', checkDay); addEventListener('focus', checkDay);
+/* anything that writes to "today" must mean the real today. If midnight passed while the page sat open, the page still
+   shows yesterday's mission: show the new day instead of writing into a day that is closed. */
+const DAY_BOUND=/^(log|undo|weigh-save|plan-save|add-ex|setup-save|st-|exam-)/;
+function dayRolled(){
+  if(!lastC || todayStr()===lastC.today) return false;
+  lastDay=null; checkDay();
+  toast('A new day has begun. This is today\'s mission.', 4000);
+  return true;
+}
 /* ---------- study timer + combo actions ---------- */
 function confirmTap(key){
   if(ui.confirm!==key){ ui.confirm=key; clearTimeout(ui.confirmTimer); ui.confirmTimer=setTimeout(()=>{ ui.confirm=null; render(); },4000); render(); return false; }
@@ -2940,7 +3097,8 @@ function addStudyEntry(date, entry){
 }
 function commitSpan(a, b){
   let total=0;
-  splitByDay(a, b).forEach(p=>{ const min=Math.round((p.end-p.start)/60000); if(min>=1){ total+=min; addStudyEntry(p.date, {start:new Date(p.start).toISOString(), end:new Date(p.end).toISOString(), min, src:'timer'}); } });
+  /* kept to a hundredth of a minute and never rounded down, so pausing can never take back a minimum the running timer had reached */
+  splitByDay(a, b).forEach(p=>{ const min=Math.ceil((p.end-p.start)/600)/100; if(min>=1){ total+=min; addStudyEntry(p.date, {start:new Date(p.start).toISOString(), end:new Date(p.end).toISOString(), min, src:'timer'}); } });
   return total;
 }
 function studyFeedback(before, label){
@@ -2960,7 +3118,18 @@ function studyAction(act, el){
   const cap=STUDY.capMs;
   if(act==='st-start'){ if(T.state==='running') return; save('timer', null, {state:'running', segStart:now, checkAt:now+cap, sessionMs:0}); SFX.play('tick'); toast('Study timer started'); return; }
   if(act==='st-resume'){ if(T.state!=='paused') return; save('timer', null, {state:'running', segStart:now, checkAt:now+cap, sessionMs:T.sessionMs||0}); SFX.play('tick'); toast('Timer resumed'); return; }
-  if(act==='st-yes'){ if(T.state!=='running') return; save('timer', null, Object.assign({}, T, {checkAt:now+cap})); toast('Keep going. The next check is in 3 hours.'); return; }
+  if(act==='st-yes'){
+    if(T.state!=='running') return;
+    const chk=T.checkAt||now;
+    if(E.dateAt(chk)<C.today){
+      /* the check came on an earlier day and that day is closed: it keeps what it had at the check, and today counts from midnight */
+      const done=Math.max(0, chk-T.segStart);
+      save('timer', null, {state:'running', segStart:Math.max(chk, E.dayStartMs(C.today)), checkAt:now+cap, sessionMs:(T.sessionMs||0)+done});
+      commitSpan(T.segStart, chk);
+      toast('Welcome back. Earlier days stay as they were; today counts from midnight.', 4500); return;
+    }
+    save('timer', null, Object.assign({}, T, {checkAt:now+cap})); toast('Keep going. The next check is in 3 hours.'); return;
+  }
   if(act==='st-pause' || act==='st-finish' || act==='st-stopcheck'){
     let seg=0;
     if(T.state==='running'){ const end = act==='st-stopcheck' ? T.checkAt : Math.min(now, T.checkAt||now); seg=Math.max(0,end-T.segStart);
@@ -2995,7 +3164,7 @@ function studyAction(act, el){
 }
 function examAction(act){
   if(state.readOnly) return;
-  const s=clone(S()), today=todayStr(), list=(s.examWeeks||[]).slice();
+  const s=clone(S()), today=todayStr(), list=examWeeks();
   if(act==='exam-start'){
     const start=/^\d{4}-\d{2}-\d{2}$/.test(ui.examStart||'') ? ui.examStart : today;
     if(start<today){ toast("An exam week can't start in the past."); return; }
@@ -3019,8 +3188,9 @@ function examAction(act){
 }
 let tickBucket=null, readyShown=0;
 setInterval(()=>{
-  const C=lastC; if(!C || !C.study) return;
-  const T=timerDoc(), now=Date.now();
+  if(!lastC || !lastC.study) return;
+  checkDay();
+  const C=lastC, T=timerDoc(), now=Date.now();
   if(C.readyUntil && now>C.readyUntil && readyShown!==C.readyUntil){ readyShown=C.readyUntil; render(); return; }
   if(T.state!=='running') return;
   if(T.checkAt && now>=T.checkAt && tickBucket!=='check'){ tickBucket='check'; render(); return; }
