@@ -115,12 +115,23 @@ function splitByDay(a, b){
   while(st < b && out.length < 400){ const d = dateAt(st); const e = Math.min(b, dayStartMs(addDays(d, 1))); out.push({date:d, start:st, end:e}); st = e; }
   return out;
 }
+/* focus cycles: 50 minutes of work, then a 10-minute break, repeating from the moment the timer started.
+   Only the work stretches count as study. */
+const FOCUS = {work:50*60000, rest:10*60000};
+function focusSpans(a, b){
+  const out = [], cycle = FOCUS.work + FOCUS.rest;
+  for(let st = a, n = 0; st < b && n < 300; st += cycle, n++) out.push([st, Math.min(b, st + FOCUS.work)]);
+  return out;
+}
+/* the stretches of a running timer that count as study, up to `end` */
+const timerSpans = (T, end) => !(end > T.segStart) ? [] : T.focus ? focusSpans(T.segStart, end) : [[T.segStart, end]];
 /* a running study timer counts up to now, or up to its "still studying?" check if that came first */
 function provisionalPieces(timer, now){
   const T = timer || {state:'idle'};
   if(T.state !== 'running' || !(typeof T.segStart === 'number' && T.segStart > 0)) return [];
-  const end = Math.min(now, T.checkAt || Infinity); if(!(end > T.segStart)) return [];
-  return splitByDay(T.segStart, end).map(p => ({date:p.date, start:p.start, end:p.end, min:(p.end - p.start)/60000, src:'live'}));
+  const end = Math.min(now, T.checkAt || Infinity), out = [];
+  timerSpans(T, end).forEach(([a, b]) => splitByDay(a, b).forEach(p => out.push({date:p.date, start:p.start, end:p.end, min:(p.end - p.start)/60000, src:'live'})));
+  return out;
 }
 /* times at which each full study hour of the day was completed */
 function hourTimes(segs){
@@ -627,6 +638,6 @@ return {
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
-  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival
+  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival, FOCUS, focusSpans, timerSpans
 };
 });

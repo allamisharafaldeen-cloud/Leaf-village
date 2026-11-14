@@ -189,6 +189,10 @@ body.has-bg .chal{background:var(--paper-glass)}
 .stimer.run{border-color:#4d8ccc; box-shadow:0 0 0 3px rgba(77,140,204,.18)}
 .stimer.check{border-color:var(--seal); background:#fdf3e8}
 .stimer.check span{font-size:13px; color:var(--muted)}
+.stimer.rest{border-color:#6aa58a; background:#eef7f1; box-shadow:0 0 0 3px rgba(106,165,138,.2)}
+.stimer.rest b[data-timer]{color:#2f6d54}
+.stimer [data-phase]{font-size:13px; color:var(--muted)}
+.focus-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:13px; color:var(--muted)}
 .study-start{width:100%}
 .btnrow.quick .btn{flex:1}
 .shield-btn{display:inline-flex; align-items:center; gap:8px; align-self:flex-start}
@@ -828,7 +832,7 @@ const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chakra)' : 'var(--rest)';
 
 /* ---------- per-device preferences ---------- */
-const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, sfxOn:true, soundLen:{}, senseiFrame:{}};
+const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false};
 const prefs = Object.assign({}, PREF_DEFAULTS, (()=>{ try{ return JSON.parse(localStorage.getItem('leaf-prefs')||'{}')||{}; }catch(e){ return {}; } })());
 try{ if(localStorage.getItem('leaf-sound')==='off') prefs.sfxOn=false; }catch(e){}
 let prefsTimer=null, appliedPrefs=null;
@@ -1339,15 +1343,32 @@ function timerBlock(C){
     return `<div class="stimer check"><b>Still studying?</b><span>The timer has run for 3 hours without a pause.</span>
       <div class="btnrow"><button class="btn small chakra-btn" data-act="st-yes">Yes, still studying</button><button class="btn small ghost" data-act="st-stopcheck">Stop at the 3-hour mark</button></div></div>`;
   }
+  if(T.state==='running' && T.focus){
+    const ph=focusPhase(T, now), rest=ph.phase==='rest';
+    return `<div class="stimer run${rest?' rest':''}" data-k="${rest?'rest':'work'}"><span class="eyebrow">${rest?'Chakra recovery':'Focus'} · cycle ${ph.cycle}</span><b class="num" data-timer>${timerText()}</b>
+      <span data-phase>${phaseText(T, now)}</span>
+      <div class="btnrow"><button class="btn small ghost" data-act="st-pause">Pause</button><button class="btn small chakra-btn" data-act="st-finish">Finish</button></div></div>`;
+  }
   if(T.state==='running') return `<div class="stimer run"><span class="eyebrow">Studying</span><b class="num" data-timer>${timerText()}</b>
       <div class="btnrow"><button class="btn small ghost" data-act="st-pause">Pause</button><button class="btn small chakra-btn" data-act="st-finish">Finish</button></div></div>`;
-  if(T.state==='paused') return `<div class="stimer"><span class="eyebrow">Paused · session ${fmtH((T.sessionMs||0)/60000)}</span>
+  if(T.state==='paused') return `<div class="stimer"><span class="eyebrow">Paused · session ${fmtH((T.sessionMs||0)/60000)}${T.focus?' · focus cycles':''}</span>
       <div class="btnrow"><button class="btn small chakra-btn" data-act="st-resume">Resume</button><button class="btn small ghost" data-act="st-finish">Finish</button></div></div>`;
-  return `<button class="btn chakra-btn study-start" data-act="st-start">Start study timer</button>`;
+  return `<button class="btn chakra-btn study-start" data-act="st-start">${prefs.focus?'Start focus cycle':'Start study timer'}</button>
+    <div class="focus-row"><button type="button" class="chip" data-act="st-focus" aria-pressed="${!!prefs.focus}">Focus cycles 50 / 10</button><span>${prefs.focus?'50 minutes of work, then 10 of chakra recovery. Only the work counts.':'Off: the timer runs until you stop it.'}</span></div>`;
 }
+/* focus cycles: where a running timer is in its 50/10 rhythm */
+const FOCUS=E.FOCUS;
+const timerSpans = (T, end) => E.timerSpans(T, end);
+const spansMs = sp => sp.reduce((m,[a,b])=>m+(b-a), 0);
+function focusPhase(T, now){
+  const cyc=FOCUS.work+FOCUS.rest, e=Math.max(0, Math.min(now, T.checkAt||Infinity)-T.segStart), k=Math.floor(e/cyc), into=e-k*cyc;
+  return into<FOCUS.work ? {phase:'work', cycle:k+1, left:FOCUS.work-into} : {phase:'rest', cycle:k+1, left:cyc-into};
+}
+const clock = ms => { const x=Math.max(0, Math.ceil(ms/1000)); return `${Math.floor(x/60)}:${pad(x%60)}`; };
+function phaseText(T, now){ const ph=focusPhase(T, now); return ph.phase==='rest' ? `Rest your eyes and stand up. Work starts again in ${clock(ph.left)}. This break is not counted.` : `Break in ${clock(ph.left)}`; }
 function timerText(){
   const T=timerDoc(); if(T.state!=='running') return '0:00:00';
-  const ms=(T.sessionMs||0)+Math.max(0, Math.min(Date.now(), T.checkAt||Infinity)-T.segStart);
+  const ms=(T.sessionMs||0)+spansMs(timerSpans(T, Math.min(Date.now(), T.checkAt||Infinity)));
   const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60;
   return `${h}:${pad(m)}:${pad(x)}`;
 }
@@ -2165,6 +2186,7 @@ const SFX = (()=>{
     pop(c,t){ tone(c,t,'sine',720,280,.12,.16); },
     drum(c,t,p){ tone(c,t,'sine',150,48,.55,.9*p); tone(c,t,'triangle',92,40,.4,.3*p); hiss(c,t,.08,'lowpass',900,300,.7,.45*p,.002); },
     taiko(c,t){ S.drum(c,t,1); S.drum(c,t+.16,.6); hiss(c,t+.3,.6,'highpass',5200,0,.5,.05,.01); },
+    bell(c,t){ tone(c,t,'sine',528,524,1.8,.1,.03); tone(c,t,'sine',792,790,1.3,.045,.03); tone(c,t+.02,'sine',1056,1054,.8,.02,.03); },
     chime(c,t){ tone(c,t,'sine',880,880,.55,.11,.01); tone(c,t+.13,'sine',1318.5,1318.5,.7,.09,.01); tone(c,t+.26,'sine',1760,1760,.95,.06,.01); },
     thud(c,t){ tone(c,t,'sine',120,32,.38,1); hiss(c,t,.12,'lowpass',620,120,.8,.75,.002); tone(c,t,'square',220,90,.06,.07); },
     gong(c,t){ hiss(c,t,.25,'bandpass',600,200,1,.22,.005); [[98,.5,4],[147.5,.32,3.4],[196.5,.26,3],[263,.18,2.6],[331,.12,2.2],[417,.08,1.8],[523,.05,1.4]].forEach(([f,amp,d])=>{ const o=c.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(f*1.012,t); o.frequency.exponentialRampToValueAtTime(f,t+.4); const g=env(c,t,.012,amp,d); o.connect(g); g.connect(out); o.start(t); o.stop(t+d+.2); }); }
@@ -2204,7 +2226,7 @@ const SFX = (()=>{
     if(cu.buf) return playCustom(slot,c,t);
     decode(slot).then(b=>{ const c2=ac(); if(!c2) return; const t2=Math.max(t,c2.currentTime+.02); if(b) playCustom(slot,c2,t2); else S[def.synth](c2,t2); });
   }
-  const SYN_DUR={whoosh:.35, pop:.2, taiko:.8, thud:.6, gong:2.5, tick:0, paper:.5, chime:1.1};
+  const SYN_DUR={whoosh:.35, pop:.2, taiko:.8, thud:.6, gong:2.5, tick:0, paper:.5, chime:1.1, bell:1.6};
   return {
     get on(){ return isOn(); },
     audio(){ return ac(); },
@@ -3476,25 +3498,27 @@ function studyAction(act, el){
   const C=lastC; if(!C || !C.study.start) return;
   const T=timerDoc(), now=Date.now(), before=clone(C.study.days[C.today]||{}), prevAwards=(C.awards||[]).length;
   const cap=STUDY.capMs;
-  if(act==='st-start'){ if(T.state==='running') return; save('timer', null, {state:'running', segStart:now, checkAt:now+cap, sessionMs:0}); SFX.play('tick'); toast('Study timer started'); return; }
-  if(act==='st-resume'){ if(T.state!=='paused') return; save('timer', null, {state:'running', segStart:now, checkAt:now+cap, sessionMs:T.sessionMs||0}); SFX.play('tick'); toast('Timer resumed'); return; }
+  const fc = on => on ? {focus:true} : {};
+  if(act==='st-focus'){ if(T.state==='running' || T.state==='paused') return; prefs.focus=!prefs.focus; savePrefs(); SFX.play('tick'); render(); return; }
+  if(act==='st-start'){ if(T.state==='running') return; save('timer', null, Object.assign({state:'running', segStart:now, checkAt:now+cap, sessionMs:0}, fc(prefs.focus))); focusSeen='work1'; SFX.play('tick'); toast(prefs.focus?'Focus cycle started: 50 minutes of work':'Study timer started'); return; }
+  if(act==='st-resume'){ if(T.state!=='paused') return; save('timer', null, Object.assign({state:'running', segStart:now, checkAt:now+cap, sessionMs:T.sessionMs||0}, fc(T.focus))); focusSeen='work1'; SFX.play('tick'); toast('Timer resumed'); return; }
   if(act==='st-yes'){
     if(T.state!=='running') return;
     const chk=T.checkAt||now;
     if(E.dateAt(chk)<C.today){
       /* the check came on an earlier day and that day is closed: it keeps what it had at the check, and today counts from midnight */
-      const done=Math.max(0, chk-T.segStart);
-      save('timer', null, {state:'running', segStart:Math.max(chk, E.dayStartMs(C.today)), checkAt:now+cap, sessionMs:(T.sessionMs||0)+done});
-      commitSpan(T.segStart, chk);
+      const sp=timerSpans(T, chk), done=spansMs(sp);
+      save('timer', null, Object.assign({state:'running', segStart:Math.max(chk, E.dayStartMs(C.today)), checkAt:now+cap, sessionMs:(T.sessionMs||0)+done}, fc(T.focus)));
+      sp.forEach(([a,b])=>commitSpan(a, b)); focusSeen='work1';
       toast('Welcome back. Earlier days stay as they were; today counts from midnight.', 4500); return;
     }
     save('timer', null, Object.assign({}, T, {checkAt:now+cap})); toast('Keep going. The next check is in 3 hours.'); return;
   }
   if(act==='st-pause' || act==='st-finish' || act==='st-stopcheck'){
     let seg=0;
-    if(T.state==='running'){ const end = act==='st-stopcheck' ? T.checkAt : Math.min(now, T.checkAt||now); seg=Math.max(0,end-T.segStart);
-      save('timer', null, act==='st-pause' ? {state:'paused', sessionMs:(T.sessionMs||0)+seg} : {state:'idle'});
-      commitSpan(T.segStart, T.segStart+seg);
+    if(T.state==='running'){ const end = act==='st-stopcheck' ? T.checkAt : Math.min(now, T.checkAt||now), sp=timerSpans(T, end); seg=spansMs(sp);
+      save('timer', null, act==='st-pause' ? Object.assign({state:'paused', sessionMs:(T.sessionMs||0)+seg}, fc(T.focus)) : {state:'idle'});
+      sp.forEach(([a,b])=>commitSpan(a, b));
     } else if(act==='st-finish'){ save('timer', null, {state:'idle'}); }
     const session=(T.sessionMs||0)+seg;
     studyFeedback(before, act==='st-pause' ? `Paused · ${fmtH(seg/60000)} logged` : `Session done · ${fmtH(session/60000)} studied`);
@@ -3546,7 +3570,7 @@ function examAction(act){
     list.splice(i,1); s.examWeeks=list; save('settings', null, s); toast('Scheduled exam week cancelled'); return;
   }
 }
-let tickBucket=null, readyShown=0;
+let tickBucket=null, readyShown=0, focusSeen=null;
 setInterval(()=>{
   if(!lastC || !lastC.study) return;
   checkDay();
@@ -3555,6 +3579,13 @@ setInterval(()=>{
   if(T.state!=='running') return;
   if(T.checkAt && now>=T.checkAt && tickBucket!=='check'){ tickBucket='check'; render(); return; }
   document.querySelectorAll('[data-timer]').forEach(n=>{ n.textContent=timerText(); });
+  if(T.focus){
+    /* a gentle bell when the break begins, a soft tick when the work begins again (only while the app is open) */
+    const ph=focusPhase(T, now), tag=ph.phase+ph.cycle;
+    if(focusSeen===null) focusSeen=tag;
+    else if(tag!==focusSeen){ focusSeen=tag; SFX.play(ph.phase==='rest'?'bell':'paper'); toast(ph.phase==='rest' ? 'Chakra recovery: 10 minutes. The break is not counted.' : `Back to work: cycle ${ph.cycle}`, 5000); render(); return; }
+    document.querySelectorAll('[data-phase]').forEach(n=>{ n.textContent=phaseText(T, now); });
+  }
   const rec=C.study.days[C.today]; if(!rec) return;
   const live=provisionalPieces().filter(p=>p.date===C.today).reduce((m,p)=>m+p.min,0), mins=rec.committed+live;
   document.querySelectorAll('.mscroll.study [data-col]').forEach(n=>{ const i=+n.dataset.col; n.style.setProperty('--f', clamp((mins-i*60)/60,0,1).toFixed(3)); });

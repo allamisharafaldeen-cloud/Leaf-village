@@ -590,6 +590,58 @@ test('shadow clone race: the Mission tab compares this week with four weeks ago,
   noErrors();
 });
 
+test('focus cycles: 50 minutes of work, a 10-minute break that is not counted, and the 3-hour check still works', async () => {
+  const B = await fresh('focus');
+  const sc = await openScroll(B, 'study');
+  const entries = async () => ((await B.docs())['leaf/main/study/2026-11-15'] || {entries:[]}).entries.map(e => e.min);
+  assert.match(await sc.locator('[data-act="st-start"]').textContent(), /Start study timer/);
+  await sc.locator('[data-act="st-focus"]').click();
+  assert.match(await sc.locator('[data-act="st-start"]').textContent(), /Start focus cycle/);
+  assert.equal(await sc.locator('[data-act="st-focus"]').getAttribute('aria-pressed'), 'true');
+  await sc.locator('[data-act="st-start"]').click();
+  await B.page.waitForSelector('.stimer.run');
+  assert.equal((await B.docs())['leaf/timer'].focus, true);
+  await B.setTime(T0 + min(20));
+  await until(async () => /Break in 30:00/.test(await sc.locator('[data-phase]').textContent()), 'the countdown to the break');
+  assert.match(await sc.locator('.stimer .eyebrow').textContent(), /Focus · cycle 1/);
+  await B.setTime(T0 + min(55));
+  await B.page.waitForSelector('.stimer.rest');
+  assert.match(await sc.locator('.stimer .eyebrow').textContent(), /Chakra recovery · cycle 1/);
+  assert.match(await sc.locator('[data-phase]').textContent(), /Work starts again in 5:00\. This break is not counted/);
+  assert.equal(await sc.locator('[data-timer]').textContent(), '0:50:00', 'the clock face stops at 50 minutes during the break');
+  await until(async () => /Chakra recovery: 10 minutes/.test(await toastText(B)), 'the break to be announced');
+  assert.match(await sc.locator('.roll-label small').textContent(), /50m of 4h/, 'only the work is counted');
+  await B.setTime(T0 + min(75));
+  await until(async () => /Focus · cycle 2/.test(await sc.locator('.stimer .eyebrow').textContent()), 'the second cycle');
+  assert.equal(await B.page.locator('.stimer.rest').count(), 0);
+  await sc.locator('[data-act="st-finish"]').click();
+  await until(async () => (await entries()).length === 2, 'both work stretches to be logged');
+  assert.deepEqual(await entries(), [50, 15]);
+  assert.match(await toastText(B), /Session done · 1h 5m studied/);
+  /* left running: the 3-hour check, then stop at the mark = three work stretches of 50 minutes */
+  await B.setTime(T0 + min(100));
+  await sc.locator('[data-act="st-start"]').click();
+  await B.page.waitForSelector('.stimer.run');
+  await B.setTime(T0 + min(100 + 185));
+  await B.page.waitForSelector('.stimer.check');
+  await sc.locator('[data-act="st-stopcheck"]').click();
+  await until(async () => (await entries()).length === 5, 'three more stretches');
+  assert.deepEqual(await entries(), [50, 15, 50, 50, 50]);
+  assert.equal((await B.docs())['leaf/timer'].state, 'idle');
+  /* turning it off gives the plain timer back */
+  await sc.locator('[data-act="st-focus"]').click();
+  await B.setTime(T0 + min(300));
+  await sc.locator('[data-act="st-start"]').click();
+  await B.page.waitForSelector('.stimer.run');
+  assert.equal((await B.docs())['leaf/timer'].focus, undefined);
+  await B.setTime(T0 + min(355));
+  await sc.locator('[data-act="st-finish"]').click();
+  await until(async () => (await entries()).length === 6, 'the plain stretch');
+  assert.equal((await entries())[5], 55);
+  await B.close();
+  noErrors();
+});
+
 test('iPad screenshots of every tab, landscape and portrait (looked at by hand)', async () => {
   for(const [name, viewport] of [['landscape', {width:1148, height:802}], ['portrait', {width:820, height:1180}]]){
     const B = await rig.device('shots-' + name, {now:T0 + min(30), viewport});

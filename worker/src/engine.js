@@ -89,7 +89,13 @@ function splitByDay(a, b){
 export function provisionalPieces(timer, nowMs){
   const T = timer || {state:'idle'}; if(T.state !== 'running' || !T.segStart) return [];
   const end = Math.min(nowMs, T.checkAt || Infinity); if(end <= T.segStart) return [];
-  return splitByDay(T.segStart, end).map(p => ({date:p.date, start:p.start, end:p.end, min:(p.end - p.start) / 60000, src:'live'}));
+  /* focus cycles: 50 minutes of work then a 10-minute break, repeating; only the work counts */
+  const spans = [];
+  if(T.focus){ for(let st = T.segStart, n = 0; st < end && n < 300; st += 3600000, n++) spans.push([st, Math.min(end, st + 3000000)]); }
+  else spans.push([T.segStart, end]);
+  const out = [];
+  spans.forEach(([a, b]) => splitByDay(a, b).forEach(p => out.push({date:p.date, start:p.start, end:p.end, min:(p.end - p.start) / 60000, src:'live'})));
+  return out;
 }
 function hourTimes(segs){
   const out = []; let cum = 0, next = 1;

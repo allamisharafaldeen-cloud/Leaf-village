@@ -475,3 +475,22 @@ test('the Worker credits the same shadow clone bonus, also when it resumes from 
   const resumed = computeAll(recent, now, {resume:cp});
   assert.equal(resumed.total, full.total); assert.equal(resumed.total, E.compute(V, now).total);
 });
+
+/* ---------- focus cycles ---------- */
+test('focus cycles: 50 minutes count, the 10-minute breaks do not, across midnight and up to the 3-hour check', () => {
+  const m = n => n * 60000, t0 = at(START, 9);
+  assert.deepEqual(E.focusSpans(t0, t0 + m(130)).map(([a, b]) => [(a - t0) / 60000, (b - t0) / 60000]), [[0, 50], [60, 110], [120, 130]]);
+  assert.deepEqual(E.focusSpans(t0, t0 + m(55)).map(([a, b]) => (b - a) / 60000), [50], 'in the break nothing more is counted');
+  assert.deepEqual(E.timerSpans({segStart:t0}, t0 + m(130)), [[t0, t0 + m(130)]], 'without focus mode the whole stretch counts');
+  const V = village({studyStart:START});
+  V.timer = {state:'running', focus:true, segStart:t0, checkAt:t0 + m(180), sessionMs:0};
+  const mins = when => E.compute(V, when).study.days[START].mins;
+  assert.equal(mins(t0 + m(30)), 30); assert.equal(mins(t0 + m(50)), 50); assert.equal(mins(t0 + m(59)), 50); assert.equal(mins(t0 + m(75)), 65);
+  assert.equal(mins(t0 + m(180)), 150); assert.equal(mins(t0 + m(400)), 150, 'the 3-hour check still caps an unattended timer');
+  /* over midnight: 23:30 start, so work 23:30-00:20 and 00:30-01:20 */
+  V.timer = {state:'running', focus:true, segStart:at(START, 23, 30), checkAt:at(START, 23, 30) + m(180), sessionMs:0};
+  const S = E.compute(V, at('2026-11-02', 1, 0)).study;
+  assert.equal(S.days[START].mins, 30); assert.equal(S.days['2026-11-02'].mins, 20 + 30);
+  /* the Worker counts the same minutes */
+  [at('2026-11-02', 0, 10), at('2026-11-02', 0, 25), at('2026-11-02', 1, 0), at('2026-11-02', 6, 0)].forEach(now => agree(V, now, 'focus ' + now));
+});
