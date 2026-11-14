@@ -444,6 +444,40 @@ test('on the 1st the report for the month that ended opens by itself, once', asy
   noErrors();
 });
 
+test('auto-progression: after the Friday test Kakashi suggests next week\'s settings; Accept saves a plan from tomorrow', async () => {
+  const B = await fresh('friday', {now:at('2026-11-13', 17, 0)});
+  await closeScenes(B);
+  assert.equal(await B.page.locator('#prog-card').count(), 0, 'no card before the test is done');
+  let n = 0;
+  for(const reps of [14, 12, 26, 24]){ await B.setTime(at('2026-11-13', 17, 5 + 5 * n)); await B.logSet(reps); n++; await until(async () => ((await B.docs())['leaf/main/days/2026-11-13'] || {sets:[]}).sets.length === n, `test set ${n}`); }
+  await B.page.waitForSelector('#prog-card');
+  const card = (await B.page.locator('#prog-card').textContent()).replace(/\s+/g, ' ');
+  assert.match(card, /Kakashi · after your test on 13 Nov/); assert.match(card, /A max slipped on the test/); assert.match(card, /Share of your max\s*45% was 50%/); assert.match(card, /Pull-ups, reps a set\s*6 was 8/); assert.match(card, /Dips, reps a set\s*12 was 13/);
+  const before = (await B.docs())['leaf/main'];
+  await B.page.locator('[data-act="prog-accept"]').click();
+  const s = await until(async () => { const x = (await B.docs())['leaf/main']; return x.progression ? x : null; }, 'the choice to be saved');
+  assert.equal(s.progression.test, '2026-11-13'); assert.equal(s.progression.choice, 'accepted');
+  assert.equal(s.scheduleHistory.length, before.scheduleHistory.length + 1);
+  const e = s.scheduleHistory[s.scheduleHistory.length - 1], prev = before.scheduleHistory[before.scheduleHistory.length - 1];
+  assert.equal(e.from, '2026-11-14'); assert.deepEqual(e.gtg, {sets:6, minSets:5, pct:45});
+  assert.deepEqual(e.plan, prev.plan); assert.deepEqual(e.test, prev.test); assert.deepEqual(e.study, prev.study); assert.deepEqual(e.combo, prev.combo);
+  assert.deepEqual(s.scheduleHistory.slice(0, -1), before.scheduleHistory, 'earlier plans are untouched');
+  assert.equal(await B.page.locator('#prog-card').count(), 0, 'the card is gone once answered');
+  assert.match(await toastText(B), /Plan updated\. It starts 14 Nov/);
+  await B.tab('plan');
+  assert.match(await B.page.locator('#view').textContent(), /A plan change starts Saturday 14 November/);
+  await B.close();
+  /* Keep mine changes nothing but remembers the answer */
+  const K = await fresh('friday-keep', {now:at('2026-11-13', 17, 0)});
+  await closeScenes(K); n = 0;
+  for(const reps of [14, 12, 26, 24]){ await K.setTime(at('2026-11-13', 17, 5 + 5 * n)); await K.logSet(reps); n++; await until(async () => ((await K.docs())['leaf/main/days/2026-11-13'] || {sets:[]}).sets.length === n, `test set ${n}`); }
+  await K.page.locator('[data-act="prog-keep"]').click();
+  const k = await until(async () => { const x = (await K.docs())['leaf/main']; return x.progression ? x : null; }, 'kept');
+  assert.equal(k.progression.choice, 'kept'); assert.deepEqual(k.scheduleHistory, fixture.settings.scheduleHistory);
+  await K.close();
+  noErrors();
+});
+
 test('iPad screenshots of every tab, landscape and portrait (looked at by hand)', async () => {
   for(const [name, viewport] of [['landscape', {width:1148, height:802}], ['portrait', {width:820, height:1180}]]){
     const B = await rig.device('shots-' + name, {now:T0 + min(30), viewport});

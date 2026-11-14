@@ -360,3 +360,32 @@ test('achievements: each is earned on the right day, and the old seventeen still
   assert.equal(E.monthsOf(P)['2026-11'].perfect, true); assert.match(E.monthReport(P, '2026-11').title, /^Rise of the /, 'a promotion names the chapter first');
   assert.equal(E.monthsOf(P)['2026-10'].perfect, false, 'October was not lived in full');
 });
+
+/* ---------- auto-progression ---------- */
+test('auto-progression: the suggestion after a test follows the week that led to it', () => {
+  const fri = (V, pu, di) => { V.days['2026-11-06'] = {date:'2026-11-06', sets:[{ex:'pullups', reps:pu, t:iso('2026-11-06', 17)}, {ex:'pullups', reps:pu - 2, t:iso('2026-11-06', 17, 10)}, {ex:'dips', reps:di, t:iso('2026-11-06', 17, 20)}, {ex:'dips', reps:di - 2, t:iso('2026-11-06', 17, 30)}]}; };
+  const week = n => { const V = village(); [['2026-11-01', 'pullups', 5], ['2026-11-02', 'dips', 10], ['2026-11-03', 'pullups', 5], ['2026-11-04', 'dips', 10]].forEach(([d, ex, r], i) => { if(i < n) sets(V, d, ex, r, 6); }); return V; };
+  const P = (V, when) => E.progression(E.compute(V, when || at('2026-11-06', 20)));
+  assert.equal(P(week(4)), null, 'nothing to suggest before the test is finished');
+  let V = week(4); fri(V, 11, 21); let p = P(V);
+  assert.equal(p.why, 'rise'); assert.equal(p.changed, false); assert.deepEqual(p.next, {sets:6, minSets:5, pct:50});
+  assert.deepEqual(p.targets, [{ex:'pullups', before:5, after:6}, {ex:'dips', before:10, after:11}]); assert.equal(p.from, '2026-11-07');
+  V = week(4); fri(V, 10, 20); p = P(V);
+  assert.equal(p.why, 'push'); assert.deepEqual(p.next, {sets:6, minSets:5, pct:55}); assert.equal(p.changed, true);
+  assert.deepEqual(p.targets, [{ex:'pullups', before:5, after:6}, {ex:'dips', before:10, after:11}]);
+  V = week(2); fri(V, 10, 20); p = P(V);
+  assert.equal(p.why, 'ease'); assert.equal(p.done, 2); assert.equal(p.judged, 4); assert.deepEqual(p.next, {sets:5, minSets:4, pct:50});
+  V = week(4); fri(V, 9, 20); p = P(V);
+  assert.equal(p.why, 'down'); assert.deepEqual(p.next, {sets:6, minSets:5, pct:45});
+  V = week(3); fri(V, 10, 20); p = P(V);
+  assert.equal(p.why, 'hold'); assert.equal(p.changed, false);
+  /* at the ceiling for the share of max, the push adds a set instead; and nothing goes past the limits */
+  V = week(4); V.settings.scheduleHistory[0].gtg = {sets:6, minSets:5, pct:60}; ['2026-11-01', '2026-11-03'].forEach(d => { V.days[d].sets.forEach(x => { x.reps = 6; }); }); ['2026-11-02', '2026-11-04'].forEach(d => { V.days[d].sets.forEach(x => { x.reps = 12; }); });
+  fri(V, 10, 20); p = P(V);
+  assert.equal(p.why, 'push'); assert.deepEqual(p.next, {sets:7, minSets:6, pct:60});
+  /* the answer is remembered, and the card is gone a week later */
+  V = week(4); fri(V, 10, 20); V.settings.progression = {test:'2026-11-06', choice:'kept'};
+  assert.equal(P(V).answered, 'kept');
+  V = week(4); fri(V, 10, 20);
+  assert.equal(P(V, at('2026-11-12', 9)).why, 'push'); assert.equal(P(V, at('2026-11-13', 9)), null);
+});

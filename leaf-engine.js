@@ -548,11 +548,42 @@ function chapters(C){
   return list;
 }
 
+/* ---------- auto-progression: after a finished test, what next week's groove settings should be ---------- */
+function progression(C){
+  const s = C.settings;
+  let ti = -1; for(let i = C.days.length - 1; i >= 0; i--){ const d = C.days[i]; if(d.plan.type === 'test' && d.status === 'done'){ ti = i; break; } }
+  if(ti < 0) return null;
+  const T = C.days[ti];
+  if(daysBetween(T.date, C.today) > 6) return null;                       // by then the next test is due
+  let pi = -1; for(let i = ti - 1; i >= 0; i--){ if(C.days[i].plan.type === 'test'){ pi = i; break; } }
+  const judged = C.days.slice(Math.max(pi + 1, ti - 13), ti).filter(d => (d.plan.type === 'gtg' || d.plan.type === 'combo') && (d.status === 'done' || d.status === 'missed'));
+  const done = judged.filter(d => d.status === 'done').length, full = judged.filter(d => d.status === 'done' && d.info.q >= d.info.goal).length;
+  const rate = judged.length ? done/judged.length : null, fullRate = judged.length ? full/judged.length : null;
+  const from = addDays(C.today, 1), cur = normEntry(entryFor(s, from)).gtg, gap = Math.max(0, cur.sets - cur.minSets);
+  const up = T.info.per.filter(p => p.top > p.prev).length, down = T.info.per.filter(p => p.sets.length && p.top < p.prev).length;
+  const g = {sets:cur.sets, minSets:cur.minSets, pct:cur.pct}; let why;
+  if(rate == null) why = 'none';
+  else if(rate < .6){ why = 'ease'; if(g.sets > 4) g.sets--; else if(g.pct > 40) g.pct -= 5; }
+  else if(down && !up){ why = 'down'; if(g.pct > 40) g.pct -= 5; }
+  else if(rate === 1 && fullRate >= .75 && !up){ why = 'push'; if(g.pct < 60) g.pct += 5; else if(g.sets < 8) g.sets++; }
+  else if(rate === 1 && fullRate >= .75) why = 'rise';
+  else why = 'hold';
+  g.minSets = Math.max(1, Math.min(g.sets, g.sets - gap));
+  const changed = g.sets !== cur.sets || g.minSets !== cur.minSets || g.pct !== cur.pct;
+  /* the exercises that have groove days in the coming week, with the reps per set before and after */
+  const used = new Set();
+  for(let k = 1; k <= 7; k++){ const p = planFor(s, addDays(C.today, k)); if(p.type === 'gtg') used.add(p.ex); else if(p.type === 'combo') p.exs.forEach(x => used.add(x)); }
+  const prev = {}; T.info.per.forEach(p => { prev[p.ex] = p.prev; });
+  const targets = C.exIds.filter(id => used.has(id)).map(id => ({ex:id, before:gtgTarget(prev[id] != null ? prev[id] : C.maxes[id], cur.pct), after:gtgTarget(C.maxes[id], g.pct)}));
+  const a = isObj(s.progression) && s.progression.test === T.date ? s.progression.choice : null;
+  return {test:T.date, from, cur, next:g, changed, why, rate, fullRate, done, judged:judged.length, up, down, targets, answered:a || null};
+}
+
 return {
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
-  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText
+  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression
 };
 });
