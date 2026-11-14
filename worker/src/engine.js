@@ -1,7 +1,8 @@
 /* The Leaf Village · game engine, as the Worker runs it.
-   This is a line-for-line port of compute(), computeStudy(), planFor() and friends from index.html,
-   turned into pure functions over a snapshot of the synced documents. The rules live in the app;
-   if the app's engine changes, change this file the same way (tests/parity.test.js compares the two).
+   This is a port of compute(), computeStudy(), planFor() and friends from the app's leaf-engine.js,
+   working in village time whatever clock the server uses, and able to resume from a checkpoint.
+   The rules live in the app; if leaf-engine.js changes, change this file the same way
+   (tests/unit/engine.test.mjs compares the two day by day).
 
    Dates are plain 'YYYY-MM-DD' strings in village time (Asia/Baghdad, UTC+3, no daylight saving). */
 
@@ -57,6 +58,8 @@ export function planFor(s, date){
   const plan = Object.assign({}, p, {gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo || {})});
   if(plan.type === 'gtg' && !(s.exercises || {})[plan.ex]) return Object.assign(plan, {type:'rest'});
   if(plan.type === 'combo'){ const exs = (plan.exs || []).filter(id => (s.exercises || {})[id]); if(!exs.length) return Object.assign(plan, {type:'rest'}); plan.exs = exs; }
+  /* a test day with nothing to test could never be completed: it is a rest day */
+  if(plan.type === 'test' && !((e.test && e.test.ex) || []).some(id => (s.exercises || {})[id])) return Object.assign(plan, {type:'rest'});
   return plan;
 }
 export const gtgTarget = (max, pct) => Math.max(1, Math.round((max || 1) * pct / 100));
@@ -155,7 +158,7 @@ export function computeAll(data, nowMs, opts){
       let base = 0, complete = false, info = {};
       if(plan.type === 'gtg'){
         const ex = plan.ex, g = plan.gtg, target = gtgTarget(maxes[ex], g.pct);
-        const exSets = sets.filter(x => x.ex === ex).slice(0, 10);
+        const exSets = sets.filter(x => x.ex === ex).slice(0, Math.max(10, g.sets));
         let q = 0;
         exSets.forEach(x => { if(x.reps >= target){ q++; base += XP.gtgSet + x.reps; } else base += x.reps; });
         complete = q >= g.minSets;
@@ -165,7 +168,7 @@ export function computeAll(data, nowMs, opts){
       } else if(plan.type === 'combo'){
         const g = plan.gtg, per = plan.combo.sets;
         const parts = plan.exs.map(ex => {
-          const target = gtgTarget(maxes[ex], g.pct), exSets = sets.filter(x => x.ex === ex).slice(0, 10);
+          const target = gtgTarget(maxes[ex], g.pct), exSets = sets.filter(x => x.ex === ex).slice(0, Math.max(10, per));
           let q = 0;
           exSets.forEach(x => { if(x.reps >= target){ q++; base += XP.gtgSet + x.reps; } else base += x.reps; });
           return {ex, target, q, need:per, logged:exSets.length};

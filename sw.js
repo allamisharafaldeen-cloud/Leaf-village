@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = 'e5a2c9f31b';
+const VERSION = 'ae5a81b278';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
@@ -11,6 +11,7 @@ const FILES = [
  "index.html",
  "platform.js",
  "leaf-merge.js",
+ "leaf-engine.js",
  "manifest.webmanifest",
  "media/04baf85978a90d901be411fd8aabf43e.jpg",
  "media/0cf141c4617406724f4fc4d2148c5a4b.jpg",

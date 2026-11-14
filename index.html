@@ -643,6 +643,7 @@ body.has-player .wrap{padding-bottom:178px}
 <div class="peekhint" aria-hidden="true">Tap anywhere to return</div>
 
 <script src="leaf-merge.js"></script>
+<script src="leaf-engine.js"></script>
 <script src="platform.js"></script>
 <script>
 (function(){
@@ -654,30 +655,26 @@ const CUT_AR = {"eight-gates": 0.505, "byakugan": 1.059, "akatsuki": 0.382, "sus
 const AURA_BOX = {"genin": [-3.06, -1.72, 105.16, 103.53], "chunin": [-2.62, -2.0, 106.72, 103.16], "special-jonin": [-5.68, -1.75, 108.35, 102.86], "jonin": [-2.71, -2.09, 106.98, 103.3], "anbu": [-1.41, -0.32, 101.49, 100.96], "akatsuki": [-3.98, -1.29, 108.19, 103.08], "sannin": [-7.67, -2.43, 114.19, 104.13], "tailed-beast": [-3.39, 0.13, 104.22, 101.06], "eight-gates": [-11.53, -0.04, 123.48, 102.67], "kage": [-2.57, -2.01, 105.07, 103.93], "hokage": [-4.41, -2.28, 108.15, 104.84]};
 const CUT_V = {"academy": "-v2", "genin": "-v3", "chunin": "-v3", "special-jonin": "-v3", "jonin": "-v3", "six-paths": "-v2", "anbu": "-v2", "akatsuki": "-v2", "sannin": "-v2", "tailed-beast": "-v2", "eight-gates": "-v2", "kage": "-v2", "hokage": "-v2"};
 const AURA = {"eight-gates": "#ff3b2f", "byakugan": "#dfe3ff", "akatsuki": "#ff4a4a", "susanoo": "#ff5ea0", "academy": "#6ec3ff", "genin": "#6ec3ff", "chunin": "#5fe0c0", "special-jonin": "#a9c8ff", "jonin": "#4a7dff", "anbu": "#b9c8ff", "sannin": "#ffb84a", "kage": "#f2f0ea", "hokage": "#ffb14a", "sage": "#ff8a3d", "tailed-beast": "#ffc229", "six-paths": "#ffe27a"};
-const RANKS = [
-  {id:'academy',      name:'Academy Student',   xp:0,     color:'#8a968c', walls:['wp-konoha-roof','wp-ichiraku','wp-konoha-street','wp-konoha-naruto','wp-konoha-classic']},
-  {id:'genin',        name:'Genin',             xp:1500,  color:'#3e9150', focus:'58% 22%', walls:['wp-genin-1','wp-genin-2','wp-genin-3','wp-genin-4','wp-genin-5']},
-  {id:'chunin',       name:'Chunin',            xp:5000,  color:'#2a8c80', walls:['wp-arena','wp-forest-death','wp-byakugan']},
-  {id:'special-jonin',name:'Special Jonin',     xp:10000, color:'#3a72b8'},
-  {id:'jonin',        name:'Jonin',             xp:16000, color:'#5157b8', focus:'50% 30%'},
-  {id:'anbu',         name:'ANBU',              xp:22500, color:'#6b7a88', walls:['wp-sealed-shrine']},
-  {id:'akatsuki',     name:'Akatsuki',          xp:29500, color:'#b3262e', walls:['wp-rain','wp-akatsuki']},
-  {id:'sannin',       name:'Sannin',            xp:37000, color:'#8550b3'},
-  {id:'sage',         name:'Sage Mode',         xp:45000, color:'#c9900f', form:true, walls:['wp-myoboku','wp-myoboku2','wp-pain']},
-  {id:'susanoo',      name:'Susanoo',           xp:53000, color:'#c2306a', form:true, walls:['wp-uchiha','wp-uchiha-ruins']},
-  {id:'tailed-beast', name:'Tailed Beast Mode', xp:61000, color:'#e04a12', form:true},
-  {id:'eight-gates',  name:'Eight Gates',       xp:68500, color:'#d0281e', form:true},
-  {id:'kage',         name:'Kage',              xp:73500, color:'#c0393e', walls:['wp-iron','wp-valley','wp-sand','wp-rock','wp-valley-tall']},
-  {id:'hokage',       name:'Hokage',            xp:77500, color:'#e8620f', walls:['wp-konoha-dusk','wp-konoha-monument']}
-].map(r=>Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}));
-const XP = { gtgSet:10, gtgComplete:50, gtgFull:20, testRep:2, testComplete:100, pr:75, rest:10, missGtg:100, missTest:150 };
-const TIERS = [[0,1],[7,1.1],[14,1.2],[30,1.3],[60,1.5]];
-const mult = st => { let m=1; for(const [n,v] of TIERS) if(st>=n) m=v; return m; };
-const nextTier = st => TIERS.find(([n])=>n>st) || null;
-const DEFAULT_PLAN = [
-  {type:'gtg',ex:'pullups'},{type:'gtg',ex:'dips'},{type:'gtg',ex:'pullups'},{type:'gtg',ex:'dips'},
-  {type:'rest'},{type:'test'},{type:'rest'}
-];
+/* the rules (rank thresholds, XP, streak tiers) live in leaf-engine.js; this is how each rank looks */
+const E = window.LeafEngine;
+const RANK_LOOK = {
+  'academy':      {color:'#8a968c', walls:['wp-konoha-roof','wp-ichiraku','wp-konoha-street','wp-konoha-naruto','wp-konoha-classic']},
+  'genin':        {color:'#3e9150', focus:'58% 22%', walls:['wp-genin-1','wp-genin-2','wp-genin-3','wp-genin-4','wp-genin-5']},
+  'chunin':       {color:'#2a8c80', walls:['wp-arena','wp-forest-death','wp-byakugan']},
+  'special-jonin':{color:'#3a72b8'},
+  'jonin':        {color:'#5157b8', focus:'50% 30%'},
+  'anbu':         {color:'#6b7a88', walls:['wp-sealed-shrine']},
+  'akatsuki':     {color:'#b3262e', walls:['wp-rain','wp-akatsuki']},
+  'sannin':       {color:'#8550b3'},
+  'sage':         {color:'#c9900f', form:true, walls:['wp-myoboku','wp-myoboku2','wp-pain']},
+  'susanoo':      {color:'#c2306a', form:true, walls:['wp-uchiha','wp-uchiha-ruins']},
+  'tailed-beast': {color:'#e04a12', form:true},
+  'eight-gates':  {color:'#d0281e', form:true},
+  'kage':         {color:'#c0393e', walls:['wp-iron','wp-valley','wp-sand','wp-rock','wp-valley-tall']},
+  'hokage':       {color:'#e8620f', walls:['wp-konoha-dusk','wp-konoha-monument']}
+};
+const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
+const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
 const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 const PATH = { settings:'leaf/main', days:'leaf/main/days', body:'leaf/main/body', media:'leaf/media', prefs:'leaf/prefs', study:'leaf/main/study', timer:'leaf/timer' };
 const LOCAL_KEY = 'leaf-village-v1';
@@ -756,14 +753,8 @@ const reduceMotion = () => !!(window.matchMedia && matchMedia('(prefers-reduced-
 const fxSubtle = () => reduceMotion() || prefs.anim==='subtle';
 
 /* ---------- utils ---------- */
-const pad = n => String(n).padStart(2,'0');
-const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const parse = s => { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
-const addDays = (s,n) => { const d=parse(s); d.setDate(d.getDate()+n); return ymd(d); };
+const {pad, ymd, parse, addDays, dnum, daysBetween, weekStart, rankFor} = E;
 const todayStr = () => ymd(new Date());
-const dnum = s => Math.round(parse(s).getTime()/86400000);
-const daysBetween = (a,b) => dnum(b)-dnum(a);
-const weekStart = s => addDays(s, -parse(s).getDay());
 const fmt = n => Math.round(n).toLocaleString('en-US');
 const signed = n => (n>0?'+':n<0?'−':'') + fmt(Math.abs(n));
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -773,7 +764,6 @@ const shortDate = s => parse(s).toLocaleDateString('en-GB',{day:'numeric', month
 const timeOf = iso => { try{ const d=new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }catch(e){ return ''; } };
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
-const rankFor = xp => { let i=0; RANKS.forEach((r,k)=>{ if(xp>=r.xp) i=k; }); return i; };
 const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chakra)' : 'var(--rest)';
 
 /* ---------- per-device preferences ---------- */
@@ -883,176 +873,25 @@ function save(kind, key, data){
 }
 
 /* ---------- schedule ---------- */
-function sortedHistory(s){ return (s.scheduleHistory||[]).slice().sort((a,b)=>a.from<b.from?-1:a.from>b.from?1:0); }
-function entryFor(s, date){ const h=sortedHistory(s); let e=h[0]; for(const x of h){ if(x.from<=date) e=x; } return e; }
-function planFor(s, date){
-  const e = entryFor(s, date) || {plan:DEFAULT_PLAN, gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:['pullups','dips']}};
-  const p = (e.plan && e.plan[parse(date).getDay()]) || {type:'rest'};
-  const plan = Object.assign({}, p, {gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo||{})});
-  if(plan.type==='gtg' && !(s.exercises||{})[plan.ex]) return Object.assign(plan,{type:'rest'});
-  if(plan.type==='combo'){ const exs=(plan.exs||[]).filter(id=>(s.exercises||{})[id]); if(!exs.length) return Object.assign(plan,{type:'rest'}); plan.exs=exs; }
-  return plan;
-}
-const gtgTarget = (max, pct) => Math.max(1, Math.round((max||1)*pct/100));
+const {sortedHistory, entryFor, planFor, gtgTarget} = E;
 
 /* ---------- study: rules ---------- */
-const STUDY = {halfXp:20, minBonus:50, fullBonus:30, combo:10, comboWindow:60*60000, weekGoal:1800, weekXp:400, capMs:3*3600000, offFull:480};
-const STUDY_DEFAULT = {week:{min:240, full:360}, end:{min:360, full:480}};
-const studyPlanOf = e => { const st=(e&&e.study)||{}; return {week:Object.assign({}, STUDY_DEFAULT.week, st.week), end:Object.assign({}, STUDY_DEFAULT.end, st.end)}; };
-const studyTarget = d => { const w=parse(d).getDay(); if(w===4) return null; const sp=studyPlanOf(entryFor(S()||{}, d)); const t=(w===5||w===6)?sp.end:sp.week; return {min:t.min, full:t.full}; };
-const isExam = d => ((S()||{}).examWeeks||[]).some(e=>e && e.start<=d && d<=e.end);
-const examFor = d => ((S()||{}).examWeeks||[]).find(e=>e && e.start<=d && d<=e.end) || null;
+const {STUDY, studyPlanOf, splitByDay} = E;
+const studyTarget = d => E.studyTarget(S()||{}, d);
+const isExam = d => E.isExam(S()||{}, d);
+const examFor = d => E.examFor(S()||{}, d);
 const getStudy = d => pending.study[d] || state.study[d];
 const timerDoc = () => pending.timer || state.timer || {state:'idle'};
 const fmtH = m => { m=Math.max(0,Math.round(m)); const h=Math.floor(m/60), r=m%60; return h ? (r?`${h}h ${r}m`:`${h}h`) : `${r}m`; };
-const dayStartMs = d => parse(d).getTime();
-/* split a time span into per-day pieces (local midnight boundaries) */
-function splitByDay(a, b){
-  const out=[]; let s=a;
-  while(s<b){ const d=ymd(new Date(s)); const e=Math.min(b, dayStartMs(addDays(d,1))); out.push({date:d, start:s, end:e}); s=e; }
-  return out;
-}
-function provisionalPieces(){
-  const T=timerDoc(); if(T.state!=='running' || !T.segStart) return [];
-  const end=Math.min(Date.now(), T.checkAt||Infinity); if(end<=T.segStart) return [];
-  return splitByDay(T.segStart, end).map(p=>({date:p.date, start:p.start, end:p.end, min:(p.end-p.start)/60000, src:'live'}));
-}
-/* times at which each full study hour of the day was completed */
-function hourTimes(segs){
-  const out=[]; let cum=0, next=1;
-  segs.slice().sort((a,b)=>a.end-b.end).forEach(g=>{
-    if(g.src==='manual'){ cum+=g.min; while(cum>=next*60-1e-9){ out.push(g.end); next++; } return; }
-    while(cum+g.min>=next*60-1e-9){ out.push(g.start+(next*60-cum)*60000); next++; }
-    cum+=g.min;
-  });
-  return out;
-}
-function computeStudy(s, today){
-  const res={days:{}, list:[], streak:0, best:0, weeks:{}, awards:[], start:s.studyStart||null};
-  if(!s.studyStart || s.studyStart>today) return res;
-  const live={}; provisionalPieces().forEach(p=>{ (live[p.date]=live[p.date]||[]).push(p); });
-  for(let d=s.studyStart, g=0; d<=today && g<4000; d=addDays(d,1), g++){
-    const doc=getStudy(d)||{}, entries=(doc.entries||[]).map(e=>({start:+new Date(e.start||e.end), end:+new Date(e.end), min:+e.min||0, src:e.src||'manual'}));
-    const segs=entries.concat(live[d]||[]);
-    const mins=segs.reduce((m,x)=>m+x.min,0), committed=entries.reduce((m,x)=>m+x.min,0);
-    const base=studyTarget(d), off=!base && parse(d).getDay()===4 && (doc.offday || mins>0);
-    const tgt= off ? {min:0, full:STUDY.offFull, off:true} : base, exam=isExam(d), wk=weekStart(d);
-    const W=res.weeks[wk]||(res.weeks[wk]={start:wk, mins:0, shields:0, won:false});
-    let xp=Math.floor(mins/30)*STUDY.halfXp, status;
-    if(tgt){ if(mins>=tgt.min && !tgt.off) xp+=STUDY.minBonus; if(mins>=tgt.full) xp+=STUDY.fullBonus; }
-    if(!tgt) status='rest';
-    else if(tgt.off) status = mins>0 ? 'done' : 'rest';
-    else if(mins>=tgt.min) status='done';
-    else if(exam) status='exam';
-    else if(doc.shield && W.shields<1){ status='shield'; W.shields++; }
-    else status = d<today ? 'missed' : 'open';
-    const before=res.streak;
-    if(status==='done'){ res.streak++; res.best=Math.max(res.best,res.streak); }
-    else if(status==='missed') res.streak=0;
-    const prevWk=W.mins; W.mins+=mins;
-    let award=0;
-    if(!W.won && prevWk<STUDY.weekGoal && W.mins>=STUDY.weekGoal){ W.won=true; award=STUDY.weekXp; res.awards.push({key:'study', sensei:'hiruzen', date:d, week:wk, xp:STUDY.weekXp, title:'Scholar\'s week'}); }
-    const rec={date:d, mins, committed, tgt, exam, status, xp:xp+award, award, hours:hourTimes(segs), shield:!!doc.shield, broke:status==='missed' && before>0, entries:doc.entries||[]};
-    res.days[d]=rec; res.list.push(rec);
-  }
-  return res;
-}
-/* match each completed study hour to one workout set logged within the next 60 minutes */
-function comboMatches(hours, sets){
-  const ts=sets.map(x=>+new Date(x.t)).filter(n=>!isNaN(n)).sort((a,b)=>a-b), used=new Set(); let n=0; const free=[];
-  hours.forEach(h=>{ const i=ts.findIndex((t,k)=>!used.has(k) && t>=h && t<=h+STUDY.comboWindow); if(i>=0){ used.add(i); n++; } else free.push(h); });
-  return {n, free};
-}
+const provisionalPieces = () => E.provisionalPieces(timerDoc(), Date.now());
 
 /* ---------- the engine: everything is derived from the logs ---------- */
-function compute(){
-  const s=S(), today=todayStr();
-  const exIds = Object.keys(s.exercises||{});
-  const maxes={}, best={}, maxHist={}, totalReps={};
-  exIds.forEach(id=>{ const b=(s.baseline||{})[id]||{max:0,date:s.startDate}; maxes[id]=b.max; best[id]=b.max; maxHist[id]=[{date:b.date, v:b.max, start:true}]; totalReps[id]=0; });
-  const days=[], prs=[], weeks={}, awards=[];
-  const bodyDates=new Set(allBody().map(b=>b.date));
-  let total=0, peak=0, streak=0, bestStreak=0, doneCount=0, missedCount=0;
-  const study=computeStudy(s, today); let readyUntil=0;
-  if(s.startDate && s.startDate<=today){
-    let guard=0;
-    for(let d=s.startDate; d<=today && guard<4000; d=addDays(d,1), guard++){
-      const plan = planFor(s,d);
-      const sets = ((getDay(d)||{}).sets)||[];
-      const wk = weekStart(d);
-      const W = weeks[wk] || (weeks[wk]={start:wk, reps:{}, missed:0, days:0, done:0, qual:0, weigh:0, prDone:false, open:false});
-      sets.forEach(x=>{ totalReps[x.ex]=(totalReps[x.ex]||0)+x.reps; W.reps[x.ex]=(W.reps[x.ex]||0)+x.reps; });
-      let base=0, complete=false, info={};
-      if(plan.type==='gtg'){
-        const ex=plan.ex, g=plan.gtg, target=gtgTarget(maxes[ex], g.pct);
-        const exSets=sets.filter(x=>x.ex===ex).slice(0,10);
-        let q=0;
-        exSets.forEach(x=>{ if(x.reps>=target){ q++; base+=XP.gtgSet+x.reps; } else base+=x.reps; });
-        complete = q>=g.minSets;
-        if(complete) base+=XP.gtgComplete;
-        if(q>=g.sets) base+=XP.gtgFull;
-        info={ex, target, q, need:g.minSets, goal:g.sets, logged:exSets.length, exSets};
-      } else if(plan.type==='combo'){
-        const g=plan.gtg, per=plan.combo.sets;
-        const parts=plan.exs.map(ex=>{
-          const target=gtgTarget(maxes[ex], g.pct), exSets=sets.filter(x=>x.ex===ex).slice(0,10);
-          let q=0;
-          exSets.forEach(x=>{ if(x.reps>=target){ q++; base+=XP.gtgSet+x.reps; } else base+=x.reps; });
-          return {ex, target, q, need:per, logged:exSets.length, exSets};
-        });
-        complete = parts.every(pt=>pt.q>=per);
-        if(complete) base+=XP.gtgComplete+XP.gtgFull;
-        info={parts, q:parts.reduce((m,pt)=>m+Math.min(pt.q,per),0), qAll:parts.reduce((m,pt)=>m+pt.q,0), need:per*parts.length, goal:per*parts.length};
-      } else if(plan.type==='test'){
-        const t=plan.test;
-        const tex=(t.ex||[]).filter(id=>(s.exercises||{})[id]);
-        const per=tex.map(id=>{ const xs=sets.filter(x=>x.ex===id).slice(0,t.sets); return {ex:id, sets:xs, top:xs.reduce((m,x)=>Math.max(m,x.reps),0), prev:maxes[id], prBefore:best[id], pr:false}; });
-        per.forEach(p=>p.sets.forEach(x=>{ base+=XP.testRep*x.reps; }));
-        complete = per.length>0 && per.every(p=>p.sets.length>=t.sets);
-        if(complete) base+=XP.testComplete;
-        per.forEach(p=>{ if(p.sets.length && p.top>best[p.ex]){ p.pr=true; base+=XP.pr; prs.push({date:d, ex:p.ex, v:p.top}); best[p.ex]=p.top; } });
-        info={per, sets:t.sets};
-      }
-      let status;
-      if(plan.type==='rest'){ status='rest'; base=XP.rest; }
-      else if(complete) status='done';
-      else status = d<today ? 'missed' : 'open';
-      if(isExam(d) && status!=='done'){ status='exam'; if(plan.type==='rest') base=0; }
-      let xp;
-      if(status==='done'||status==='rest'){ streak++; bestStreak=Math.max(bestStreak,streak); xp=Math.round(base*mult(streak)); if(status==='done'){ doneCount++; W.done++; } }
-      else if(status==='missed'){ streak=0; xp=base-(plan.type==='test'?XP.missTest:XP.missGtg); missedCount++; W.missed++; }
-      else xp=base;
-      W.days++;
-      if(plan.type==='test' && (status==='done' || status==='missed')){
-        info.per.forEach(p=>{ if(p.sets.length){ maxes[p.ex]=p.top; maxHist[p.ex].push({date:d, v:p.top}); } });
-      }
-      const bonus=[];
-      if(plan.type==='gtg' || plan.type==='combo'){ const before=W.qual; W.qual+=(plan.type==='combo'?info.qAll:info.q)||0; if(before<SENSEIS.kakashi.challenge.goal && W.qual>=SENSEIS.kakashi.challenge.goal) bonus.push('kakashi'); }
-      if(plan.type==='test' && !W.prDone && info.per && info.per.some(p=>p.pr)){ W.prDone=true; bonus.push('guy'); }
-      if(bodyDates.has(d)){ W.weigh++; if(W.weigh===SENSEIS.jiraiya.challenge.goal) bonus.push('jiraiya'); }
-      W.open = status==='open';
-      if(status==='exam') W.exam=(W.exam||0)+1;
-      if(parse(d).getDay()===6 && W.days===7 && W.missed===0 && status!=='open') bonus.push('hiruzen');
-      bonus.forEach(id=>{ xp+=SENSEIS[id].challenge.xp; awards.push({key:id, sensei:id, date:d, week:wk, xp:SENSEIS[id].challenge.xp, title:SENSEIS[id].challenge.title}); });
-      const srec=study.days[d];
-      const cm=comboMatches(srec?srec.hours:[], sets); info.combo=cm.n; xp+=cm.n*STUDY.combo;
-      if(d===today && plan.type!=='rest'){ const nowMs=Date.now(); cm.free.forEach(h=>{ if(nowMs>=h && nowMs<=h+STUDY.comboWindow) readyUntil=Math.max(readyUntil, h+STUDY.comboWindow); }); }
-      if(srec){ total=Math.max(0,total+srec.xp); if(srec.award) awards.push(study.awards.find(a=>a.date===d)); }
-      total=Math.max(0,total+xp);
-      peak=Math.max(peak, rankFor(total));
-      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus});
-    }
-  }
-  const todayRec = days.find(x=>x.date===today) || null;
-  const weekList = Object.values(weeks).sort((a,b)=>a.start<b.start?-1:1);
-  const cleanWeeks = weekList.filter(w=>w.days===7 && w.missed===0 && w.done>0 && addDays(w.start,6)<today).length;
-  const body = allBody();
-  const weight = body.length ? body[body.length-1].weight : null;
-  const power = weight ? Math.round(((maxes.pullups||0)*3 + (maxes.dips||0)) * weight / 10) : null;
-  const weekNow = weeks[weekStart(today)] || {qual:0, weigh:0, prDone:false, days:0, missed:0};
-  const startedMidWeek = weekStart(s.startDate||today)===weekStart(today) && parse(s.startDate||today).getDay()!==0;
-  return { study, readyUntil, awards, weekNow, startedMidWeek, today, todayRec, days, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount, maxes, best, maxHist, prs, totalReps, weekList, cleanWeeks, body, weight, power, exIds };
+/* the snapshot the engine reads: what is saved, with anything still being saved laid on top */
+function engineData(){
+  const over=(a,b)=>{ for(const k in b) return Object.assign({}, a, b); return a; };
+  return {settings:S(), days:over(state.days,pending.days), study:over(state.study,pending.study), body:over(state.body,pending.body), timer:timerDoc()};
 }
+function compute(){ return E.compute(engineData(), Date.now()); }
 
 /* ---------- achievements ---------- */
 const SCROLLS = [
@@ -1588,14 +1427,10 @@ function examCard(C){
 
 /* ---------- senseis: original lines written in each sensei's style ---------- */
 const SENSEIS = {
-  kakashi: {id:'kakashi', name:'Kakashi', role:'Groove days', spec:'Precision and consistency', color:'#5b77a6',
-    challenge:{title:'Precision drill', desc:'Log 15 groove sets at target reps or more this week', goal:15, xp:60}},
-  guy:     {id:'guy', name:'Guy', role:'Test days', spec:'All-out effort and new maxes', color:'#2f9a5c',
-    challenge:{title:'Burning youth', desc:'Beat one of your maxes on test day this week', goal:1, xp:100}},
-  jiraiya: {id:'jiraiya', name:'Jiraiya', role:'Rest days and weigh-ins', spec:'Recovery and growth', color:'#c0392b',
-    challenge:{title:'Field research', desc:'Log your weight twice this week', goal:2, xp:40}},
-  hiruzen: {id:'hiruzen', name:'Third Hokage', role:'Sundays, promotions, weekly report', spec:'Discipline and the long road', color:'#c8952a',
-    challenge:{title:'Village duty', desc:'Finish a full Sunday-to-Saturday week with no missed mission', goal:7, xp:120}}
+  kakashi: {id:'kakashi', name:'Kakashi', role:'Groove days', spec:'Precision and consistency', color:'#5b77a6', challenge:E.CHALLENGES.kakashi},
+  guy:     {id:'guy', name:'Guy', role:'Test days', spec:'All-out effort and new maxes', color:'#2f9a5c', challenge:E.CHALLENGES.guy},
+  jiraiya: {id:'jiraiya', name:'Jiraiya', role:'Rest days and weigh-ins', spec:'Recovery and growth', color:'#c0392b', challenge:E.CHALLENGES.jiraiya},
+  hiruzen: {id:'hiruzen', name:'Third Hokage', role:'Sundays, promotions, weekly report', spec:'Discipline and the long road', color:'#c8952a', challenge:E.CHALLENGES.hiruzen}
 };
 const SENSEI_ORDER = ['kakashi','guy','jiraiya','hiruzen'];
 const SENSEI_LINES = {
@@ -2774,20 +2609,7 @@ function render(){
 }
 
 /* when a streak broke, and when a broken streak was rebuilt to 7 */
-function streakStory(C){
-  const out={broke:null, comeback:null, ever:false};
-  const scan=(list, kind, isBreak)=>{
-    let pending=null;
-    list.forEach((rec,i)=>{
-      if(isBreak(rec,i)){ pending=rec.date; if(!out.broke || rec.date>=out.broke.date) out.broke={date:rec.date, kind}; }
-      if(pending && rec.streak>=7){ out.ever=true; if(!out.comeback || rec.date>=out.comeback.date) out.comeback={date:rec.date, kind, since:pending}; pending=null; }
-    });
-  };
-  scan(C.days, 'workout', (rec,i)=>rec.status==='missed' && i>0 && (C.days[i-1].streak||0)>0);
-  let st=0; const sl=C.study.list.map(r=>{ if(r.status==='done') st++; else if(r.status==='missed') st=0; return {date:r.date, status:r.status, broke:r.broke, streak:st}; });
-  scan(sl, 'study', rec=>rec.broke);
-  return out;
-}
+const streakStory = C => C._story || (C._story=E.streakStory(C));
 function sceneSeen(key){ try{ return localStorage.getItem('leaf-scene-'+key)==='1'; }catch(e){ return true; } }
 function markScene(key){ try{ localStorage.setItem('leaf-scene-'+key,'1'); }catch(e){} }
 function renderOverlay(C){
