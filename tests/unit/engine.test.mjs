@@ -389,3 +389,22 @@ test('auto-progression: the suggestion after a test follows the week that led to
   V = week(4); fri(V, 10, 20);
   assert.equal(P(V, at('2026-11-12', 9)).why, 'push'); assert.equal(P(V, at('2026-11-13', 9)), null);
 });
+
+/* ---------- exam countdown ---------- */
+test('exam countdown: days left, hours banked since it was set, and when to suggest the exam-week pass', () => {
+  const V = village({studyStart:START, exam:{name:'Finals', date:'2026-11-20', since:'2026-11-03'}});
+  study(V, '2026-11-02', 300); study(V, '2026-11-03', 240); study(V, '2026-11-04', 90); study(V, '2026-11-06', 400);
+  const X = when => E.examCountdown(E.compute(V, when));
+  let x = X(at('2026-11-06', 20));
+  assert.equal(x.name, 'Finals'); assert.equal(x.days, 14); assert.equal(x.final, true); assert.equal(x.passed, false);
+  assert.equal(x.banked, 730, 'only hours since it was set'); assert.equal(x.suggestPass, false, 'more than a week away');
+  assert.equal(X(at('2026-11-05', 9)).final, false, '15 days is not yet the final stretch');
+  x = X(at('2026-11-13', 9)); assert.equal(x.days, 7); assert.equal(x.suggestPass, true);
+  V.settings.examWeeks = [{start:'2026-11-15', end:'2026-11-21'}];
+  assert.equal(X(at('2026-11-13', 9)).suggestPass, false, 'a pass already covers it');
+  V.settings.examWeeks = [{start:'2026-11-01', end:'2026-11-02'}];
+  assert.equal(X(at('2026-11-13', 9)).suggestPass, false, 'this month\'s pass is used');
+  assert.equal(X(at('2026-11-20', 7)).days, 0); assert.equal(X(at('2026-11-21', 7)).passed, true);
+  assert.equal(E.examCountdown(E.compute(village({exam:{name:'x', date:'soon'}}), at(START, 9))), null);
+  assert.equal(E.examCountdown(E.compute(village(), at(START, 9))), null);
+});

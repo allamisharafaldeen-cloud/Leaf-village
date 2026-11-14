@@ -478,6 +478,46 @@ test('auto-progression: after the Friday test Kakashi suggests next week\'s sett
   noErrors();
 });
 
+test('exam countdown: set in Settings, shown on the Mission tab with banked hours, and the Third Hokage speaks to it', async () => {
+  const B = await fresh('exam');
+  assert.equal(await B.page.locator('#exam-count').count(), 0);
+  await B.tab('settings');
+  await B.page.fill('#examc-name', 'Finals'); await B.page.fill('#examc-date', '2026-11-10');
+  await B.page.locator('[data-act="examc-save"]').click();
+  assert.match(await toastText(B), /has to be today or later/);
+  await B.page.fill('#examc-date', '2026-11-21');
+  await B.page.locator('[data-act="examc-save"]').click();
+  const s = await until(async () => { const x = (await B.docs())['leaf/main']; return x.exam ? x : null; }, 'the exam to be saved');
+  assert.deepEqual(s.exam, {name:'Finals', date:'2026-11-21', since:'2026-11-15'});
+  assert.match(await toastText(B), /Finals: 6 days to go/);
+  await B.tab('mission');
+  let card = (await B.page.locator('#exam-count').textContent()).replace(/\s+/g, ' ');
+  assert.match(card, /6\s*days left/); assert.match(card, /Finals · Saturday 21 November/); assert.match(card, /0m of study banked since 15 Nov/);
+  assert.match(card, /An exam-week pass would freeze both streaks/);
+  await openScroll(B, 'study');
+  assert.match(await B.page.locator('.mscroll.study .hokage-line').textContent(), /Finals/);
+  await B.setTime(T0 + min(5));
+  await B.page.locator('.mscroll.study [data-act="st-add"][data-min="60"]').click();
+  await until(async () => /1h of study banked/.test(await B.page.locator('#exam-count').textContent()), 'the banked hours to grow');
+  /* changing the date keeps the hours already banked; clearing removes the card */
+  await B.tab('settings');
+  await B.page.fill('#examc-date', '2026-12-20');
+  await B.page.locator('[data-act="examc-save"]').click();
+  await until(async () => (await B.docs())['leaf/main'].exam.date === '2026-12-20', 'the new date');
+  assert.equal((await B.docs())['leaf/main'].exam.since, '2026-11-15');
+  await B.tab('mission');
+  card = (await B.page.locator('#exam-count').textContent()).replace(/\s+/g, ' ');
+  assert.match(card, /35\s*days left/); assert.doesNotMatch(card, /exam-week pass/);
+  assert.doesNotMatch(await B.page.locator('.mscroll.study .hokage-line').textContent(), /Finals/, 'outside the last two weeks the usual lines return');
+  await B.tab('settings');
+  await B.page.locator('[data-act="examc-clear"]').click();
+  await until(async () => (await B.docs())['leaf/main'].exam === undefined, 'cleared');
+  await B.tab('mission'); assert.equal(await B.page.locator('#exam-count').count(), 0);
+  assert.deepEqual((await B.docs())['leaf/main'].examWeeks, fixture.settings.examWeeks, 'the exam-week pass is a separate thing and was not touched');
+  await B.close();
+  noErrors();
+});
+
 test('iPad screenshots of every tab, landscape and portrait (looked at by hand)', async () => {
   for(const [name, viewport] of [['landscape', {width:1148, height:802}], ['portrait', {width:820, height:1180}]]){
     const B = await rig.device('shots-' + name, {now:T0 + min(30), viewport});

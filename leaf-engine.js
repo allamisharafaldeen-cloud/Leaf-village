@@ -579,11 +579,25 @@ function progression(C){
   return {test:T.date, from, cur, next:g, changed, why, rate, fullRate, done, judged:judged.length, up, down, targets, answered:a || null};
 }
 
+/* ---------- exam countdown (separate from the exam-week pass) ---------- */
+function examCountdown(C){
+  const s = C.settings, x = s.exam;
+  if(!isObj(x) || !isDate(x.date)) return null;
+  const since = isDate(x.since) ? x.since : C.today, days = daysBetween(C.today, x.date);
+  let banked = 0, n = 0;
+  C.study.list.forEach(r => { if(r.date >= since && r.date <= x.date){ banked += r.mins; n++; } });
+  const weeks = examList(s).filter(e => e && isDate(e.start) && isDate(e.end));
+  const covered = weeks.some(e => e.end >= C.today && e.start <= x.date);
+  const passUsed = weeks.some(e => e.start.slice(0, 7) === C.today.slice(0, 7));
+  return {name:(typeof x.name === 'string' && x.name.trim()) ? x.name.trim() : 'Exam', date:x.date, since, days, passed:days < 0, final:days >= 0 && days <= 14,
+    banked, daysCounted:n, suggestPass:days >= 0 && days <= 7 && !covered && !passUsed};
+}
+
 return {
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
-  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression
+  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown
 };
 });

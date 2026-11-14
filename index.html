@@ -600,6 +600,11 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .say p{margin:0; font-size:14.5px; line-height:1.45}
 .say .rules{font-size:14px}
 .was{color:var(--muted); font-weight:400}
+.count{display:grid; grid-template-columns:auto 1fr; gap:4px 14px; align-items:center}
+.count .big{grid-row:span 2; font-family:var(--f-data); font-weight:700; font-size:34px; line-height:1; color:var(--exam); text-align:center; min-width:74px}
+.count .big small{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:3px}
+.count b{font-size:16px; align-self:end}
+.count span{font-size:13px; color:var(--muted); align-self:start}
 /* monthly mission report */
 .report{position:relative; width:min(640px,100%); max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--card); border-radius:18px; border:3px solid var(--rk); display:flex; flex-direction:column; animation:pop .4s cubic-bezier(.2,1.3,.4,1)}
 .report-head{padding:18px 20px 14px; background:var(--rk); color:#fff}
@@ -1278,7 +1283,16 @@ const STUDY_LINES = {
   rest:['Thursday is for rest, {name}. Let your mind recover; any study today is extra.'],
   exam:['Exam week. Your exams come first, and I will guard your streaks. Good luck, {name}.'],
   shield:['Your streak is protected today. Rest, and return stronger tomorrow.'],
-  lost:['Yesterday\'s hours fell short. A new day, a new scroll. Begin again.']
+  lost:['Yesterday\'s hours fell short. A new day, a new scroll. Begin again.'],
+  /* the last 14 days before an exam set in Settings */
+  xfresh:['{days} to {exam}, {name}. Today\'s first hour matters more than any hour next week.','{exam} is {days} away. Open your weakest topic first, while your mind is fresh.','{days} left before {exam}. {min} today at least. Begin with the chapter you have been avoiding.'],
+  xprogress:['{done} banked today, {left} to the minimum. {exam} is {days} away: keep to the plan, not to your worries.','Good. One topic at a time. {left} more today, and {exam} is {days} away.'],
+  xclose:['Less than an hour to today\'s minimum. With {exam} {days} away, finish it before you rest.'],
+  xdone:['Today\'s minimum is done. With {days} to {exam}, the extra hours are best spent on recall, not new chapters.','Enough for the minimum. Close the book and test yourself on it; recall is what {exam} will ask of you.'],
+  xfull:['The scroll is full. Sleep is part of the preparation for {exam}. Take it.'],
+  xlate:['It is late and {left} remain. {exam} is {days} away: do what you can, then sleep. A tired mind keeps little.'],
+  xlost:['Yesterday fell short, and {exam} is {days} away. Do not carry it with you; begin today\'s first hour now.'],
+  xday:['Today is {exam}. The work is done, {name}. Read each question twice and trust what you know.']
 };
 function studyLine(C){
   const st=C.study, rec=st.days[C.today]; if(!rec) return '';
@@ -1293,6 +1307,12 @@ function studyLine(C){
   else if(hour>=20) key='late';
   else if(rec.mins<=0) key = (y && y.status==='missed') ? 'lost' : 'fresh';
   else key = (rec.tgt.min-rec.mins<=60) ? 'close' : 'progress';
+  const X=examInfo(C);
+  if(X && X.final){
+    v.exam=X.name; v.days=X.days===1?'one day':`${X.days} days`;
+    if(X.days===0 && key!=='rest' && key!=='offday') key='xday';
+    else if(STUDY_LINES['x'+key]) key='x'+key;
+  }
   const arr=STUDY_LINES[key];
   return fillLine(arr[hashStr(`${C.today}|s|${key}|${ui.lineNonce||0}`)%arr.length], v);
 }
@@ -1620,6 +1640,44 @@ function senseisCard(C){
     <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday. Pictures you add are saved on this phone.</p>${rows}</section>`;
 }
 
+/* ---------- exam countdown ---------- */
+const examInfo = C => C._exam===undefined ? (C._exam=E.examCountdown(C)) : C._exam;
+function examCountCard(C){
+  const X=examInfo(C); if(!X || X.passed) return '';
+  const big = X.days===0 ? 'Today' : X.days===1 ? '1' : String(X.days), unit = X.days===0 ? 'exam day' : X.days===1 ? 'day left' : 'days left';
+  const per = X.daysCounted ? X.banked/X.daysCounted : 0;
+  return `<section class="card say" id="exam-count" style="--sc:var(--exam)" aria-label="Exam countdown">
+    <div class="count"><span class="big num">${big}<small>${unit}</small></span><b>${esc(X.name)} · ${esc(longDate(X.date))}</b>
+      <span><b class="num" style="font-size:13px;color:var(--ink)">${fmtH(X.banked)}</b> of study banked since ${esc(shortDate(X.since))}${X.daysCounted>1?` · ${fmtH(per)} a day`:''}</span></div>
+    ${X.suggestPass?`<p class="muted small">It is within a week. An exam-week pass would freeze both streaks while you revise. <a href="#settings" style="color:var(--chakra-ink);font-weight:700">Open the pass in Settings</a></p>`:''}
+  </section>`;
+}
+function examCountSettings(C){
+  const s=S(), cur=(s.exam && E.isDate(s.exam.date)) ? s.exam : null, X=examInfo(C);
+  if(!ui.examDraft) ui.examDraft={name:cur?(cur.name||''):'', date:cur?cur.date:''};
+  const d=ui.examDraft;
+  return `<section class="card" id="exam-count-set"><div class="section-head"><h2>Exam countdown</h2><span class="eyebrow">${X?(X.passed?'Passed':X.days===0?'Today':`${X.days} ${X.days===1?'day':'days'}`):'Not set'}</span></div>
+    <p class="muted small">Name your next exam and its date. The Mission tab then shows the days left and the study hours you have banked since you set it, and the Third Hokage sharpens his study advice in the last two weeks. It changes no rules: for a week with nothing required, use the exam-week pass below.</p>
+    ${X && X.passed?`<p class="notice">${esc(X.name)} was on ${esc(longDate(X.date))}. Set your next exam, or clear it.</p>`:''}
+    ${state.readOnly?'':`<div class="form-grid"><label class="field"><span>Exam name</span><input id="examc-name" type="text" maxlength="40" placeholder="Finals" data-bind="examDraft.name" value="${esc(d.name)}"></label>
+      <label class="field"><span>Date</span><input id="examc-date" type="date" min="${C.today}" data-bind="examDraft.date" value="${esc(d.date)}"></label></div>
+    <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="examc-save">${cur?'Update countdown':'Start countdown'}</button>${cur?'<button type="button" class="btn small ghost" data-act="examc-clear">Clear</button>':''}</div>`}
+  </section>`;
+}
+function examCountAction(act){
+  if(state.readOnly) return;
+  const s=clone(S()), today=todayStr();
+  if(act==='examc-clear'){ delete s.exam; ui.examDraft=null; save('settings', null, s); toast('Exam countdown cleared'); return; }
+  const d=ui.examDraft||{}, name=(d.name||'').trim().slice(0,40), date=d.date;
+  if(!E.isDate(date)){ toast('Pick the exam date.'); return; }
+  if(date<today){ toast('The exam date has to be today or later.'); return; }
+  const old=(s.exam && E.isDate(s.exam.date)) ? s.exam : null;
+  /* the banked hours keep counting from when it was first set, unless that exam is already over */
+  s.exam={name:name||'Exam', date, since:(old && E.isDate(old.since) && old.date>=today) ? old.since : today};
+  ui.examDraft=null; save('settings', null, s); SFX.play('tick');
+  const n=daysBetween(today, date); toast(n===0 ? `${s.exam.name} is today. Good luck.` : `${s.exam.name}: ${n} ${n===1?'day':'days'} to go`);
+}
+
 /* ---------- auto-progression: Kakashi's suggestion after a finished test ---------- */
 const PROG_LINES = {
   ease:'You finished {done} of {n} groove days since the last test. No shame in it. We lower the load so every day is one you can win.',
@@ -1658,7 +1716,7 @@ function progressionAction(act){
   } else { save('settings', null, s); SFX.play('tick'); toast(P.changed ? 'Keeping your own settings.' : 'Settings stay as they are.'); }
 }
 function missionView(C){
-  return topbar('', true) + examBanner(C) + ninjaHeader(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + weekStrip(C) + upNext(C);
+  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + weekStrip(C) + upNext(C);
 }
 
 /* --- charts --- */
@@ -2545,6 +2603,7 @@ function settingsView(C){
   </section>
   ${syncCard()}
   ${notifyCard()}
+  ${examCountSettings(C)}
   ${examCard(C)}
   <section class="card">
     <div class="section-head"><h2>Background music</h2><span class="eyebrow">${Music.playing?'Playing':'Stopped'}</span></div>
@@ -3174,6 +3233,7 @@ document.addEventListener('click', e=>{
     ui.setup=null; return;
   }
   if(act==='prog-accept' || act==='prog-keep'){ progressionAction(act); return; }
+  if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='report-nav'){ const ch=E.chapters(lastC), i=ch.findIndex(c=>c.ym===ui.report)+Number(el.dataset.d); if(ch[i]){ ui.report=ch[i].ym; SFX.play('tick'); renderOverlay(lastC); } return; }
@@ -3271,7 +3331,7 @@ setInterval(checkDay, 60000);
 addEventListener('pageshow', checkDay); addEventListener('focus', checkDay);
 /* anything that writes to "today" must mean the real today. If midnight passed while the page sat open, the page still
    shows yesterday's mission: show the new day instead of writing into a day that is closed. */
-const DAY_BOUND=/^(log|undo|weigh-save|plan-save|add-ex|setup-save|st-|exam-|prog-)/;
+const DAY_BOUND=/^(log|undo|weigh-save|plan-save|add-ex|setup-save|st-|exam-|examc-|prog-)/;
 function dayRolled(){
   if(!lastC || todayStr()===lastC.today) return false;
   lastDay=null; checkDay();
