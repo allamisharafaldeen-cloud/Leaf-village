@@ -429,20 +429,35 @@ test('monthly mission report: opens from Stats with the month\'s real numbers, p
   noErrors();
 });
 
-test('on the 1st the report for the month that ended opens by itself, once', async () => {
+test('story arcs: on the 1st a recap scene closes the chapter and leads to its report, once; the Ninja tab keeps the story', async () => {
   const B = await rig.device('first', {now:at('2026-12-01', 9, 0)});
   await B.open(); await B.importBackup(FIXTURE);
   await closeScenes(B);
+  await B.page.waitForSelector('#overlay .scene.recap');
+  const recap = (await B.page.locator('#overlay .scene.recap').textContent()).replace(/\s+/g, ' ');
+  assert.match(recap, /Chapter 3 · November 2026/); assert.match(recap, /Rise of the ANBU/); assert.match(recap, /Jonin became ANBU/); assert.match(recap, /Begin chapter 4/);
+  assert.match(await B.page.locator('#overlay .scene.recap img').getAttribute('src'), /^media\/wp-sealed-shrine\.jpg$/, 'the rank\'s own wallpaper');
+  await B.page.click('[data-act="recap-report"]');
   await B.page.waitForSelector('#overlay .report');
   assert.match(await B.page.locator('#report-title').textContent(), /November 2026/);
   await B.page.click('[data-act="report-close"]');
   await B.page.reload(); await B.page.waitForSelector('.stage');
   await sleep(400);
-  assert.equal(await B.page.locator('#overlay .report').count(), 0, 'it does not come back');
+  assert.equal(await B.page.locator('#overlay .scene.recap, #overlay .report').count(), 0, 'it does not come back');
+  /* the story so far */
+  await B.tab('ninja');
+  const rows = await B.page.locator('#story-card .ladder li').allTextContents();
+  assert.equal(rows.length, 4);
+  assert.match(rows[0], /Chapter 4 · .*December 2026 · still being written/); assert.match(rows[1], /Chapter 3 · Rise of the ANBUNovember 2026/);
+  assert.match(rows[3], /Chapter 1 · Rise of the ChuninSeptember 2026\+6,693 XP/);
+  await B.page.locator('#story-card [data-ym="2026-09"]').click();
+  await B.page.waitForSelector('#overlay .report');
+  assert.match(await B.page.locator('#report-title').textContent(), /September 2026/);
+  await B.page.click('[data-act="report-close"]');
   await B.close();
   const Cdev = await rig.device('mid', {now:at('2026-12-09', 9, 0)});
   await Cdev.open(); await Cdev.importBackup(FIXTURE); await sleep(400);
-  assert.equal(await Cdev.page.locator('#overlay .report').count(), 0, 'after the first week it waits in Stats instead');
+  assert.equal(await Cdev.page.locator('#overlay .scene.recap, #overlay .report').count(), 0, 'after the first week it waits in Stats and the Ninja tab instead');
   await Cdev.close();
   noErrors();
 });

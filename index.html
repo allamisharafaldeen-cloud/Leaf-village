@@ -654,6 +654,10 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .scene h2{margin:0; font-size:28px; color:#fff}
 .scene p{margin:0; font-size:14.5px; line-height:1.5; color:#ddd6cb}
 .scene.funeral img{filter:saturate(.7)}
+.scene.recap{box-shadow:0 0 0 2px var(--rk),0 30px 80px rgba(0,0,0,.6)}
+.scene.recap img{animation:recapin 2.2s ease-out}
+@keyframes recapin{0%{transform:scale(1.12); filter:brightness(.5)}100%{transform:scale(1); filter:none}}
+.scene .btn.plain{background:transparent; color:#f2efe9; border:1.5px solid rgba(255,255,255,.35)}
 .scene.comeback{box-shadow:0 0 0 2px #8fd0ff,0 0 60px rgba(120,190,255,.55),0 30px 80px rgba(0,0,0,.6)}
 .scene.comeback img{animation:revive 2.4s ease-out}
 @keyframes revive{0%{filter:grayscale(1) brightness(.4) blur(3px); transform:scale(1.08)}60%{filter:grayscale(.3) brightness(1.1)}100%{filter:none; transform:scale(1)}}
@@ -1913,6 +1917,35 @@ function planView(C){
   </section>`;
 }
 
+/* --- story arcs: each month is a chapter --- */
+const wallOf = i => { const r=RANKS[i]; return (r.walls && r.walls.length) ? `media/${r.walls[0]}.jpg` : r.scene; };
+function storyCard(C){
+  const ch=E.chapters(C); if(!ch.length) return '';
+  const rows=ch.slice().reverse().map(c=>`<li${c.complete?'':' class="current"'}><button type="button" class="rank-btn" data-act="report-open" data-ym="${c.ym}">${portrait(c.report.rankTo,46)}<span><span class="rn">Chapter ${c.n} · ${esc(c.title)}</span><span class="rx">${esc(c.label)}${c.complete?'':' · still being written'}</span></span><span class="rx">${signed(c.report.xp)} XP</span></button></li>`).join('');
+  return `<section class="card" id="story-card"><div class="section-head"><h2>The story so far</h2><span class="eyebrow">${ch.length} ${ch.length===1?'chapter':'chapters'}</span></div>
+    <p class="muted" style="margin:0;font-size:13px">Every month is a chapter, named for what happened in it. Tap one to read its mission report.</p><ul class="ladder">${rows}</ul></section>`;
+}
+function recapHtml(C, ym){
+  const ch=E.chapters(C), c=ch.find(x=>x.ym===ym); if(!c) return null;
+  const R=c.report, m=R.missions, st=R.study, r1=RANKS[R.rankTo], facts=[];
+  facts.push(`${m.done} ${m.done===1?'mission':'missions'} done${m.missed?`, ${m.missed} missed`:', none missed'}.`);
+  if(st.mins>0) facts.push(`${fmtH(st.mins)} at the desk.`);
+  if(R.prs.length) facts.push(`${R.prs.length} new ${R.prs.length===1?'max':'maxes'}.`);
+  if(R.promoted) facts.push(`${RANKS[R.rankFrom].name} became ${r1.name}.`);
+  facts.push(`${signed(R.xp)} XP.`);
+  return `<div class="scene recap" role="dialog" aria-modal="true" aria-labelledby="scene-title" style="--rk:${r1.color}">
+    <img src="${wallOf(R.rankTo)}" alt="The village as ${esc(R.label)} ends">
+    <div class="scene-body">
+      <div class="eyebrow">Chapter ${c.n} · ${esc(R.label)}</div>
+      <h2 id="scene-title">${esc(R.title)}</h2>
+      <p>${facts.map(esc).join(' ')}</p>
+      <p style="color:#c9c3b8">The chapter is closed and cannot be rewritten. Chapter ${c.n+1} begins now.</p>
+      <button class="btn chakra-btn" data-act="recap-report" data-ym="${ym}" style="width:100%">Read the mission report</button>
+      <button class="btn plain" data-act="recap-ok" data-ym="${ym}" style="width:100%">Begin chapter ${c.n+1}</button>
+    </div>
+  </div>`;
+}
+
 /* --- achievements wall --- */
 const ACH_CATS=['Missions','Strength','Study','Streaks','Secret'];
 const achDate = (d, today) => shortDate(d)+(d.slice(0,4)!==today.slice(0,4) ? ' '+d.slice(0,4) : '');
@@ -1982,6 +2015,7 @@ function ninjaView(C){
   </section>`}
   ${senseisCard(C)}
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
+  ${storyCard(C)}
   ${achievementsCard(C)}`;
 }
 
@@ -3095,7 +3129,7 @@ function renderOverlay(C){
     </div>`;
     ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus(); return;
   }
-  if(!(C.peak>seen) && ui.viewRank==null && !ui.report){ const due=monthlyDue(C); if(due){ ui.report=due.ym; markScene('month-'+due.ym); SFX.play('scroll'); } }
+  if(!(C.peak>seen) && ui.viewRank==null && !ui.report && !ui.recap){ const due=monthlyDue(C); if(due) ui.recap=due.ym; }
   if(C.peak>seen && !state.readOnly){
     const key='promo-'+C.peak; if(ui.overlayKey===key) return;
     ui.overlayKey=key; ui.viewRank=null;
@@ -3112,6 +3146,12 @@ function renderOverlay(C){
     </div>`;
     FX.flash(); SFX.play('promo'); setTimeout(()=>FX.leafBurst(),350);
     ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus();
+  } else if(ui.recap){
+    const key='recap-'+ui.recap; if(ui.overlayKey===key) return;
+    const html=recapHtml(C, ui.recap);
+    if(!html){ ui.recap=null; ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null; return; }
+    ui.overlayKey=key; ov.innerHTML=html; ov.hidden=false; SFX.play('complete');
+    const btn=ov.querySelector('button'); if(btn) btn.focus();
   } else if(ui.report){
     const key='report-'+ui.report+'-'+dataRev+(ui.reportBusy?'b':''); if(ui.overlayKey===key) return;
     const html=reportHtml(C, ui.report);
@@ -3301,6 +3341,7 @@ document.addEventListener('click', e=>{
   }
   if(act==='prog-accept' || act==='prog-keep'){ progressionAction(act); return; }
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
+  if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='report-nav'){ const ch=E.chapters(lastC), i=ch.findIndex(c=>c.ym===ui.report)+Number(el.dataset.d); if(ch[i]){ ui.report=ch[i].ym; SFX.play('tick'); renderOverlay(lastC); } return; }
