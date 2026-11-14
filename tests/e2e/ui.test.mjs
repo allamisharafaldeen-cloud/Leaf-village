@@ -25,6 +25,8 @@ const likeSafari = d => d.page.addStyleTag({content:'*{overflow-anchor:none !imp
 async function fresh(name, opts){
   const d = await rig.device(name, Object.assign({now:T0, viewport:{width:820, height:1180}}, opts || {}));
   await d.open(); await d.importBackup((opts && opts.file) || FIXTURE); await likeSafari(d);
+  /* the welcome toast arrives a moment after the import: wait for it, so it cannot land on top of a toast under test */
+  await d.page.waitForFunction(() => /Backup imported/.test(document.getElementById('toast').textContent));
   return d;
 }
 async function openScroll(d, sid){
@@ -357,8 +359,9 @@ test('a rank remembered from an older ladder is brought back in line, so later p
 test('if the saved data cannot be read, the app stops with a way out instead of a blank page', async () => {
   const B = await fresh('stuck');
   await B.page.evaluate(() => { window.__compute = window.LeafEngine.compute; window.LeafEngine.compute = () => { throw new Error('boom'); }; });
-  await B.setTime(T0 + min(1));
-  await B.page.evaluate(() => { location.hash = 'stats'; });
+  /* the next change to the data makes the engine run again */
+  await B.tab('settings');
+  await B.page.locator('[data-act="notify"][data-k="weekly"]').click();
   await B.page.waitForSelector('#rescue');
   assert.match(await B.page.locator('#rescue').textContent(), /Your logs are still on this device/);
   assert.equal(await B.page.locator('#rescue [data-act="backup"]').count(), 1); assert.equal(await B.page.locator('#rescue #import-file').count(), 1);
@@ -514,6 +517,37 @@ test('exam countdown: set in Settings, shown on the Mission tab with banked hour
   await until(async () => (await B.docs())['leaf/main'].exam === undefined, 'cleared');
   await B.tab('mission'); assert.equal(await B.page.locator('#exam-count').count(), 0);
   assert.deepEqual((await B.docs())['leaf/main'].examWeeks, fixture.settings.examWeeks, 'the exam-week pass is a separate thing and was not touched');
+  await B.close();
+  noErrors();
+});
+
+test('achievements wall: every scroll with its date, hidden ones masked, and a moment when one is earned', async () => {
+  const B = await fresh('dawn', {now:at('2026-11-15', 5, 0)});
+  await B.tab('ninja');
+  const wall = B.page.locator('#ach-wall');
+  assert.equal(await wall.locator('.sc').count(), 33);
+  assert.match(await wall.locator('.section-head').textContent(), /18 \/ 33/);
+  assert.equal(await wall.locator('.sc:not(.locked)').count(), 18);
+  const text = (await wall.textContent()).replace(/\s+/g, ' ');
+  assert.match(text, /First MissionComplete your first missionEarned 6 Sep/); assert.match(text, /Four Teachers/, 'a secret scroll that was earned shows its name');
+  assert.doesNotMatch(text, /Dawn Patrol|Thursday Scholar|The Hat/, 'secret scrolls not yet earned stay hidden');
+  assert.equal(await wall.locator('.sc.secret').count(), 4);
+  assert.match(text, /Secret · 2 \/ 6/); assert.match(text, /Streaks · 4 \/ 6/);
+  assert.equal(await B.page.evaluate(() => document.getElementById('achpop').hidden), true, 'nothing pops for scrolls earned long ago');
+  await sleep(2300);
+  assert.equal(await B.page.evaluate(() => JSON.parse(localStorage.getItem('leaf-ach-seen')).length), 18);
+  assert.equal(await B.page.evaluate(() => document.getElementById('achpop').hidden), true);
+  await B.setTime(at('2026-11-15', 5, 10));
+  await B.logSet(8);
+  await B.page.waitForSelector('#achpop:not([hidden])');
+  assert.match(await B.page.locator('#achpop').textContent(), /Scroll earned.*Dawn Patrol.*Log a set between 4 and 6 in the morning/);
+  assert.equal(await B.page.evaluate(() => JSON.parse(localStorage.getItem('leaf-ach-seen')).includes('dawn')), true);
+  await B.tab('ninja');
+  assert.match(await B.page.locator('#ach-wall [data-ach="dawn"]').textContent(), /Dawn Patrol.*Earned 15 Nov/);
+  assert.match(await B.page.locator('#ach-wall .section-head').textContent(), /19 \/ 33/);
+  await B.page.waitForSelector('#achpop', {state:'hidden', timeout:6000});
+  await B.page.reload(); await B.page.waitForSelector('#ach-wall'); await sleep(2500);
+  assert.equal(await B.page.evaluate(() => document.getElementById('achpop').hidden), true, 'it is announced once');
   await B.close();
   noErrors();
 });

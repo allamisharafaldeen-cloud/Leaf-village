@@ -605,6 +605,19 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .count .big small{display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-top:3px}
 .count b{font-size:16px; align-self:end}
 .count span{font-size:13px; color:var(--muted); align-self:start}
+/* achievements wall + the moment one is earned */
+.ach-cat{display:flex; flex-direction:column; gap:8px}
+.ach-date{color:var(--leaf)!important; font-family:var(--f-data); font-weight:700; margin-top:2px}
+.sc.secret{border:1.5px dashed var(--line); background:transparent}
+.ach-latest{display:flex; flex-wrap:wrap; gap:6px; list-style:none; margin:0; padding:0}
+.ach-latest li{font-size:12.5px; padding:4px 10px; border-radius:999px; background:var(--chakra-soft); font-weight:700}
+.achpop{position:fixed; left:50%; top:calc(78px + env(safe-area-inset-top,0px)); z-index:44; width:min(380px,calc(100% - 28px)); transform:translate(-50%,-30px); opacity:0; pointer-events:none; display:flex; gap:12px; align-items:center; padding:11px 14px; border-radius:14px; background:var(--card); border:2px solid var(--chakra); box-shadow:0 10px 34px rgba(0,0,0,.28),0 0 22px var(--glow)}
+.achpop svg{flex:none; width:40px; height:40px}
+.achpop b{display:block; font-family:var(--f-display); font-weight:400; font-size:17px; line-height:1.15}
+.achpop span{display:block; font-size:12.5px; color:var(--muted)}
+.achpop .eyebrow{color:var(--chakra-ink)}
+.achpop.go{animation:achpop 3.6s cubic-bezier(.2,1,.3,1) forwards}
+@keyframes achpop{0%{opacity:0; transform:translate(-50%,-30px) scale(.94)}8%{opacity:1; transform:translate(-50%,0) scale(1.03)}13%{transform:translate(-50%,0) scale(1)}86%{opacity:1; transform:translate(-50%,0)}100%{opacity:0; transform:translate(-50%,-18px)}}
 /* monthly mission report */
 .report{position:relative; width:min(640px,100%); max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--card); border-radius:18px; border:3px solid var(--rk); display:flex; flex-direction:column; animation:pop .4s cubic-bezier(.2,1.3,.4,1)}
 .report-head{padding:18px 20px 14px; background:var(--rk); color:#fff}
@@ -675,6 +688,7 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 <div id="overlay" class="overlay" hidden></div>
 <div id="toast" class="toast" hidden role="status"></div>
 <div id="minibar" class="minibar" aria-hidden="true"></div>
+<div id="achpop" class="achpop" role="status" hidden></div>
 <div class="peekhint" aria-hidden="true">Tap anywhere to return</div>
 
 <script src="leaf-merge.js"></script>
@@ -889,7 +903,7 @@ async function drain(path){
   }
   /* a save that worked clears an earlier "could not be saved" banner */
   if(ok && state.errorFrom==='write'){ state.error=null; state.errorFrom=null; }
-  q.running=false; if(q.onDrain) q.onDrain(ok, q.data); dataRev++; render();
+  q.running=false; if(q.onDrain) q.onDrain(ok, q.data); if(path!=='leaf/summary') dataRev++; render();
 }
 function writeError(e){
   const code = e && e.code;
@@ -948,29 +962,9 @@ let cachedKey=null;
 function computeCached(){
   const key=dataRev+'|'+todayStr();
   if(lastC && cachedKey===key && timerDoc().state!=='running') return lastC;
-  cachedKey=key; return compute();
+  cachedKey=null;                       /* if the engine throws, nothing stale may be handed out afterwards */
+  const C=compute(); cachedKey=key; return C;
 }
-
-/* ---------- achievements ---------- */
-const SCROLLS = [
-  {id:'first',  name:'First Mission',   need:'Complete your first mission',   test:C=>C.doneCount>=1},
-  {id:'s7',     name:'Seven Suns',      need:'Hold a 7-day streak',            test:C=>C.bestStreak>=7},
-  {id:'s30',    name:'Moon Cycle',      need:'Hold a 30-day streak',           test:C=>C.bestStreak>=30},
-  {id:'s100',   name:'Hundred-Day Vow', need:'Hold a 100-day streak',          test:C=>C.bestStreak>=100},
-  {id:'pr',     name:'Record Breaker',  need:'Set a new max on a test day',    test:C=>C.prs.length>=1},
-  {id:'clean',  name:'Clean Week',      need:'Finish a full week with no missed mission', test:C=>C.cleanWeeks>=1},
-  {id:'p10',    name:'Double Digits',   need:'10 strict pull-ups in one set',  test:C=>(C.best.pullups||0)>=10},
-  {id:'p15',    name:'Iron Grip',       need:'15 strict pull-ups in one set',  test:C=>(C.best.pullups||0)>=15},
-  {id:'p20',    name:'Sky Climber',     need:'20 strict pull-ups in one set',  test:C=>(C.best.pullups||0)>=20},
-  {id:'d25',    name:'Steel Frame',     need:'25 strict dips in one set',      test:C=>(C.best.dips||0)>=25},
-  {id:'d30',    name:'Stone Pillar',    need:'30 strict dips in one set',      test:C=>(C.best.dips||0)>=30},
-  {id:'d40',    name:'Mountain Press',  need:'40 strict dips in one set',      test:C=>(C.best.dips||0)>=40},
-  {id:'tp1k',   name:'Thousand Pulls',  need:'1,000 total pull-ups logged',    test:C=>(C.totalReps.pullups||0)>=1000},
-  {id:'td2k',   name:'River of Dips',   need:'2,500 total dips logged',        test:C=>(C.totalReps.dips||0)>=2500},
-  {id:'scale',  name:'Scale Keeper',    need:'Log your weight 4 times',        test:C=>C.body.length>=4},
-  {id:'genin',  name:'Graduation',      need:'Reach the rank of Genin',        test:C=>C.peak>=1},
-  {id:'comeback', name:'Back from the Dead', need:'Rebuild a broken streak to 7 days', test:C=>streakStory(C).ever}
-];
 
 /* ---------- small renderers ---------- */
 function portrait(i, size){
@@ -1889,6 +1883,49 @@ function planView(C){
   </section>`;
 }
 
+/* --- achievements wall --- */
+const ACH_CATS=['Missions','Strength','Study','Streaks','Secret'];
+const achDate = (d, today) => shortDate(d)+(d.slice(0,4)!==today.slice(0,4) ? ' '+d.slice(0,4) : '');
+function achievementsCard(C){
+  const list=E.achievements(C), earned=list.filter(a=>a.date), latest=earned.slice().sort((a,b)=>a.date<b.date?1:-1).slice(0,3);
+  const tile=a=>{ const on=!!a.date, secret=a.hidden && !on;
+    return `<div class="sc${on?'':' locked'}${secret?' secret':''}" data-ach="${a.id}">${scrollIcon(on)}<div><b>${secret?'Hidden scroll':esc(a.name)}</b><span>${secret?'Earn it to reveal it':esc(a.need)}</span>${on?`<span class="ach-date">Earned ${esc(achDate(a.date, C.today))}</span>`:''}</div></div>`; };
+  return `<section class="card" id="ach-wall"><div class="section-head"><h2>Achievements wall</h2><span class="eyebrow">${earned.length} / ${list.length}</span></div>
+    <div class="chal-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${list.length}" aria-valuenow="${earned.length}" style="--sc:var(--chakra)"><i style="width:${Math.round(100*earned.length/list.length)}%"></i></div>
+    ${latest.length?`<ul class="ach-latest" aria-label="Latest scrolls earned">${latest.map(a=>`<li>${esc(a.name)} · ${esc(achDate(a.date, C.today))}</li>`).join('')}</ul>`:'<p class="muted small">Every scroll here is earned from your logs. Some stay hidden until you earn them.</p>'}
+    ${ACH_CATS.map(c=>{ const l=list.filter(a=>a.cat===c), n=l.filter(a=>a.date).length; return `<div class="ach-cat"><span class="eyebrow">${c} · ${n} / ${l.length}</span><div class="scrolls">${l.map(tile).join('')}</div></div>`; }).join('')}
+  </section>`;
+}
+/* a scroll earned just now gets a small moment and a chime. The list of scrolls already seen is kept on this device;
+   the first time (and on a device that just received its history) everything already earned is taken as seen. */
+let achReady=false, achTimer=null, achRev=-1, achShowing=false;
+const achQueue=[];
+function achSeen(){ try{ const v=JSON.parse(localStorage.getItem('leaf-ach-seen')||'null'); return Array.isArray(v) ? v : null; }catch(e){ return null; } }
+function checkAchievements(C){
+  if(state.readOnly || !settled()) return;
+  if(!achReady){
+    if(achTimer && achRev===dataRev) return;
+    clearTimeout(achTimer); achRev=dataRev;
+    achTimer=setTimeout(()=>{ achTimer=null; if(achRev===dataRev && settled()) achReady=true; if(lastC) checkAchievements(lastC); }, 2000);
+    return;
+  }
+  if(C._achChecked) return; C._achChecked=true;
+  const earned=E.achievements(C).filter(a=>a.date), seen=achSeen();
+  if(seen==null){ try{ localStorage.setItem('leaf-ach-seen', JSON.stringify(earned.map(a=>a.id))); }catch(e){} return; }
+  const fresh=earned.filter(a=>seen.indexOf(a.id)<0); if(!fresh.length) return;
+  try{ localStorage.setItem('leaf-ach-seen', JSON.stringify(seen.concat(fresh.map(a=>a.id)))); }catch(e){ return; }
+  fresh.forEach(a=>achQueue.push(a)); pumpAch();
+}
+function pumpAch(){
+  if(achShowing || !achQueue.length) return;
+  const a=achQueue.shift(), el=document.getElementById('achpop'); achShowing=true;
+  el.innerHTML=`${scrollIcon(true)}<div><span class="eyebrow">Scroll earned</span><b>${esc(a.name)}</b><span>${esc(a.need)}</span></div>`;
+  el.hidden=false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  SFX.play('chime', .15);
+  const r=el.getBoundingClientRect(); FX.sparkBurst(r.left+r.width/2, r.top+r.height/2+24, getComputedStyle(document.documentElement).getPropertyValue('--chakra-2').trim()||'#ffd27a');
+  setTimeout(()=>{ el.hidden=true; el.classList.remove('go'); achShowing=false; pumpAch(); }, reduceMotion() ? 3000 : 3700);
+}
+
 /* --- ninja --- */
 function ninjaView(C){
   const t=C.today, existing=getBody(t);
@@ -1899,8 +1936,6 @@ function ninjaView(C){
     const tag = i===C.peak?'<span class="tag" style="color:var(--chakra-ink)">Current</span>':i<C.peak?'<span class="tag" style="color:var(--leaf)">Earned</span>':`<span class="rx">${fmt(Math.max(0,r.xp-C.total))} to go</span>`;
     return `<li class="${cls}"><button type="button" class="rank-btn" data-act="view-rank" data-i="${i}">${portrait(i,46)}<span><span class="rn">${esc(r.name)}</span><span class="rx">${fmt(r.xp)} XP</span></span>${tag}</button></li>`;
   }).join('');
-  const got = SCROLLS.filter(sc=>sc.test(C)).length;
-  const scrolls = SCROLLS.map(sc=>{ const on=sc.test(C); return `<div class="sc${on?'':' locked'}">${scrollIcon(on)}<div><b>${esc(sc.name)}</b><span>${esc(sc.need)}</span></div></div>`; }).join('');
   const hist = C.body.slice(-8).reverse();
   const histRows = hist.map((b,i)=>{ const prev=hist[i+1]; const dlt = prev ? b.weight-prev.weight : null; const extra=[b.arm?`arm ${b.arm}`:'',b.chest?`chest ${b.chest}`:'',b.waist?`waist ${b.waist}`:''].filter(Boolean).join(' · '); return `<li><span>${esc(shortDate(b.date))}${extra?` <span class="muted" style="font-size:12px">· ${esc(extra)} cm</span>`:''}</span><b class="num">${(+b.weight).toFixed(1)} kg${dlt!=null?` <span class="muted" style="font-weight:500">${dlt>=0?'+':'−'}${Math.abs(dlt).toFixed(1)}</span>`:''}</b></li>`; }).join('');
   return topbar('Ninja profile') + `
@@ -1917,7 +1952,7 @@ function ninjaView(C){
   </section>`}
   ${senseisCard(C)}
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
-  <section class="card"><div class="section-head"><h2>Scroll library</h2><span class="eyebrow">${got} / ${SCROLLS.length}</span></div><div class="scrolls">${scrolls}</div></section>`;
+  ${achievementsCard(C)}`;
 }
 
 /* --- setup (first visit) --- */
@@ -2066,6 +2101,7 @@ const SFX = (()=>{
     pop(c,t){ tone(c,t,'sine',720,280,.12,.16); },
     drum(c,t,p){ tone(c,t,'sine',150,48,.55,.9*p); tone(c,t,'triangle',92,40,.4,.3*p); hiss(c,t,.08,'lowpass',900,300,.7,.45*p,.002); },
     taiko(c,t){ S.drum(c,t,1); S.drum(c,t+.16,.6); hiss(c,t+.3,.6,'highpass',5200,0,.5,.05,.01); },
+    chime(c,t){ tone(c,t,'sine',880,880,.55,.11,.01); tone(c,t+.13,'sine',1318.5,1318.5,.7,.09,.01); tone(c,t+.26,'sine',1760,1760,.95,.06,.01); },
     thud(c,t){ tone(c,t,'sine',120,32,.38,1); hiss(c,t,.12,'lowpass',620,120,.8,.75,.002); tone(c,t,'square',220,90,.06,.07); },
     gong(c,t){ hiss(c,t,.25,'bandpass',600,200,1,.22,.005); [[98,.5,4],[147.5,.32,3.4],[196.5,.26,3],[263,.18,2.6],[331,.12,2.2],[417,.08,1.8],[523,.05,1.4]].forEach(([f,amp,d])=>{ const o=c.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(f*1.012,t); o.frequency.exponentialRampToValueAtTime(f,t+.4); const g=env(c,t,.012,amp,d); o.connect(g); g.connect(out); o.start(t); o.stop(t+d+.2); }); }
   };
@@ -2104,7 +2140,7 @@ const SFX = (()=>{
     if(cu.buf) return playCustom(slot,c,t);
     decode(slot).then(b=>{ const c2=ac(); if(!c2) return; const t2=Math.max(t,c2.currentTime+.02); if(b) playCustom(slot,c2,t2); else S[def.synth](c2,t2); });
   }
-  const SYN_DUR={whoosh:.35, pop:.2, taiko:.8, thud:.6, gong:2.5, tick:0, paper:.5};
+  const SYN_DUR={whoosh:.35, pop:.2, taiko:.8, thud:.6, gong:2.5, tick:0, paper:.5, chime:1.1};
   return {
     get on(){ return isOn(); },
     audio(){ return ac(); },
@@ -2986,6 +3022,7 @@ function render(){
   writeSummary(C);
   updateTabs(true);
   renderOverlay(C);
+  checkAchievements(C);
   renderPlayer();
   updateMinibar(C);
 }
