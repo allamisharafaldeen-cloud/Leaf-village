@@ -295,3 +295,68 @@ test('the two engines agree with a study timer running over midnight, and on the
   const X = cleanWeek(); X.settings.studyStart = START; X.settings.examWeeks = [{start:'2026-11-08', end:'2026-11-14'}]; study(X, '2026-11-09', 60); sets(X, '2026-11-09', 'dips', 11, 2);
   agree(X, at('2026-11-16', 9), 'exam week');
 });
+
+/* ---------- monthly report, achievements, chapters ---------- */
+test('monthly report: a hand-checked week adds up, and the fixture months tell the same story every time', () => {
+  const V = cleanWeek(); V.settings.studyStart = START; study(V, '2026-11-01', 240); study(V, '2026-11-02', 400); study(V, '2026-11-03', 100);
+  V.body = {'2026-11-05':{date:'2026-11-05', weight:72}, '2026-11-07':{date:'2026-11-07', weight:72.4}};
+  const C = E.compute(V, at('2026-11-07', 22)), R = E.monthReport(C, '2026-11');
+  assert.equal(R.label, 'November 2026'); assert.equal(R.complete, false);
+  assert.deepEqual(R.missions, {done:5, missed:0, rest:2, exam:0, open:0});
+  assert.deepEqual(R.reps, {pullups:5 * 5 * 2 + 20, dips:10 * 5 * 2 + 39});
+  assert.deepEqual(R.maxes, [{ex:'pullups', from:10, to:11}, {ex:'dips', from:20, to:21}]);
+  assert.equal(R.prs.length, 2); assert.equal(R.awards, 4); assert.equal(R.bestStreak, 7);
+  assert.equal(R.xp, C.total, 'everything earned so far was earned this month');
+  assert.equal(R.study.mins, 740); assert.deepEqual(R.study.best, {date:'2026-11-02', mins:400});
+  assert.equal(R.study.daysMin, 2); assert.equal(R.study.daysFull, 1); assert.equal(R.study.missed, 3, 'Tue, Wed and Fri fell short');
+  assert.deepEqual(R.weight, {from:72, to:72.4, n:2});
+  assert.equal(R.rankFrom, 0); assert.equal(R.rankTo, E.rankFor(C.total));
+  assert.equal(E.monthReport(C, '2026-10'), null, 'no report for a month before the village began');
+  const F = E.compute(FIX, at('2026-11-15', 10)), oct = E.monthReport(F, '2026-10');
+  assert.deepEqual(oct.missions, {done:15, missed:1, rest:8, exam:7, open:0}); assert.equal(oct.xp, 12095);
+  assert.equal(oct.study.mins, 7035); assert.deepEqual(oct.reps, {pullups:327, dips:523});
+  assert.deepEqual(oct.maxes, [{ex:'pullups', from:11, to:15}, {ex:'dips', from:22, to:26}]);
+  assert.equal(oct.rankFrom, 2); assert.equal(oct.rankTo, 4); assert.equal(oct.complete, true); assert.equal(oct.title, 'Rise of the Jonin');
+  assert.ok(oct.summary.length >= 3 && oct.summary.every(t => typeof t === 'string' && t.length > 20));
+  const ch = E.chapters(F);
+  assert.deepEqual(ch.map(c => [c.n, c.ym, c.complete]), [[1, '2026-09', true], [2, '2026-10', true], [3, '2026-11', false]]);
+  assert.equal(ch.reduce((n, c) => n + c.report.xp, 0), F.total, 'the months add up to the total XP');
+});
+
+test('chapter titles follow what happened in the month', () => {
+  const base = {missions:{done:10, missed:0, rest:8, exam:0, open:0}, study:{mins:3000, missed:0, daysMin:20, days:20}, prs:[], complete:true, promoted:false, comeback:false, exam:false, rankTo:3, rankFrom:3};
+  const t = over => E.chapterTitle(Object.assign({}, base, over));
+  assert.equal(t({}), 'The Unbroken Month');
+  assert.equal(t({promoted:true, rankTo:4}), 'Rise of the Jonin'); assert.equal(t({promoted:true, rankTo:13}), 'The Village Has a Hokage');
+  assert.equal(t({comeback:true, missions:Object.assign({}, base.missions, {missed:1})}), 'Back from the Brink');
+  assert.equal(t({complete:false, prs:[1, 2]}), 'Breaking Limits'); assert.equal(t({complete:false, prs:[1]}), 'A New Record');
+  assert.equal(t({complete:false, exam:true}), 'Trial by Exams');
+  assert.equal(t({missions:Object.assign({}, base.missions, {missed:7})}), 'Storm Season');
+  assert.equal(t({missions:Object.assign({}, base.missions, {missed:2})}), 'Stumble and Rise');
+  assert.equal(t({complete:false}), 'Steady Steps');
+});
+
+test('achievements: each is earned on the right day, and the old seventeen still mean what they meant', () => {
+  const C = E.compute(FIX, at('2026-11-15', 10)), A = Object.fromEntries(E.achievements(C).map(a => [a.id, a.date]));
+  assert.equal(E.ACHIEVEMENTS.length, 33); assert.equal(new Set(E.ACHIEVEMENTS.map(a => a.id)).size, 33);
+  ['first', 's7', 's30', 's100', 'pr', 'clean', 'p10', 'p15', 'p20', 'd25', 'd30', 'd40', 'tp1k', 'td2k', 'scale', 'genin', 'comeback'].forEach(id => assert.ok(id in A, `${id} is still there`));
+  assert.equal(A.first, '2026-09-06'); assert.equal(A.p10, '2026-09-06', 'the starting max already counts');
+  assert.equal(A.s7, '2026-09-12'); assert.equal(A.s30, null); assert.equal(A.clean, '2026-09-12');
+  assert.equal(A.pr, C.prs[0].date); assert.equal(A.p15, C.prs.find(p => p.ex === 'pullups' && p.v >= 15).date);
+  assert.equal(A.genin, C.days.find(d => d.peak >= 1).date); assert.equal(A.scale, C.body[3].date);
+  assert.equal(A.sh100, '2026-10-17'); assert.equal(A.sh500, null); assert.equal(A.scholar, '2026-09-26'); assert.equal(A.ss30, '2026-11-09');
+  assert.equal(A.comeback, E.streakStory(C).first); assert.equal(A.hokage, null); assert.equal(A.month, null);
+  /* the same checks the old Scroll library made */
+  assert.equal(!!A.s7, C.bestStreak >= 7); assert.equal(!!A.tp1k, C.totalReps.pullups >= 1000); assert.equal(!!A.d25, C.best.dips >= 25); assert.equal(!!A.d30, C.best.dips >= 30);
+  /* a perfect calendar month, a full study week, the dawn set and the off-day scroll */
+  const V = village({startDate:'2026-10-25', studyStart:'2026-10-25', baseline:{pullups:{max:10, date:'2026-10-25'}, dips:{max:20, date:'2026-10-25'}}, scheduleHistory:[{from:'2026-10-25', plan:E.DEFAULT_PLAN.map(p => p.type === 'test' ? {type:'rest'} : p), gtg:{sets:6, minSets:5, pct:50}, test:{sets:2, ex:['pullups','dips']}}]});
+  for(let d = '2026-10-25'; d <= '2026-11-30'; d = E.addDays(d, 1)){
+    const p = E.planFor(V.settings, d); if(p.type === 'gtg') sets(V, d, p.ex, p.ex === 'pullups' ? 5 : 10, 5, d === '2026-11-03' ? 4 : 8);
+    const w = E.dowOf(d); if(w !== 4) study(V, d, (w === 5 || w === 6) ? 480 : 360); else if(d === '2026-11-12') study(V, d, 480);
+  }
+  const P = E.compute(V, at('2026-12-01', 9)), B = Object.fromEntries(E.achievements(P).map(a => [a.id, a.date]));
+  assert.equal(B.month, '2026-11-30'); assert.equal(B.fullweek, '2026-10-31'); assert.equal(B.dawn, '2026-11-03'); assert.equal(B.offday8, '2026-11-12');
+  assert.equal(B.s30, '2026-11-23'); assert.equal(B.ss30, '2026-11-27');
+  assert.equal(E.monthsOf(P)['2026-11'].perfect, true); assert.match(E.monthReport(P, '2026-11').title, /^Rise of the /, 'a promotion names the chapter first');
+  assert.equal(E.monthsOf(P)['2026-10'].perfect, false, 'October was not lived in full');
+});

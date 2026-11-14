@@ -592,6 +592,26 @@ body.has-player .toast{bottom:calc(142px + env(safe-area-inset-bottom,0px))}
 .tap-xp{position:fixed; z-index:45; transform:translate(-50%,-50%); font-family:var(--f-display); font-size:22px; line-height:1; color:var(--chakra-ink); text-shadow:0 0 12px var(--glow),0 1px 0 var(--card); pointer-events:none; white-space:nowrap; animation:tapxp 1.15s ease-out forwards}
 @keyframes tapxp{0%{opacity:0; transform:translate(-50%,-30%) scale(.7)}18%{opacity:1; transform:translate(-50%,-80%) scale(1.12)}100%{opacity:0; transform:translate(-50%,-260%) scale(1)}}
 .mb-xp{position:absolute; left:70px; top:-6px; font-family:var(--f-display); font-size:20px; color:var(--chakra-ink); text-shadow:0 0 10px var(--glow); pointer-events:none; animation:tapxp 1.15s ease-out forwards}
+/* monthly mission report */
+.report{position:relative; width:min(640px,100%); max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--card); border-radius:18px; border:3px solid var(--rk); display:flex; flex-direction:column; animation:pop .4s cubic-bezier(.2,1.3,.4,1)}
+.report-head{padding:18px 20px 14px; background:var(--rk); color:#fff}
+.report-head .eyebrow{color:rgba(255,255,255,.82)}
+.report-head h2{font-size:27px; color:#fff; margin-top:2px}
+.report-head p{margin:5px 0 0; font-size:14.5px; font-weight:700}
+.report-body{padding:14px 16px 16px; display:flex; flex-direction:column; gap:12px}
+.rgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px}
+.rbox{padding:10px 12px; border-radius:12px; background:var(--paper); display:flex; flex-direction:column; gap:2px; min-width:0}
+.rbox.wide{grid-column:1/-1}
+.rbox .big{font-family:var(--f-data); font-weight:700; font-size:25px; line-height:1.15}
+.rbox span{font-size:12.5px; color:var(--muted)}
+.rbox b{font-size:14px}
+.rbox ul{margin:2px 0 0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:6px}
+.rbox li{font-size:12.5px; padding:3px 9px; border-radius:999px; background:var(--chakra-soft); font-weight:700}
+.hokage-words{display:flex; gap:10px; align-items:flex-start; padding:10px 12px; border-radius:12px; border:1.5px solid var(--line)}
+.hokage-words p{margin:0 0 6px; font-size:14px; line-height:1.45}
+.hokage-words p:last-child{margin:0}
+.report .month-nav{position:absolute; top:14px; right:14px}
+.report .month-nav .chip{background:rgba(255,255,255,.92); color:#1d1a16; border-color:transparent}
 /* story scenes: streak broken, comeback */
 .scene{position:relative; width:min(560px,100%); border-radius:22px; overflow:hidden; background:#0d0d10; color:#f2efe9; box-shadow:0 30px 80px rgba(0,0,0,.6)}
 .scene img{display:block; width:100%; aspect-ratio:16/9; object-fit:cover}
@@ -1678,8 +1698,8 @@ function statsView(C){
   const totals = `<section class="card"><h2>Totals</h2><div class="statrow"><div><b>${fmt(C.totalReps.pullups||0)}</b><span>pull-ups</span></div><div><b>${fmt(C.totalReps.dips||0)}</b><span>dips</span></div><div><b>${C.doneCount}</b><span>missions done</span></div></div><div class="statrow"><div><b>${C.missedCount}</b><span>missed</span></div><div><b>${C.prs.length}</b><span>new maxes</span></div><div><b>${fmt(C.total)}</b><span>total XP</span></div></div>
     ${C.prs.length?`<ul class="list">${C.prs.slice(-5).reverse().map(p=>`<li><span>${esc(exName(p.ex))} · ${esc(shortDate(p.date))}</span><b class="num">${p.v} reps</b></li>`).join('')}</ul>`:''}</section>`;
   const toggle=`<div class="stats-mode" role="group" aria-label="Stats view"><button type="button" class="chip" data-act="stats-mode" data-v="workout" aria-pressed="${ui.statsMode!=='study'}">Workout</button><button type="button" class="chip" data-act="stats-mode" data-v="study" aria-pressed="${ui.statsMode==='study'}">Study</button></div>`;
-  if(ui.statsMode==='study') return topbar('Stats') + toggle + studyStatsView(C);
-  return topbar('Stats') + toggle + tiles + repsCard + maxCard + wCard + cal + totals;
+  if(ui.statsMode==='study') return topbar('Stats') + toggle + reportCard(C) + studyStatsView(C);
+  return topbar('Stats') + toggle + reportCard(C) + tiles + repsCard + maxCard + wCard + cal + totals;
 }
 
 /* --- plan --- */
@@ -2630,6 +2650,119 @@ function themeCard(C){
   return `<section class="card"><div class="section-head"><h2>Village theme</h2><span class="eyebrow">${C.peak+1} / ${RANKS.length} unlocked</span></div><p class="muted" style="margin:0;font-size:13px">Every rank unlocks its own look. Locked themes stay hidden until you earn them. Getting promoted switches you to the new one.</p><div class="themes">${sw}</div></section>`;
 }
 
+/* ---------- monthly mission report ---------- */
+function reportCard(C){
+  const ch=E.chapters(C); if(!ch.length) return '';
+  const last=ch.filter(c=>c.complete).slice(-1)[0], cur=ch[ch.length-1];
+  return `<section class="card" id="report-card"><div class="section-head"><h2>Monthly mission report</h2><span class="eyebrow">${ch.length} ${ch.length===1?'month':'months'}</span></div>
+    <p class="muted small">One page for each month: study hours, reps, maxes, missions, streaks, XP and a few words from the Third Hokage. A new report arrives on the 1st.</p>
+    <div class="btnrow">${last?`<button type="button" class="btn small chakra-btn" data-act="report-open" data-ym="${last.ym}">${esc(last.label)}</button>`:''}${cur && !cur.complete?`<button type="button" class="btn small ghost" data-act="report-open" data-ym="${cur.ym}">This month so far</button>`:''}</div></section>`;
+}
+const repLine = R => Object.keys(R.reps).filter(id=>R.reps[id]>0 || (S().exercises||{})[id]).map(id=>`${fmt(R.reps[id])} ${exName(id).toLowerCase()}`);
+const maxLine = R => R.maxes.map(m=>`${exName(m.ex)} ${m.from==null||m.from===m.to ? m.to : `${m.from} → ${m.to}`}`);
+function reportHtml(C, ym){
+  const ch=E.chapters(C), i=ch.findIndex(c=>c.ym===ym); if(i<0) return null;
+  const c=ch[i], R=c.report, r0=RANKS[R.rankFrom], r1=RANKS[R.rankTo], st=R.study, m=R.missions;
+  const box=(title, big, lines, wide)=>`<div class="rbox${wide?' wide':''}"><span class="eyebrow">${title}</span>${big?`<span class="big num">${big}</span>`:''}${lines.filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>`;
+  const studyBox = st.days || st.mins ? box('Study', fmtH(st.mins), [st.best?`Best day ${fmtH(st.best.mins)} on ${esc(shortDate(st.best.date))}`:'', `${st.daysMin} ${st.daysMin===1?'day':'days'} at minimum · ${st.daysFull} at goal`, `${st.missed} missed${st.shields?` · ${st.shields} ${st.shields===1?'shield':'shields'}`:''}`]) : box('Study', '—', ['Study tracking had not started']);
+  return `<div class="report" role="dialog" aria-modal="true" aria-labelledby="report-title" style="--rk:${r1.color}">
+    <div class="report-head">
+      <div class="eyebrow">Monthly mission report · chapter ${c.n}</div>
+      <h2 id="report-title">${esc(R.label)}</h2>
+      <p>${esc(R.title)}${R.complete?'':' · month in progress'}</p>
+      <span class="month-nav"><button type="button" class="chip" data-act="report-nav" data-d="-1"${i>0?'':' disabled'} aria-label="Previous month">‹</button><button type="button" class="chip" data-act="report-nav" data-d="1"${i<ch.length-1?'':' disabled'} aria-label="Next month">›</button></span>
+    </div>
+    <div class="report-body">
+      <div class="rgrid">
+        ${studyBox}
+        ${box('Missions', `${m.done} done`, [`${m.missed} missed · ${m.rest} rest${m.exam?` · ${m.exam} exam`:''}${m.open?` · ${m.open} open`:''}`, `${R.awards} sensei ${R.awards===1?'challenge':'challenges'} won`])}
+        ${box('Reps', '', repLine(R).map(esc).concat(R.prs.length?[`${R.prs.length} new ${R.prs.length===1?'max':'maxes'}`]:[]))}
+        ${box('Maxes', '', maxLine(R).map(esc))}
+        ${box('XP gained', signed(R.xp), [R.promoted?`${esc(r0.name)} → ${esc(r1.name)}`:`Rank: ${esc(r1.name)}`, `${fmt(R.totalAfter)} XP at month end`])}
+        ${box('Streak records', '', [`Workout: ${R.bestStreak} ${R.bestStreak===1?'day':'days'}`, st.days||st.mins?`Study: ${st.bestStreak} ${st.bestStreak===1?'day':'days'}`:'', R.weight?`Weight ${R.weight.from.toFixed(1)}${R.weight.n>1?` → ${R.weight.to.toFixed(1)}`:''} kg`:''])}
+        <div class="rbox wide"><span class="eyebrow">Achievements earned</span>${R.earned.length?`<ul>${R.earned.map(a=>`<li>${esc(a.name)}</li>`).join('')}</ul>`:'<span>None this month</span>'}</div>
+      </div>
+      <div class="hokage-words">${senseiAvatar('hiruzen',44)}<div><span class="bubble-name" style="--sc:${SENSEIS.hiruzen.color}"><i></i>Third Hokage</span>${R.summary.map(t=>`<p>${esc(t)}</p>`).join('')}</div></div>
+      <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="report-save" data-fmt="png"${ui.reportBusy?' disabled':''}>Save as image</button><button type="button" class="btn small ghost" data-act="report-save" data-fmt="pdf"${ui.reportBusy?' disabled':''}>Save as PDF</button><button type="button" class="btn small ghost" data-act="report-close" style="margin-left:auto">Close</button></div>
+    </div>
+  </div>`;
+}
+/* the same report drawn as one A4 page, for the image and PDF downloads */
+function drawReport(C, ym){
+  const c=E.chapters(C).find(x=>x.ym===ym), R=c.report, r0=RANKS[R.rankFrom], r1=RANKS[R.rankTo], st=R.study, m=R.missions;
+  const W=1240, H=1754, cv=document.createElement('canvas'); cv.width=W; cv.height=H; const g=cv.getContext('2d');
+  const F=(px,k)=> k==='d' ? `${px}px "Dela Gothic One","Arial Black",sans-serif` : k==='n' ? `700 ${px}px "Chakra Petch",ui-monospace,monospace` : `${k==='b'?'700':'400'} ${px}px "Zen Kaku Gothic New",system-ui,sans-serif`;
+  const INK='#1f1b14', MUTED='#6a6152', BOX='#ece2c6';
+  const text=(t,x,y,font,color)=>{ g.font=font; g.fillStyle=color||INK; g.fillText(t,x,y); };
+  const wrap=(t,x,y,maxW,lh,font,color)=>{ g.font=font; g.fillStyle=color||INK; let line=''; String(t).split(' ').forEach(w=>{ const tryL=line?line+' '+w:w; if(g.measureText(tryL).width>maxW && line){ g.fillText(line,x,y); y+=lh; line=w; } else line=tryL; }); if(line){ g.fillText(line,x,y); y+=lh; } return y; };
+  const rr=(x,y,w,h,r,fill)=>{ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.fillStyle=fill; g.fill(); };
+  g.fillStyle='#f6efdc'; g.fillRect(0,0,W,H);
+  g.fillStyle='#2c5737'; g.fillRect(0,0,28,H); g.fillRect(W-28,0,28,H);
+  g.fillStyle=r1.color; g.fillRect(28,0,W-56,262);
+  text('THE LEAF VILLAGE · MONTHLY MISSION REPORT', 84, 74, F(24,'n'), 'rgba(255,255,255,.86)');
+  text(R.label, 84, 160, F(74,'d'), '#fff');
+  text(`Chapter ${c.n} · ${R.title}${R.complete?'':' (month in progress)'}`, 84, 214, F(30,'b'), '#fff');
+  text(`${R.name} · ${r1.name}`, 84, 246, F(22,'n'), 'rgba(255,255,255,.86)');
+  const L=84, CW=(W-168-28)/2, X2=L+CW+28;
+  const box=(x,y,w,h,title,big,lines)=>{ rr(x,y,w,h,18,BOX); text(title.toUpperCase(), x+24, y+44, F(20,'n'), MUTED); let yy=y+54; if(big){ text(big, x+24, y+104, F(54,'n'), INK); yy=y+112; } lines.filter(Boolean).forEach(l=>{ yy=wrap(l, x+24, yy+30, w-48, 32, F(24,'r'), INK); yy-=30; yy+=4; }); };
+  let y=296;
+  box(L,y,CW,268,'Study', st.days||st.mins?fmtH(st.mins):'—', st.days||st.mins?[st.best?`Best day ${fmtH(st.best.mins)} on ${shortDate(st.best.date)}`:'', `${st.daysMin} days at minimum · ${st.daysFull} at goal`, `${st.missed} missed${st.shields?` · ${st.shields} shield${st.shields===1?'':'s'}`:''}`]:['Study tracking had not started']);
+  box(X2,y,CW,268,'Missions', `${m.done} done`, [`${m.missed} missed · ${m.rest} rest${m.exam?` · ${m.exam} exam`:''}`, `${R.awards} sensei challenge${R.awards===1?'':'s'} won`]);
+  y+=292;
+  box(L,y,CW,232,'Reps', '', repLine(R).concat(R.prs.length?[`${R.prs.length} new max${R.prs.length===1?'':'es'}`]:[]));
+  box(X2,y,CW,232,'Maxes', '', maxLine(R));
+  y+=256;
+  box(L,y,CW,232,'XP gained', signed(R.xp), [R.promoted?`${r0.name} → ${r1.name}`:`Rank: ${r1.name}`, `${fmt(R.totalAfter)} XP at month end`]);
+  box(X2,y,CW,232,'Streak records', '', [`Workout: ${R.bestStreak} days`, st.days||st.mins?`Study: ${st.bestStreak} days`:'', R.weight?`Weight ${R.weight.from.toFixed(1)}${R.weight.n>1?` → ${R.weight.to.toFixed(1)}`:''} kg`:'']);
+  y+=256;
+  const names=R.earned.map(a=>a.name).join(' · ') || 'None this month';
+  g.font=F(24,'r'); const lines=Math.max(1, Math.ceil(g.measureText(names).width/(W-168-48)));
+  const ah=84+lines*32+10; rr(L,y,W-168,ah,18,BOX); text('ACHIEVEMENTS EARNED', L+24, y+44, F(20,'n'), MUTED); wrap(names, L+24, y+84, W-168-48, 32, F(24,'b'), INK);
+  y+=ah+34;
+  text('THIRD HOKAGE', L, y, F(20,'n'), '#a8791b'); y+=40;
+  R.summary.forEach(t=>{ if(y<H-110) y=wrap(t, L, y, W-168, 36, F(26,'r'), INK)+10; });
+  text(`The Leaf Village · report made ${shortDate(C.today)} ${C.today.slice(0,4)}`, L, H-52, F(20,'n'), MUTED);
+  return cv;
+}
+const canvasToBlob = (cv, type, q) => new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('encode')), type, q));
+/* a one-page PDF that holds the report picture */
+async function pdfFromCanvas(cv){
+  const jpg=new Uint8Array(await (await canvasToBlob(cv,'image/jpeg',.92)).arrayBuffer());
+  const enc=new TextEncoder(), parts=[], offs=[]; let len=0;
+  const add=x=>{ const b=typeof x==='string' ? enc.encode(x) : x; parts.push(b); len+=b.length; };
+  const obj=(n,fn)=>{ offs[n]=len; add(`${n} 0 obj\n`); fn(); add('\nendobj\n'); };
+  add('%PDF-1.4\n');
+  obj(1,()=>add('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2,()=>add('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
+  obj(3,()=>add('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im0 4 0 R >> >> /Contents 5 0 R >>'));
+  obj(4,()=>{ add(`<< /Type /XObject /Subtype /Image /Width ${cv.width} /Height ${cv.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>\nstream\n`); add(jpg); add('\nendstream'); });
+  const content='q 595 0 0 842 0 0 cm /Im0 Do Q';
+  obj(5,()=>add(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+  const xref=len; add('xref\n0 6\n0000000000 65535 f \n'); for(let i=1;i<=5;i++) add(String(offs[i]).padStart(10,'0')+' 00000 n \n');
+  add(`trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(parts, {type:'application/pdf'});
+}
+async function saveReport(fmtName){
+  const C=lastC, ym=ui.report; if(!C || !ym || ui.reportBusy) return;
+  ui.reportBusy=true; ui.overlayKey=null; renderOverlay(C);
+  try{
+    try{ if(document.fonts && document.fonts.load) await Promise.all([document.fonts.load('74px "Dela Gothic One"'), document.fonts.load('700 24px "Chakra Petch"'), document.fonts.load('400 24px "Zen Kaku Gothic New"')]); }catch(e){}
+    const cv=drawReport(C, ym), blob = fmtName==='pdf' ? await pdfFromCanvas(cv) : await canvasToBlob(cv,'image/png');
+    const dl=(window.claude && typeof window.claude.use==='function') ? await window.claude.use('downloads') : null;
+    if(!dl) throw new Error('no downloads');
+    await dl.save({filename:`leaf-village-report-${ym}.${fmtName==='pdf'?'pdf':'png'}`, data:blob});
+    toast('Report saved');
+  }catch(e){ if(!(e && e.code==='declined')) toast('The report couldn\'t be saved. Try again.'); }
+  ui.reportBusy=false; ui.overlayKey=null; if(lastC) renderOverlay(lastC);
+}
+/* the report for the month that just ended shows by itself once, in the first week of the new month */
+function monthlyDue(C){
+  if(state.readOnly || +C.today.slice(8)>7) return null;
+  const prev=addDays(C.today.slice(0,8)+'01', -1).slice(0,7);
+  if(sceneSeen('month-'+prev)) return null;
+  return E.chapters(C).find(c=>c.ym===prev) || null;
+}
+
 /* ---------- render ---------- */
 function captureFocus(){ const a=document.activeElement; if(!a||!a.id||a===document.body) return null; let s=null,e=null; try{ s=a.selectionStart; e=a.selectionEnd; }catch(x){} return {id:a.id,s,e}; }
 function restoreFocus(f){ if(!f) return; const el=document.getElementById(f.id); if(!el||el===document.activeElement) return; try{ el.focus({preventScroll:true}); if(f.s!=null) el.setSelectionRange(f.s,f.e); }catch(x){} }
@@ -2791,6 +2924,7 @@ function renderOverlay(C){
     </div>`;
     ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus(); return;
   }
+  if(!(C.peak>seen) && ui.viewRank==null && !ui.report){ const due=monthlyDue(C); if(due){ ui.report=due.ym; markScene('month-'+due.ym); SFX.play('scroll'); } }
   if(C.peak>seen && !state.readOnly){
     const key='promo-'+C.peak; if(ui.overlayKey===key) return;
     ui.overlayKey=key; ui.viewRank=null;
@@ -2807,6 +2941,13 @@ function renderOverlay(C){
     </div>`;
     FX.flash(); SFX.play('promo'); setTimeout(()=>FX.leafBurst(),350);
     ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus();
+  } else if(ui.report){
+    const key='report-'+ui.report+'-'+dataRev+(ui.reportBusy?'b':''); if(ui.overlayKey===key) return;
+    const html=reportHtml(C, ui.report);
+    if(!html){ ui.report=null; ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null; return; }
+    const fresh=!(ui.overlayKey||'').startsWith('report-'), top=fresh?0:((ov.querySelector('.report')||{}).scrollTop||0);
+    ui.overlayKey=key; ov.innerHTML=html; ov.hidden=false;
+    const card=ov.querySelector('.report'); if(card){ if(fresh){ card.style.animation=''; const b=ov.querySelector('[data-act="report-close"]'); if(b) b.focus({preventScroll:true}); } else { card.style.animation='none'; card.scrollTop=top; } }
   } else if(ui.viewRank!=null){
     const i=ui.viewRank, key='view-'+i+'-'+C.peak; if(ui.overlayKey===key) return;
     ui.overlayKey=key;
@@ -2864,6 +3005,7 @@ function announceAwards(A, prevCount){
 document.addEventListener('click', e=>{ if(document.body.classList.contains('peek')){ document.body.classList.remove('peek'); e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('click', e=>{
   if(e.target && e.target.id==='overlay' && ui.viewRank!=null){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
+  if(e.target && e.target.id==='overlay' && ui.report){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
   const el=e.target.closest('[data-act]'); if(!el) return;
   const act=el.dataset.act;
   if(act==='plan-day'||act==='test-ex') return;
@@ -2986,6 +3128,10 @@ document.addEventListener('click', e=>{
     if(wt>=20 && wt<=300) save('body', todayStr(), {date:todayStr(), weight:Math.round(wt*10)/10});
     ui.setup=null; return;
   }
+  if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
+  if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
+  if(act==='report-nav'){ const ch=E.chapters(lastC), i=ch.findIndex(c=>c.ym===ui.report)+Number(el.dataset.d); if(ch[i]){ ui.report=ch[i].ym; SFX.play('tick'); renderOverlay(lastC); } return; }
+  if(act==='report-save'){ saveReport(el.dataset.fmt); return; }
   if(act==='view-rank'){ ui.viewRank=Number(el.dataset.i); if(lastC) renderOverlay(lastC); return; }
   if(act==='close-view'){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='scene-ok'){ markScene(el.dataset.key); const ov=document.getElementById('overlay'); ov.hidden=true; ov.innerHTML=''; render(); return; }
@@ -3063,7 +3209,7 @@ document.addEventListener('change', e=>{
     render();
   }
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape' && ui.viewRank!=null){ ui.viewRank=null; if(lastC) renderOverlay(lastC); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && (ui.viewRank!=null || ui.report)){ ui.viewRank=null; ui.report=null; if(lastC) renderOverlay(lastC); } });
 document.addEventListener('input', e=>{
   const el=e.target; if(!el || !el.dataset) return;
   if(el.id==='exam-start'){ ui.examStart=el.value||todayStr(); render(); return; }

@@ -366,10 +366,193 @@ function cleanBackup(d, nowMs){
   return {ok:true, data:out, fixed};
 }
 
+/* ---------- achievements: each one knows the day it was earned ---------- */
+const ACHIEVEMENTS = [
+  {id:'first',    cat:'Missions', name:'First Mission',      need:'Complete your first mission'},
+  {id:'clean',    cat:'Missions', name:'Clean Week',         need:'Finish a full week with no missed mission'},
+  {id:'month',    cat:'Missions', name:'The Unbroken Month', need:'A whole calendar month with no missed mission and no missed study day'},
+  {id:'tp1k',     cat:'Missions', name:'Thousand Pulls',     need:'1,000 total pull-ups logged'},
+  {id:'td2k',     cat:'Missions', name:'River of Dips',      need:'2,500 total dips logged'},
+  {id:'scale',    cat:'Missions', name:'Scale Keeper',       need:'Log your weight 4 times'},
+  {id:'genin',    cat:'Missions', name:'Graduation',         need:'Reach the rank of Genin'},
+  {id:'pr',       cat:'Strength', name:'Record Breaker',     need:'Set a new max on a test day'},
+  {id:'prp',      cat:'Strength', name:'Higher Bar',         need:'Your first new pull-up max'},
+  {id:'prd',      cat:'Strength', name:'Deeper Press',       need:'Your first new dip max'},
+  {id:'p10',      cat:'Strength', name:'Double Digits',      need:'10 strict pull-ups in one set'},
+  {id:'p15',      cat:'Strength', name:'Iron Grip',          need:'15 strict pull-ups in one set'},
+  {id:'p20',      cat:'Strength', name:'Sky Climber',        need:'20 strict pull-ups in one set'},
+  {id:'d25',      cat:'Strength', name:'Steel Frame',        need:'25 strict dips in one set'},
+  {id:'d30',      cat:'Strength', name:'Stone Pillar',       need:'30 strict dips in one set'},
+  {id:'d40',      cat:'Strength', name:'Mountain Press',     need:'40 strict dips in one set'},
+  {id:'sh100',    cat:'Study',    name:'Hundred Hours',      need:'100 hours of study logged'},
+  {id:'sh500',    cat:'Study',    name:'The Long Library',   need:'500 hours of study logged'},
+  {id:'sh1000',   cat:'Study',    name:'Thousand-Hour Sage', need:'1,000 hours of study logged'},
+  {id:'scholar',  cat:'Study',    name:'Scholar\'s Week',    need:'Study 30 hours in one week'},
+  {id:'fullweek', cat:'Study',    name:'Every Column Filled', need:'Fill the study scroll on every study day of a week'},
+  {id:'s7',       cat:'Streaks',  name:'Seven Suns',         need:'Hold a 7-day workout streak'},
+  {id:'s30',      cat:'Streaks',  name:'Moon Cycle',         need:'Hold a 30-day workout streak'},
+  {id:'s100',     cat:'Streaks',  name:'Hundred-Day Vow',    need:'Hold a 100-day workout streak'},
+  {id:'ss7',      cat:'Streaks',  name:'Seven Scrolls',      need:'Hold a 7-day study streak'},
+  {id:'ss30',     cat:'Streaks',  name:'Thirty Lamps',       need:'Hold a 30-day study streak'},
+  {id:'comeback', cat:'Streaks',  name:'Back from the Dead', need:'Rebuild a broken streak to 7 days'},
+  {id:'dawn',     cat:'Secret',   name:'Dawn Patrol',        need:'Log a set between 4 and 6 in the morning', hidden:true},
+  {id:'offday8',  cat:'Secret',   name:'Thursday Scholar',   need:'Fill the scroll on an off-day Thursday (8 hours)', hidden:true},
+  {id:'four',     cat:'Secret',   name:'Four Teachers',      need:'Win all four sensei challenges in the same week', hidden:true},
+  {id:'underfire', cat:'Secret',  name:'Under Fire',         need:'Complete a mission during an exam week', hidden:true},
+  {id:'combo25',  cat:'Secret',   name:'Mind and Muscle',    need:'Earn 25 study combos', hidden:true},
+  {id:'hokage',   cat:'Secret',   name:'The Hat',            need:'Reach the rank of Hokage', hidden:true}
+];
+const monthEnd = ym => { const [y, m] = ym.split('-').map(Number); return ymd(new Date(y, m, 0)); };
+const monthOf = d => d.slice(0, 7);
+const nextMonth = ym => { const [y, m] = ym.split('-').map(Number); return ymd(new Date(y, m, 1)).slice(0, 7); };
+/* calendar months that are over and were lived in full, with what went wrong in each */
+function monthsOf(C){
+  const out = {}, s = C.settings;
+  const M = ym => out[ym] || (out[ym] = {ym, days:0, done:0, missed:0, smissed:0, exam:0});
+  C.days.forEach(d => { const m = M(monthOf(d.date)); m.days++; if(d.status === 'done') m.done++; if(d.status === 'missed') m.missed++; if(d.status === 'exam') m.exam++; });
+  C.study.list.forEach(r => { if(r.status === 'missed') M(monthOf(r.date)).smissed++; });
+  Object.values(out).forEach(m => { const end = monthEnd(m.ym); m.end = end; m.complete = end < C.today; m.whole = m.complete && isDate(s.startDate) && s.startDate <= m.ym + '-01'; m.perfect = m.whole && m.missed === 0 && m.smissed === 0 && m.done > 0; });
+  return out;
+}
+function achievements(C){
+  if(C._ach) return C._ach;
+  const got = {}, s = C.settings, set = (id, date) => { if(date && (!got[id] || date < got[id])) got[id] = date; };
+  const PULL = [[10,'p10'],[15,'p15'],[20,'p20']], DIP = [[25,'d25'],[30,'d30'],[40,'d40']];
+  const base = (ex, list) => { const b = (s.baseline || {})[ex]; if(b) list.forEach(([n, id]) => { if(b.max >= n) set(id, isDate(b.date) ? b.date : s.startDate); }); };
+  base('pullups', PULL); base('dips', DIP);
+  C.prs.forEach(p => {
+    set('pr', p.date);
+    if(p.ex === 'pullups'){ set('prp', p.date); PULL.forEach(([n, id]) => { if(p.v >= n) set(id, p.date); }); }
+    if(p.ex === 'dips'){ set('prd', p.date); DIP.forEach(([n, id]) => { if(p.v >= n) set(id, p.date); }); }
+  });
+  const reps = {}; let combos = 0;
+  C.days.forEach(d => {
+    if(d.status === 'done'){ set('first', d.date); if(isExam(s, d.date)) set('underfire', d.date); }
+    if(d.streak >= 7) set('s7', d.date); if(d.streak >= 30) set('s30', d.date); if(d.streak >= 100) set('s100', d.date);
+    d.sets.forEach(x => { reps[x.ex] = (reps[x.ex] || 0) + x.reps; const h = new Date(x.t).getHours(); if(h >= 4 && h < 6) set('dawn', d.date); });
+    if((reps.pullups || 0) >= 1000) set('tp1k', d.date); if((reps.dips || 0) >= 2500) set('td2k', d.date);
+    if(d.peak >= 1) set('genin', d.date); if(d.peak >= RANKS.length - 1) set('hokage', d.date);
+    combos += d.info.combo || 0; if(combos >= 25) set('combo25', d.date);
+  });
+  C.weekList.forEach(w => { if(w.days === 7 && w.missed === 0 && w.done > 0 && addDays(w.start, 6) < C.today) set('clean', addDays(w.start, 6)); });
+  const byWeek = {};
+  C.awards.forEach(a => { if(!a) return; if(a.key === 'study') set('scholar', a.date); else { const m = byWeek[a.week] || (byWeek[a.week] = {n:0, last:a.date}); m.n++; if(a.date > m.last) m.last = a.date; } });
+  Object.values(byWeek).forEach(m => { if(m.n >= 4) set('four', m.last); });
+  if(C.body.length >= 4) set('scale', C.body[3].date);
+  let mins = 0; const sw = {};
+  C.study.list.forEach(r => {
+    mins += r.mins;
+    if(mins >= 6000) set('sh100', r.date); if(mins >= 30000) set('sh500', r.date); if(mins >= 60000) set('sh1000', r.date);
+    if(r.streak >= 7) set('ss7', r.date); if(r.streak >= 30) set('ss30', r.date);
+    if(r.tgt && r.tgt.off && r.mins >= r.tgt.full) set('offday8', r.date);
+    const wk = weekStart(r.date), W = sw[wk] || (sw[wk] = {days:0, need:0, full:0});
+    W.days++; if(r.tgt && !r.tgt.off){ W.need++; if(r.mins >= r.tgt.full) W.full++; }
+  });
+  Object.keys(sw).forEach(wk => { const W = sw[wk]; if(W.days === 7 && W.need >= 6 && W.full === W.need && addDays(wk, 6) <= C.today) set('fullweek', addDays(wk, 6)); });
+  Object.values(monthsOf(C)).forEach(m => { if(m.perfect) set('month', m.end); });
+  const st = streakStory(C); if(st.first) set('comeback', st.first);
+  const list = ACHIEVEMENTS.map(a => Object.assign({}, a, {date:got[a.id] || null}));
+  Object.defineProperty(C, '_ach', {value:list, enumerable:false});
+  return list;
+}
+
+/* ---------- the monthly mission report ---------- */
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const monthLabel = ym => `${MONTHS[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+const hoursText = m => { m = Math.max(0, Math.round(m)); const h = Math.floor(m/60), r = m % 60; return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`; };
+function monthReport(C, ym){
+  const s = C.settings, first = ym + '-01', end = monthEnd(ym);
+  const days = C.days.filter(d => d.date >= first && d.date <= end), st = C.study.list.filter(r => r.date >= first && r.date <= end);
+  if(!days.length && !st.length) return null;
+  const from = days.length ? days[0].date : st[0].date, to = days.length ? days[days.length-1].date : st[st.length-1].date;
+  const reps = {}; C.exIds.forEach(id => { reps[id] = 0; });
+  const missions = {done:0, missed:0, rest:0, exam:0, open:0};
+  let xp = 0, bestStreak = 0;
+  days.forEach(d => { d.sets.forEach(x => { reps[x.ex] = (reps[x.ex] || 0) + x.reps; }); missions[d.status] = (missions[d.status] || 0) + 1; xp += d.gain; bestStreak = Math.max(bestStreak, d.streak); });
+  if(!days.length) st.forEach(r => { xp += r.xp; });
+  const study = {mins:0, best:null, daysMin:0, daysFull:0, missed:0, shields:0, days:0, bestStreak:0};
+  st.forEach(r => {
+    study.mins += r.mins; if(r.mins > 0 && (!study.best || r.mins > study.best.mins)) study.best = {date:r.date, mins:r.mins};
+    if(r.tgt && r.status !== 'exam'){ study.days++; if(r.status === 'done') study.daysMin++; }
+    if(r.tgt && r.mins >= r.tgt.full) study.daysFull++;
+    if(r.status === 'missed') study.missed++; if(r.status === 'shield') study.shields++;
+    study.bestStreak = Math.max(study.bestStreak, r.streak);
+  });
+  /* each max as it stood before the month and at its end */
+  const maxes = C.exIds.map(id => {
+    const h = C.maxHist[id] || []; let a = null, b = null;
+    h.forEach(p => { if(p.start || p.date < first) a = p.v; if(p.start || p.date <= end) b = p.v; });
+    return {ex:id, from:a, to:b};
+  }).filter(m => m.to != null);
+  const before = C.days.filter(d => d.date < first), prev = before.length ? before[before.length-1] : null, lastDay = days.length ? days[days.length-1] : prev;
+  const rankFrom = prev ? prev.peak : 0, rankTo = lastDay ? lastDay.peak : 0;
+  const prs = C.prs.filter(p => p.date >= first && p.date <= end);
+  const awards = C.awards.filter(a => a && a.date >= first && a.date <= end);
+  const earned = achievements(C).filter(a => a.date && a.date >= first && a.date <= end);
+  const body = C.body.filter(b => b.date >= first && b.date <= end);
+  const story = streakStory(C), comeback = !!(story.comeback && story.comeback.date >= first && story.comeback.date <= end);
+  const exam = examList(s).some(e => e && e.start <= end && e.end >= first);
+  const R = {ym, label:monthLabel(ym), from, to, complete:end < C.today, name:s.name || 'Ninja', study, reps, maxes, prs, missions, xp, bestStreak, rankFrom, rankTo, promoted:rankTo > rankFrom,
+    awards:awards.length, earned, comeback, exam, weight:body.length ? {from:body[0].weight, to:body[body.length-1].weight, n:body.length} : null, totalAfter:lastDay ? lastDay.total : 0};
+  R.title = chapterTitle(R);
+  R.summary = hokageSummary(R);
+  return R;
+}
+/* a chapter title from what happened in the month */
+function chapterTitle(R){
+  const m = R.missions;
+  if(R.promoted) return RANKS[R.rankTo].id === 'hokage' ? 'The Village Has a Hokage' : `Rise of the ${RANKS[R.rankTo].name}`;
+  if(R.comeback) return 'Back from the Brink';
+  if(R.complete && m.missed === 0 && R.study.missed === 0 && m.done > 0) return 'The Unbroken Month';
+  if(R.prs.length >= 2) return 'Breaking Limits';
+  if(R.exam) return 'Trial by Exams';
+  if(R.prs.length === 1) return 'A New Record';
+  if(R.study.mins >= 120*60) return 'The Scholar\'s Vigil';
+  if(m.missed + R.study.missed >= 6) return 'Storm Season';
+  if(m.missed + R.study.missed > 0) return 'Stumble and Rise';
+  if(m.done === 0 && R.study.mins === 0) return 'The Quiet Month';
+  return 'Steady Steps';
+}
+/* the Third Hokage's few lines about the month, built from the numbers */
+function hokageSummary(R){
+  const m = R.missions, st = R.study, out = [], tried = m.done + m.missed, rate = tried ? m.done/tried : 1, srate = st.days ? st.daysMin/st.days : 1;
+  const name = R.name;
+  if(tried + st.days === 0) out.push(`A quiet month, ${name}. Nothing was asked of you and nothing was owed.`);
+  else if(m.missed === 0 && st.missed === 0) out.push(`Not one mission missed and not one study day lost, ${name}. A month like this is rare, and it was earned one day at a time.`);
+  else if(rate >= .85 && srate >= .8) out.push(`A strong month, ${name}. ${m.done} missions done, and the few that slipped did not stop you.`);
+  else if(rate >= .6) out.push(`An honest month, ${name}: ${m.done} missions done and ${m.missed} missed. The record shows both, and both teach.`);
+  else out.push(`A hard month, ${name}. ${m.missed} missions were missed. You are still here reading this, and that is where every recovery begins.`);
+  if(R.promoted) out.push(`You began it as ${RANKS[R.rankFrom].name} and you end it as ${RANKS[R.rankTo].name}. Wear the new rank well.`);
+  if(R.prs.length) out.push(R.prs.length === 1 ? 'One of your maxes moved this month. Strength that is measured is strength that is real.' : `${R.prs.length} new maxes. Your body is answering the work.`);
+  if(st.days){
+    if(st.mins >= 100*60) out.push(`${hoursText(st.mins)} at the desk. That is the quiet kind of training nobody sees, and it counts the most.`);
+    else if(st.missed > st.daysMin) out.push(`The books were opened less than they were owed: ${hoursText(st.mins)} in the month. Start each day with the first hour and the rest follows.`);
+    else out.push(`${hoursText(st.mins)} of study, with the minimum reached on ${st.daysMin} ${st.daysMin === 1 ? 'day' : 'days'}.`);
+  }
+  if(R.comeback) out.push('A streak fell and you rebuilt it. Remember how that felt the next time one breaks.');
+  out.push(!R.complete ? 'The month is not over. There is still time to change this page.' : (rate >= .85 && srate >= .8) ? 'Carry it into the next month. Do not chase more; repeat this.' : 'Next month, protect the small days. They are the ones that decide it.');
+  return out;
+}
+/* every month so far as a chapter of the story */
+function chapters(C){
+  if(C._chapters) return C._chapters;
+  const list = [], s = C.settings;
+  const start = [s.startDate, s.studyStart].filter(isDate).sort()[0];
+  if(start && start <= C.today){
+    for(let ym = monthOf(start), n = 1; ym <= monthOf(C.today) && n < 400; ym = nextMonth(ym)){
+      const R = monthReport(C, ym); if(!R) continue;
+      list.push({n, ym, label:R.label, title:R.title, complete:R.complete, report:R}); n++;
+    }
+  }
+  Object.defineProperty(C, '_chapters', {value:list, enumerable:false});
+  return list;
+}
+
 return {
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
-  splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup
+  splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
+  ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText
 };
 });

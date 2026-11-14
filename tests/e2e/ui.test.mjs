@@ -390,6 +390,60 @@ test('a new village: enrollment, the first set, and the study scroll', async () 
   noErrors();
 });
 
+test('monthly mission report: opens from Stats with the month\'s real numbers, pages between months, and saves as an image and a PDF', async () => {
+  await A.tab('stats');
+  await A.page.locator('#report-card [data-act="report-open"]', {hasText:'October 2026'}).click();
+  await A.page.waitForSelector('#overlay .report');
+  const text = async () => (await A.page.locator('#overlay .report').textContent()).replace(/\s+/g, ' ');
+  let t = await text();
+  assert.match(t, /Monthly mission report · chapter 2/); assert.match(t, /October 2026/); assert.match(t, /Rise of the Jonin/);
+  assert.match(t, /117h 15m/); assert.match(t, /15 done/); assert.match(t, /1 missed · 8 rest · 7 exam/);
+  assert.match(t, /327 pull-ups/); assert.match(t, /523 dips/); assert.match(t, /Pull-ups 11 → 15/); assert.match(t, /Dips 22 → 26/);
+  assert.match(t, /\+12,095/); assert.match(t, /Chunin → Jonin/); assert.match(t, /Hundred Hours/); assert.match(t, /Third Hokage/);
+  const [png] = await Promise.all([A.page.waitForEvent('download'), A.page.click('[data-act="report-save"][data-fmt="png"]')]);
+  assert.equal(png.suggestedFilename(), 'leaf-village-report-2026-10.png');
+  const img = readFileSync(await png.path());
+  assert.deepEqual([...img.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]); assert.equal(img.readUInt32BE(16), 1240); assert.equal(img.readUInt32BE(20), 1754);
+  writeFileSync(TMP + 'report-2026-10.png', img);
+  await until(async () => /Report saved/.test(await toastText(A)), 'saved toast');
+  const [pdf] = await Promise.all([A.page.waitForEvent('download'), A.page.click('[data-act="report-save"][data-fmt="pdf"]')]);
+  assert.equal(pdf.suggestedFilename(), 'leaf-village-report-2026-10.pdf');
+  const doc = readFileSync(await pdf.path()), head = doc.subarray(0, 600).toString('latin1'), tail = doc.subarray(-300).toString('latin1');
+  assert.match(head, /^%PDF-1\.4/); assert.match(head, /\/Filter \/DCTDecode/); assert.match(head, /\/MediaBox \[0 0 595 842\]/);
+  assert.match(tail, /startxref\n(\d+)\n%%EOF\n$/);
+  const xref = +/startxref\n(\d+)/.exec(tail)[1]; assert.equal(doc.subarray(xref, xref + 4).toString('latin1'), 'xref', 'the cross-reference table is where the file says it is');
+  const off4 = +doc.subarray(xref, xref + 200).toString('latin1').split('\n')[6].slice(0, 10); assert.equal(doc.subarray(off4, off4 + 7).toString('latin1'), '4 0 obj');
+  /* paging */
+  await A.page.click('[data-act="report-nav"][data-d="-1"]');
+  await until(async () => /September 2026/.test(await text()), 'September');
+  assert.match(await text(), /Rise of the Chunin/);
+  assert.equal(await A.page.locator('[data-act="report-nav"][data-d="-1"]').isDisabled(), true);
+  await A.page.click('[data-act="report-nav"][data-d="1"]'); await A.page.click('[data-act="report-nav"][data-d="1"]');
+  await until(async () => /November 2026/.test(await text()), 'November');
+  assert.match(await text(), /month in progress/);
+  await A.page.click('[data-act="report-close"]');
+  assert.equal(await A.page.evaluate(() => document.getElementById('overlay').hidden), true);
+  noErrors();
+});
+
+test('on the 1st the report for the month that ended opens by itself, once', async () => {
+  const B = await rig.device('first', {now:at('2026-12-01', 9, 0)});
+  await B.open(); await B.importBackup(FIXTURE);
+  await closeScenes(B);
+  await B.page.waitForSelector('#overlay .report');
+  assert.match(await B.page.locator('#report-title').textContent(), /November 2026/);
+  await B.page.click('[data-act="report-close"]');
+  await B.page.reload(); await B.page.waitForSelector('.stage');
+  await sleep(400);
+  assert.equal(await B.page.locator('#overlay .report').count(), 0, 'it does not come back');
+  await B.close();
+  const Cdev = await rig.device('mid', {now:at('2026-12-09', 9, 0)});
+  await Cdev.open(); await Cdev.importBackup(FIXTURE); await sleep(400);
+  assert.equal(await Cdev.page.locator('#overlay .report').count(), 0, 'after the first week it waits in Stats instead');
+  await Cdev.close();
+  noErrors();
+});
+
 test('iPad screenshots of every tab, landscape and portrait (looked at by hand)', async () => {
   for(const [name, viewport] of [['landscape', {width:1148, height:802}], ['portrait', {width:820, height:1180}]]){
     const B = await rig.device('shots-' + name, {now:T0 + min(30), viewport});

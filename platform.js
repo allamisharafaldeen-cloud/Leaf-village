@@ -161,7 +161,7 @@ const assetsApi = Object.freeze({
 window.blobUrl = id => !id ? '' : BUNDLED[id] ? 'media/' + BUNDLED[id] : (objectUrls[id] || 'media/missing');
 
 /* ---------- downloads ---------- */
-const MIME = { json:'application/json', csv:'text/csv', txt:'text/plain', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg' };
+const MIME = { json:'application/json', csv:'text/csv', txt:'text/plain', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', pdf:'application/pdf' };
 const downloadsApi = Object.freeze({
   async save({filename, data}){
     const ext = (String(filename).split('.').pop() || '').toLowerCase();
