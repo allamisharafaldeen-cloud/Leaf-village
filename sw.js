@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '6c385cfaff';
+const VERSION = 'f5258a26cc';
 const CACHE = 'leaf-' + VERSION;
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
@@ -51,7 +51,6 @@ const FILES = [
  "ranks/jonin.jpg",
  "ranks/kage-face.jpg",
  "ranks/kage.jpg",
- "ranks/sage-cut.webp",
  "ranks/sage-face.jpg",
  "ranks/sage.jpg",
  "ranks/sannin-face.jpg",
@@ -76,7 +75,6 @@ const FILES = [
  "ranks/comeback-face.jpg",
  "ranks/comeback.jpg",
  "ranks/genin-cut-v2.webp",
- "ranks/susanoo-cut.webp",
  "ranks/susanoo-face.jpg",
  "ranks/susanoo.jpg",
  "media/comeback.jpg",
@@ -132,7 +130,11 @@ const FILES = [
  "ranks/kage-cut-v2.webp",
  "ranks/kage-aura.webp",
  "ranks/hokage-cut-v2.webp",
- "ranks/hokage-aura.webp"
+ "ranks/hokage-aura.webp",
+ "ranks/sage-cut-v2.webp",
+ "ranks/sage-aura.webp",
+ "ranks/susanoo-cut-v2.webp",
+ "ranks/susanoo-aura.webp"
 ];
 
 self.addEventListener('install', e=>{
