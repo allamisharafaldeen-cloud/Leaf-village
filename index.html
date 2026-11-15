@@ -548,6 +548,18 @@ body.has-player .wrap{padding-bottom:178px}
 .promo{position:relative; width:min(420px,100%); max-height:100%; overflow-y:auto; background:var(--card); border-radius:22px; text-align:center; display:flex; flex-direction:column; overflow-x:hidden; animation:pop .5s cubic-bezier(.2,1.4,.4,1)}
 .promo-scene{display:block; width:100%; aspect-ratio:16/9; object-fit:cover; border-bottom:3px solid var(--rk)}
 .promo-scene.locked{filter:grayscale(1) brightness(.75)}
+/* rank-up cinematic: a dark gate (the tap lets the scene play with sound), then the scene full screen */
+.cine-gate,.cine{position:fixed; inset:0; z-index:2; background:#050507; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; padding:24px}
+.cine-gate .eyebrow{color:var(--rk); letter-spacing:.3em}
+.cine-gate h2{margin:0; color:#f2efe9; font-size:clamp(28px,5vw,44px); letter-spacing:.02em; animation:cineIn 1.2s ease both}
+.cine-gate p{margin:0; color:#9b958c; font-size:14px}
+.cine-gate .btn{margin-top:10px; min-width:220px; background:var(--rk); border-color:var(--rk); color:#0b0d0c; box-shadow:0 0 0 1px var(--rk), 0 0 34px color-mix(in srgb, var(--rk) 55%, transparent); animation:cinePulse 2.2s ease-in-out infinite}
+.cine{padding:0}
+.cine video{width:100%; height:100%; object-fit:contain; background:#000}
+.cine-skip{position:absolute; right:max(16px, env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px)); background:rgba(0,0,0,.45); color:#f2efe9; border:1px solid rgba(255,255,255,.35); border-radius:999px; padding:8px 16px; font:600 14px var(--f-data); letter-spacing:.06em}
+.cine-skip[hidden]{display:none}
+@keyframes cineIn{from{opacity:0; transform:translateY(8px); letter-spacing:.2em} to{opacity:1; transform:none}}
+@keyframes cinePulse{50%{box-shadow:0 0 0 1px var(--rk), 0 0 54px color-mix(in srgb, var(--rk) 80%, transparent)}}
 .promo-body{display:flex; flex-direction:column; align-items:center; gap:10px; padding:18px 22px 22px}
 .viewer::before{display:none}
 .promo::before{content:""; position:absolute; inset:-40%; background:repeating-conic-gradient(from 0deg, var(--chakra-soft) 0 10deg, transparent 10deg 20deg); animation:spin 18s linear infinite; z-index:0}
@@ -749,6 +761,10 @@ const RANK_LOOK = {
   'kage':         {color:'#c0393e', walls:['wp-iron','wp-valley','wp-sand','wp-rock','wp-valley-tall']},
   'hokage':       {color:'#e8620f', walls:['wp-konoha-dusk','wp-konoha-monument']}
 };
+/* Rank-up cinematics: each plays once, at the moment that rank is earned (and again from its card in the Ninja tab).
+   They live in their own cache so app updates don't download them again. */
+const CINE = {'chunin':'media/cine-chunin.mp4'};
+const CINE_CACHE = 'leaf-cine';
 const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
 const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
 const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -3147,6 +3163,7 @@ function render(){
   setView(html, 'tab-'+ui.tab);
   applyBg();
   writeSummary(C);
+  prefetchCine(C);
   updateTabs(true);
   renderOverlay(C);
   checkAchievements(C);
@@ -3158,7 +3175,29 @@ function render(){
 const streakStory = C => C._story || (C._story=E.streakStory(C));
 function sceneSeen(key){ try{ return localStorage.getItem('leaf-scene-'+key)==='1'; }catch(e){ return true; } }
 function markScene(key){ try{ localStorage.setItem('leaf-scene-'+key,'1'); }catch(e){} }
+function prefetchCine(C){
+  try{
+    const nx=RANKS[C.peak+1], cur=RANKS[C.peak], list=[nx&&CINE[nx.id], cur&&CINE[cur.id]].filter(Boolean);
+    if(!list.length || !('caches' in window) || navigator.onLine===false) return;
+    list.forEach(u=>{ const abs=new URL(u, location.href).href; if((prefetchCine.done||(prefetchCine.done={}))[abs]) return; prefetchCine.done[abs]=1;
+      caches.open(CINE_CACHE).then(c=>c.match(abs).then(hit=>hit || fetch(abs).then(r=>r.ok?c.put(abs,r):null))).catch(()=>{ delete prefetchCine.done[abs]; }); });
+  }catch(e){}
+}
+function playCine(url, after){
+  const ov=document.getElementById('overlay'); ui.cinePlaying=true; ui.overlayKey='cine';
+  const wasMusic=Music.playing; if(wasMusic) Music.pause();
+  ov.innerHTML=`<div class="cine" role="dialog" aria-modal="true" aria-label="Rank scene"><video playsinline preload="auto"></video><button type="button" class="cine-skip" data-act="cine-skip" hidden>Skip ›</button></div>`;
+  ov.hidden=false;
+  const v=ov.querySelector('video'); let over=false;
+  const finish=()=>{ if(over) return; over=true; ui.cinePlaying=false; ui.cineEnd=null; try{ v.pause(); v.removeAttribute('src'); v.load(); }catch(e){} ov.innerHTML=''; ui.overlayKey=null; if(wasMusic) Music.toggle(); if(after) after(); };
+  ui.cineEnd=finish;
+  v.addEventListener('ended', finish); v.addEventListener('error', finish);
+  v.muted = prefs.sfxOn===false; v.src=url;
+  const p=v.play(); if(p && p.catch) p.catch(()=>{ if(over) return; v.muted=true; v.play().catch(finish); });
+  setTimeout(()=>{ const b=ov.querySelector('.cine-skip'); if(b) b.hidden=false; }, 1500);
+}
 function renderOverlay(C){
+  if(ui.cinePlaying) return;
   const s=S(), seen=seenRank(C), ov=document.getElementById('overlay');
   const story = (!state.readOnly && C.peak<=seen && ui.viewRank==null) ? streakStory(C) : null;
   const recent = d => d && daysBetween(d, C.today)<=1;
@@ -3194,9 +3233,20 @@ function renderOverlay(C){
   }
   if(!(C.peak>seen) && ui.viewRank==null && !ui.report && !ui.recap){ const due=monthlyDue(C); if(due) ui.recap=due.ym; }
   if(C.peak>seen && !state.readOnly){
+    const r=RANKS[C.peak], nx=RANKS[C.peak+1];
+    if(CINE[r.id] && ui.cineFor!==C.peak){
+      const gk='cine-gate-'+C.peak; if(ui.overlayKey===gk) return;
+      ui.overlayKey=gk; ui.viewRank=null;
+      ov.innerHTML=`<div class="cine-gate" role="dialog" aria-modal="true" aria-labelledby="cg-title" style="--rk:${r.color}">
+        <div class="eyebrow">${r.form?'Transformation':'Promotion'}</div>
+        <h2 id="cg-title">A new rank awaits</h2>
+        <p>${fmt(C.total)} XP earned</p>
+        <button type="button" class="btn chakra-btn" data-act="cine-play" data-rank="${C.peak}">Tap to unlock</button>
+      </div>`;
+      FX.flash(); ov.hidden=false; const gb=ov.querySelector('button'); if(gb) gb.focus(); return;
+    }
     const key='promo-'+C.peak; if(ui.overlayKey===key) return;
     ui.overlayKey=key; ui.viewRank=null;
-    const r=RANKS[C.peak], nx=RANKS[C.peak+1];
     ov.innerHTML=`<div class="promo" role="dialog" aria-modal="true" aria-labelledby="promo-title" style="--rk:${r.color}">
       <img class="promo-scene" src="${r.scene}" alt="${esc(s.name||'Ninja')} as ${esc(r.name)}">
       <div class="promo-body">
@@ -3235,6 +3285,7 @@ function renderOverlay(C){
         <h2 id="view-title" style="color:${r.color}">${esc(r.name)}</h2>
         <p class="muted" style="margin:0">${status}</p>
         ${earned?'':'<p class="muted" style="margin:0;font-size:13px">Its village theme is revealed when you earn it.</p>'}
+        ${earned && CINE[r.id] ? `<button type="button" class="btn chakra-btn" data-act="cine-replay" data-i="${i}" style="width:100%">Watch the ${esc(r.name)} scene</button>` : ''}
         <button class="btn ghost" data-act="close-view" style="width:100%">Close</button>
       </div>
     </div>`;
@@ -3414,6 +3465,9 @@ document.addEventListener('click', e=>{
   if(act==='view-rank'){ ui.viewRank=Number(el.dataset.i); if(lastC) renderOverlay(lastC); return; }
   if(act==='close-view'){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='scene-ok'){ markScene(el.dataset.key); const ov=document.getElementById('overlay'); ov.hidden=true; ov.innerHTML=''; render(); return; }
+  if(act==='cine-play'){ const i=Number(el.dataset.rank), r=RANKS[i]; if(!r||!CINE[r.id]) return; playCine(CINE[r.id], ()=>{ ui.cineFor=i; if(lastC) renderOverlay(lastC); }); return; }
+  if(act==='cine-skip'){ if(ui.cineEnd) ui.cineEnd(); return; }
+  if(act==='cine-replay'){ const i=Number(el.dataset.i), r=RANKS[i]; if(!r||!CINE[r.id]) return; playCine(CINE[r.id], ()=>{ if(lastC) renderOverlay(lastC); }); return; }
   if(act==='promo-ok'){
     const C=lastC; const s=clone(S()); if(C){ s.celebrated=C.peak; s.celebratedId=RANKS[C.peak].id; } delete s.themeRank; delete s.themeRankId;
     document.getElementById('overlay').hidden=true; save('settings', null, s); return;

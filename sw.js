@@ -3,8 +3,9 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = 'f5258a26cc';
+const VERSION = '502a43e726';
 const CACHE = 'leaf-' + VERSION;
+const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
 const FILES = [
  "./",
@@ -141,7 +142,7 @@ self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES.map(f=>new Request(f, {cache:'reload'})))).then(()=>self.skipWaiting()));
 });
 self.addEventListener('activate', e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('leaf-') && k!==CACHE && k!==FONT_CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('leaf-') && k!==CACHE && k!==FONT_CACHE && k!==CINE_CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
 });
 
 /* Safari asks for music in pieces (Range requests); answer those from the stored copy */
@@ -180,7 +181,7 @@ self.addEventListener('fetch', e=>{
   }
 
   e.respondWith((async ()=>{
-    const c = await caches.open(CACHE);
+    const c = await caches.open(/\/media\/cine-[^/]+$/.test(url.pathname) ? CINE_CACHE : CACHE);
     const clean = url.origin + url.pathname;
     let hit = await c.match(clean);
     if(!hit){
