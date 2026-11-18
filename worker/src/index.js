@@ -12,7 +12,7 @@
    Everything except /health needs the sync key. */
 import LeafMerge from '../../leaf-merge.js';
 import { snapshotFromDocs, dateAt, addDays, checkpointTarget, historyKey, advanceCheckpoint } from './engine.js';
-import { decide, slotAt, TITLES } from './reminders.js';
+import { decide, slotAt, TITLES, NOTIFY_DEFAULT } from './reminders.js';
 import { generateVapid, sendPush, validEndpoint } from './webpush.js';
 
 const { kindOf, mergeEntries, unionKeys, same } = LeafMerge;
@@ -254,6 +254,51 @@ async function runSlot(env, nowMs, slot){
   ]);
   return report;
 }
+/* ---------- study timer alerts (checked every minute) ----------
+   The running timer is synced as leaf/timer: {state, segStart, checkAt, sessionMs, focus}. From that alone the
+   Worker knows when a 50-minute focus block ends, when the 10-minute break ends, and when the 3-hour
+   "still studying?" check is due, so the app does not need to be open. Each alert is sent once. */
+const FOCUS_WORK = 50 * 60000, FOCUS_REST = 10 * 60000, ALERT_WINDOW = 5 * 60000;
+const FOCUS_LINES = {
+  rest:['Fifty minutes of focus, done. Stand up, rest your eyes, drink some water. Ten minutes, then back to it.',
+        'Block {n} complete. A short rest now makes the next fifty count. Ten minutes.',
+        'Good work. Step away from the page for ten minutes; the knowledge settles while you rest.'],
+  work:['The break is over. Fifty more minutes; the next page is waiting.',
+        'Back to the books. Block {n} starts now: fifty minutes, one topic, full attention.',
+        'Rest is done, {name}. Sit down and begin block {n}.'],
+  check:['Your study timer has been running for three hours without a check. Still at the desk? Open the village and tell me. Until then, nothing more is counted.']
+};
+export function timerAlert(T, nowMs){
+  if(!T || T.state !== 'running' || !(T.segStart > 0)) return null;
+  const end = T.checkAt > 0 ? T.checkAt : Infinity, events = [];
+  if(end <= nowMs) events.push({at:end, kind:'check', n:0});
+  if(T.focus){
+    const cyc = FOCUS_WORK + FOCUS_REST, k = Math.floor((Math.min(nowMs, end) - T.segStart) / cyc);
+    for(let i = Math.max(0, k - 1); i <= k; i++){
+      const workEnd = T.segStart + i * cyc + FOCUS_WORK, restEnd = T.segStart + (i + 1) * cyc;
+      if(workEnd <= nowMs && workEnd < end) events.push({at:workEnd, kind:'rest', n:i + 1});
+      if(restEnd <= nowMs && restEnd < end) events.push({at:restEnd, kind:'work', n:i + 2});
+    }
+  }
+  const due = events.filter(e => nowMs - e.at <= ALERT_WINDOW).sort((a, b) => b.at - a.at)[0];
+  return due ? Object.assign(due, {key:`${T.segStart}|${due.kind}|${due.at}`}) : null;
+}
+async function runTimerWatch(env, nowMs){
+  const row = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/timer'`).first(), T = row && parseObj(row.data);
+  const a = timerAlert(T, nowMs);
+  if(!a) return {sent:0, note:'nothing due'};
+  if(await metaGet(env, 'timer_alert') === a.key) return {sent:0, note:'already sent'};
+  const srow = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/main'`).first(), s = (srow && parseObj(srow.data)) || {};
+  const n = Object.assign({}, NOTIFY_DEFAULT, s.notify || {});
+  await metaSet(env, 'timer_alert', a.key);
+  if(!n.enabled || !n.timer) return {sent:0, note:'switched off'};
+  const subs = await allSubs(env);
+  if(!subs.length) return {sent:0, note:'no device'};
+  const pool = FOCUS_LINES[a.kind], line = pool[(a.n || 0) % pool.length].replace(/\{n\}/g, String(a.n)).replace(/\{name\}/g, s.name || 'ninja');
+  const title = a.kind === 'check' ? 'Still studying?' : a.kind === 'rest' ? 'Break time' : 'Back to work';
+  const status = await deliver(env, subs, payloadFor(env, title, 'Third Hokage: ' + line, 'leaf-timer'), {ttl:600, nowMs});
+  return {sent:status.filter(x => x >= 200 && x < 300).length, kind:a.kind};
+}
 async function handlePreview(req, env, url){
   const slot = String(url.searchParams.get('slot') || '').toUpperCase();
   const at = Number(url.searchParams.get('at')) || Date.now();
@@ -296,7 +341,8 @@ export default {
     }
   },
   async scheduled(event, env, ctx){
+    if(event.cron === '* * * * *'){ ctx.waitUntil(runTimerWatch(env, event.scheduledTime).catch(e => console.error('timer alert failed', e && e.message))); return; }
     ctx.waitUntil(runSlot(env, event.scheduledTime, slotAt(event.scheduledTime)).then(r => console.log('reminder', r.slot, r.note || `sent to ${r.sent} of ${r.status.length}`)).catch(e => console.error('reminder failed', e && e.message)));
   }
 };
-export { runSlot, stepCheckpoint };
+export { runSlot, stepCheckpoint, runTimerWatch };

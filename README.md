@@ -6,7 +6,7 @@ Sharaf's personal training and study tracker: pull-up and dip missions, study ho
 
 **Where data lives:** on the device first, in the browser's storage for this site. With **Sync** turned on (Settings → Sync), every change is also copied to a small online database you own (Cloudflare, free tier), so your logs survive a lost device and follow you to another one. Photos, sounds and music you add stay on the device you added them on. A weekly backup download from Settings is still a good habit.
 
-**Reminders:** with sync on, Settings → Reminders → *Turn on notifications*. The senseis then send one short notification at 5:40, 11:40 and 14:40, a last call at 17:00 (two hours before the 19:00 sleep window) and Jiraiya's bedtime reminder at 18:00 (Baghdad time), written from what was really logged that day. Needs iPadOS/iOS 16.4 or newer and the home-screen icon.
+**Reminders:** with sync on, Settings → Reminders → *Turn on notifications*. The senseis then send one short notification at 5:40, 11:40 and 14:40, a last call at 17:00 (two hours before the 19:00 sleep window) and Jiraiya's bedtime reminder at 18:00 (Baghdad time), written from what was really logged that day. Every minute the Worker also checks the synced study timer and sends the focus-cycle alerts (break after 50 minutes, back to work after 10) and the 3-hour "still studying?" check. Needs iPadOS/iOS 16.4 or newer and the home-screen icon.
 
 ## Files
 

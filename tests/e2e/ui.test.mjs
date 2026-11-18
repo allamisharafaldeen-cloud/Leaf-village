@@ -662,7 +662,7 @@ test('jutsu unlocks: available at a rank, learned through its own baseline test,
   assert.match(await card.locator('[data-jutsu="archer-pullups"]').textContent(), /Learned.*Baseline 4 on 15 Nov.*Choose it for a day in the Plan tab/);
   assert.equal(await card.locator('li.learned').count(), 1);
   await B.tab('mission');
-  assert.match(await B.page.locator('.mscroll[data-sid="work"] .roll-label small').textContent(), /Pull-up Groove/, 'today\'s mission is the same');
+  assert.match(await B.page.locator('.mscroll[data-sid="work"] .mission-title').textContent(), /Pull-up Groove/, 'today\'s mission is the same');
   /* it can now be chosen in the Plan tab, and starts tomorrow like any plan change */
   await B.tab('plan');
   const options = await B.page.locator('#plan-day-2 option').allTextContents();
@@ -675,7 +675,7 @@ test('jutsu unlocks: available at a rank, learned through its own baseline test,
   await B.setTime(at('2026-11-17', 9, 0));
   await until(async () => /17 November/.test(await B.page.evaluate(() => { location.hash = 'mission'; const e = document.querySelector('.stage .eyebrow'); return e ? e.textContent : ''; })), 'Tuesday');
   await closeScenes(B);
-  assert.match(await B.page.locator('.mscroll[data-sid="work"] .roll-label small').textContent(), /Archer pull-up Groove/);
+  assert.match(await B.page.locator('.mscroll[data-sid="work"] .mission-title').textContent(), /Archer pull-up Groove/);
   await openScroll(B, 'work');
   assert.match(await B.page.locator('.mscroll[data-sid="work"] .mission-sub').textContent(), /6 mini-sets of 2 strict archer pull-ups/);
   await B.close();

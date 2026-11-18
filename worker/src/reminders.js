@@ -8,7 +8,7 @@ import { LINES, SENSEI_NAMES, fill } from './lines.js';
 export const SLOT_BY_HOUR = {5:'MORNING', 11:'MIDDAY', 14:'EVENING', 17:'LASTCALL', 18:'BEDTIME'};
 export const slotAt = nowMs => SLOT_BY_HOUR[hourAt(nowMs)] || null;
 export const TITLES = {MORNING:'Morning briefing', MIDDAY:'Midday check', EVENING:'Afternoon check', LASTCALL:'Last call', BEDTIME:'Bedtime'};
-export const NOTIFY_DEFAULT = {enabled:true, briefing:true, streak:true, test:true, promotion:true, weekly:true, study:true, sleep:true};
+export const NOTIFY_DEFAULT = {enabled:true, briefing:true, streak:true, test:true, promotion:true, weekly:true, study:true, sleep:true, timer:true};
 export const MAX_CHARS = 320;
 
 const fmtH = m => { m = Math.max(0, Math.round(m)); const h = Math.floor(m / 60), r = m % 60; return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`; };

@@ -282,6 +282,13 @@ body.has-bg .chal{background:var(--paper-glass)}
 body.has-bg .card,body.has-bg .tile,body.has-bg .scroll,body.has-bg .topbar,body.has-bg .xpbar,body.has-bg .wrap > p,body.has-bg .player-inner,body.has-bg .tabs{background:var(--card-glass); -webkit-backdrop-filter:blur(16px) saturate(1.3); backdrop-filter:blur(16px) saturate(1.3)}
 body.has-bg .test-ex,body.has-bg .mini,body.has-bg .sc,body.has-bg .snd-now,body.has-bg .track,body.has-bg .empty,body.has-bg .check,body.has-bg .theme-sw.locked,body.has-bg .slot{background:var(--paper-glass)}
 body.has-bg .btn.ghost{background:var(--card-glass)}
+/* see-through cards (Settings > Tab backgrounds): the wallpaper shows through; the paper scrolls stay solid */
+body.has-bg.cards-glass{--card-glass-x:color-mix(in srgb, var(--card-glass) 58%, transparent)}
+body.has-bg.cards-clear{--card-glass-x:color-mix(in srgb, var(--card-glass) 30%, transparent)}
+body.has-bg.cards-glass :is(.card,.tile,.scroll,.topbar,.xpbar,.wrap > p,.bubble,.btn.ghost),
+body.has-bg.cards-clear :is(.card,.tile,.scroll,.topbar,.xpbar,.wrap > p,.bubble,.btn.ghost){background:var(--card-glass-x); -webkit-backdrop-filter:blur(7px) saturate(1.25); backdrop-filter:blur(7px) saturate(1.25)}
+body.has-bg.cards-clear :is(.card,.tile,.scroll,.topbar,.xpbar,.wrap > p,.bubble,.btn.ghost){-webkit-backdrop-filter:blur(2.5px) saturate(1.2); backdrop-filter:blur(2.5px) saturate(1.2)}
+body.has-bg.cards-clear :is(.card,.tile,.topbar,.xpbar,.bubble) :is(h1,h2,h3,p,span,b,small,label,li,td,th,.muted,.eyebrow){text-shadow:0 0 6px var(--card), 0 0 2px var(--card)}
 .window{flex:none; height:clamp(120px,24vh,240px)}
 .peek-btn{flex:none; width:40px; height:40px; border-radius:50%; border:2px solid var(--panel); background:var(--card); color:var(--ink); display:grid; place-items:center; box-shadow:2px 2px 0 var(--panel)}
 .peek-btn svg{width:20px; height:20px}
@@ -908,7 +915,7 @@ const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chak
 /* ---------- per-device preferences ---------- */
 /* iPhone: let sounds and music play even when the ring/silent switch is on silent (iOS 17+). */
 try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
-const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false};
+const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, cards:'solid', sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false};
 const prefs = Object.assign({}, PREF_DEFAULTS, (()=>{ try{ return JSON.parse(localStorage.getItem('leaf-prefs')||'{}')||{}; }catch(e){ return {}; } })());
 try{ if(localStorage.getItem('leaf-sound')==='off') prefs.sfxOn=false; }catch(e){}
 let prefsTimer=null, appliedPrefs=null;
@@ -1319,7 +1326,7 @@ function missionCard(C){
     <button type="button" class="ms-roll" data-act="scroll-toggle" aria-controls="ms-paper" aria-expanded="${open}">
       <span class="roll-wood" aria-hidden="true"></span>
       <span class="roll-paper"><span class="roll-band l"></span><span class="roll-band r"></span><span class="roll-cord"></span>
-        <span class="roll-label"><span class="roll-seal" aria-hidden="true">${done?ico.check:m.seal}</span><span><b>Workout Scroll</b><small>${esc(m.title)} · ${esc(progress)} · <span class="roll-hint">Tap to unroll</span></small></span></span></span>
+        <span class="roll-label"><span class="roll-seal" aria-hidden="true">${done?ico.check:m.seal}</span><span><b>Workout Scroll</b><small>${esc(progress)}</small></span></span></span>
       <span class="cap l" aria-hidden="true"></span><span class="cap r" aria-hidden="true"></span>
     </button>
   </section>`;
@@ -2815,6 +2822,8 @@ function applyBg(){
     else { front.classList.remove('on'); back.classList.remove('on'); }
     document.body.classList.toggle('has-bg', !!rec);
   }
+  document.body.classList.toggle('cards-glass', prefs.cards==='glass');
+  document.body.classList.toggle('cards-clear', prefs.cards==='clear');
   const v=document.getElementById('bgveil');
   v.style.opacity = rec ? String(.85*(1-clamp(prefs.bgStrength,0,1))) : '0';
 }
@@ -2852,6 +2861,7 @@ function bgCard(){
     <p class="muted small">Put a photo behind each tab. Photos are saved on this phone, so they stay after you close the app.</p>
     <button type="button" class="switch" role="switch" aria-checked="${prefs.rankWalls!==false}" data-act="rank-walls"><span>Rank wallpapers on every tab<small class="muted" style="display:block;font-weight:400">Each tab shows a different picture from your rank's set, changing daily and when you rank up. Ranks without pictures yet use your own photos. Turn off to always use your own.</small></span><span class="switch-track" aria-hidden="true"><span></span></span></button>
     <button type="button" class="switch" role="switch" aria-checked="${prefs.bgAll}" data-act="bg-all"><span>Use one photo for all tabs</span><span class="switch-track" aria-hidden="true"><span></span></span></button>
+    <div class="field"><span>Cards</span><div class="chips" role="group" aria-label="How see-through the cards are">${[['solid','Solid'],['glass','Glass'],['clear','Clear']].map(([v,l])=>`<button type="button" class="chip" data-act="cards" data-v="${v}" aria-pressed="${(prefs.cards||'solid')===v}">${l}</button>`).join('')}</div><small class="muted">Glass and Clear let the wallpaper show through every card. The scrolls stay paper.</small></div>
     <label class="range"><span>Photo strength</span><input id="bg-strength" type="range" min="0" max="100" step="5" value="${Math.round(prefs.bgStrength*100)}" data-act="vol" data-k="bgStrength"></label>
     ${rows}
   </section>`;
@@ -2939,7 +2949,7 @@ function setupSyncCard(){
     <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="sync-on"${busy?' disabled':''}>${busy?'Bringing your village…':'Bring my village here'}</button></div>
   </section>`;
 }
-const NOTIFY_ROWS=[['briefing','Morning briefing'],['streak','Mission reminders'],['test','Test-day messages'],['study','Study reminders'],['sleep','Bedtime reminder'],['promotion','Promotion is close'],['weekly','Sunday weekly report']];
+const NOTIFY_ROWS=[['briefing','Morning briefing'],['streak','Mission reminders'],['test','Test-day messages'],['study','Study reminders'],['sleep','Bedtime reminder'],['timer','Study timer alerts (focus breaks, 3-hour check)'],['promotion','Promotion is close'],['weekly','Sunday weekly report']];
 function pushErrorText(e){
   const c=e && e.code;
   if(c==='denied') return 'Notifications were not allowed. To change that, open the iPad\'s Settings app → Notifications → Leaf Village.';
@@ -3621,6 +3631,7 @@ document.addEventListener('click', e=>{
   if(act==='push-off'){ if(!Sync) return; Sync.push.disable().then(()=>{ toast('Notifications are off on this device'); render(); }); return; }
   if(act==='push-test'){ if(!Sync) return; toast('Sending a test…'); Sync.push.test().then(r=>toast(r && r.sent ? 'Test sent. It should arrive in a few seconds.' : 'The test could not be delivered. Turn notifications off and on again.'), e=>toast(pushErrorText(e))); return; }
   if(act==='bg-all'){ prefs.bgAll=!prefs.bgAll; savePrefs(); render(); return; }
+  if(act==='cards'){ prefs.cards=['glass','clear'].includes(el.dataset.v)?el.dataset.v:'solid'; savePrefs(); applyBg(); render(); return; }
   if(act==='bg-focus'){ const sl=el.dataset.slot; prefs.bgFocus=Object.assign({},prefs.bgFocus,{[sl]:el.dataset.v}); savePrefs(); render(); return; }
   if(act==='bg-clear'){ const sl=el.dataset.slot, old=media().bg[sl]; if(!old) return; saveMedia(m=>{ delete m.bg[sl]; }); deleteAsset(old.id); toast('Background removed'); return; }
   if(act==='snd-test'){ if(!SFX.on){ toast('Sound effects are off. Turn them on above.'); return; } SFX.play(el.dataset.slot); return; }

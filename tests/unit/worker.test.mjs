@@ -196,3 +196,33 @@ test('with no device subscribed the cron does no work at all', async () => {
   const r = await runSlot(env, slotTime('2026-11-13', 'MORNING'), 'MORNING');
   assert.equal(r.sent, 0); assert.match(r.note, /no device/);
 });
+
+test('study timer alerts: focus breaks, back to work, and the 3-hour check, each sent once, from the synced timer', async () => {
+  const { timerAlert } = await import('../../worker/src/index.js');
+  const start = Date.parse('2026-11-10T06:00:00Z'), M = 60000;
+  const T = {state:'running', segStart:start, checkAt:start + 180 * M, sessionMs:0, focus:true};
+  assert.equal(timerAlert(T, start + 30 * M), null, 'nothing in the middle of a block');
+  assert.equal(timerAlert(T, start + 51 * M).kind, 'rest');
+  assert.equal(timerAlert(T, start + 61 * M).kind, 'work'); assert.equal(timerAlert(T, start + 61 * M).n, 2);
+  assert.equal(timerAlert(T, start + 70 * M), null, 'old alerts are not resent late');
+  assert.equal(timerAlert(T, start + 181 * M).kind, 'check');
+  assert.equal(timerAlert(Object.assign({}, T, {focus:false}), start + 51 * M), null, 'no focus alerts without focus cycles');
+  assert.equal(timerAlert(Object.assign({}, T, {focus:false}), start + 182 * M).kind, 'check', 'the 3-hour check works for the plain timer too');
+  assert.equal(timerAlert(Object.assign({}, T, {state:'paused'}), start + 51 * M), null);
+
+  const env = makeEnv();
+  await sync(env, 0, [{path:'leaf/main', data:{name:'Sharaf', startDate:'2026-11-01'}, mtime:0}, {path:'leaf/timer', data:T, mtime:0}]);
+  const e = nodeCrypto.createECDH('prime256v1'); e.generateKeys();
+  await call(env, 'POST', '/push/subscribe', {subscription:{endpoint:'https://web.push.apple.com/ipad', keys:{p256dh:b64u(e.getPublicKey()), auth:b64u(nodeCrypto.randomBytes(16))}}, device:'iPad'});
+  const sent = [], realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { sent.push({url, init}); return {status:201}; };
+  const tick = async at => { let p = null; await worker.scheduled({cron:'* * * * *', scheduledTime:at}, env, {waitUntil:x => { p = x; }}); await p; };
+  try{
+    await tick(start + 50 * M + 5000); assert.equal(sent.length, 1);
+    await tick(start + 51 * M); assert.equal(sent.length, 1, 'the same alert is never sent twice');
+    await tick(start + 60 * M + 2000); assert.equal(sent.length, 2);
+    await tick(start + 3 * 3600000 + 30000); assert.equal(sent.length, 3, 'the 3-hour check');
+    await sync(env, 0, [{path:'leaf/main', data:{name:'Sharaf', startDate:'2026-11-01', notify:{timer:false}}, mtime:Date.now() + 1000}, {path:'leaf/timer', data:Object.assign({}, T, {segStart:start + 4 * 3600000, checkAt:start + 7 * 3600000}), mtime:Date.now() + 1000}]);
+    await tick(start + 4 * 3600000 + 50 * M + 1000); assert.equal(sent.length, 3, 'the switch turns them off');
+  } finally { globalThis.fetch = realFetch; }
+});

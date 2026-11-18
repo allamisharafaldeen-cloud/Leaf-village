@@ -176,7 +176,7 @@ test('Undo still removes only the most recent entry, and the other device follow
 
 test('settings: the latest edit wins and reaches the other device (reminder switches)', async () => {
   await A.setTime(T0 + min(80)); await A.tab('settings');
-  assert.equal(await A.page.locator('[data-act="notify"]').count(), 8, 'eight reminder switches');
+  assert.equal(await A.page.locator('[data-act="notify"]').count(), 9, 'nine reminder switches');
   await A.page.evaluate(() => document.querySelector('[data-act="notify"][data-k="weekly"]').click());
   await until(async () => ((await A.docs())['leaf/main'].notify || {}).weekly === false, 'the switch to save');
   await A.sync(); await B.sync();
