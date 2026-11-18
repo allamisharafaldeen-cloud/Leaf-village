@@ -4,7 +4,8 @@
      The only way an entry goes away is the app's own Undo, which leaves a "removed" note
      (a tombstone) so the other copy drops that same entry too.
    - shield and offday: true wins.
-   - Everything else (settings, prefs, media, timer, weigh-ins): the latest edit wins. */
+   - Everything else (settings, prefs, media, timer, weigh-ins, sleep nights): the latest edit wins.
+     A sleep night can only be entered or changed on the morning it belongs to, so there is nothing to join. */
 (function(root, factory){
   if(typeof module === 'object' && module.exports) module.exports = factory();
   else root.LeafMerge = factory();
@@ -15,6 +16,7 @@ const DATE = '\\d{4}-\\d{2}-\\d{2}';
 const RE_DAY = new RegExp('^leaf/main/days/' + DATE + '$');
 const RE_STUDY = new RegExp('^leaf/main/study/' + DATE + '$');
 const RE_BODY = new RegExp('^leaf/main/body/' + DATE + '$');
+const RE_SLEEP = new RegExp('^leaf/main/sleep/' + DATE + '$');
 const SINGLE = { 'leaf/main':1, 'leaf/prefs':1, 'leaf/media':1, 'leaf/timer':1, 'leaf/summary':1 };
 
 /* 'day' | 'study' | 'lww' | null (null = not a document this app syncs) */
@@ -22,7 +24,7 @@ function kindOf(path){
   if(typeof path !== 'string') return null;
   if(RE_DAY.test(path)) return 'day';
   if(RE_STUDY.test(path)) return 'study';
-  if(RE_BODY.test(path) || SINGLE[path]) return 'lww';
+  if(RE_BODY.test(path) || RE_SLEEP.test(path) || SINGLE[path]) return 'lww';
   return null;
 }
 const isEntries = path => { const k = kindOf(path); return k === 'day' || k === 'study'; };

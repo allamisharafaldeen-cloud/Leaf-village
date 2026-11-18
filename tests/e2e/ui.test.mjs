@@ -263,7 +263,7 @@ test('backup: the download holds everything logged since, in the same format', a
   await A.tab('settings');
   const [dl] = await Promise.all([A.page.waitForEvent('download'), A.page.click('[data-act="backup"]')]);
   const out = JSON.parse(readFileSync(await dl.path(), 'utf8'));
-  assert.deepEqual(Object.keys(out).sort(), Object.keys(fixture).sort());
+  assert.deepEqual(Object.keys(out).sort(), Object.keys(fixture).concat(fixture.sleep ? [] : ['sleep']).sort());
   const docs = await A.docs();
   assert.deepEqual(out.days['2026-11-15'], docs[TODAY]); assert.deepEqual(out.study['2026-11-15'], docs['leaf/main/study/2026-11-15']);
   assert.deepEqual(out.settings, docs['leaf/main']);
@@ -540,14 +540,14 @@ test('achievements wall: every scroll with its date, hidden ones masked, and a m
   const B = await fresh('dawn', {now:at('2026-11-15', 5, 0)});
   await B.tab('ninja');
   const wall = B.page.locator('#ach-wall');
-  assert.equal(await wall.locator('.sc').count(), 33);
-  assert.match(await wall.locator('.section-head').textContent(), /18 \/ 33/);
+  assert.equal(await wall.locator('.sc').count(), 35);
+  assert.match(await wall.locator('.section-head').textContent(), /18 \/ 35/);
   assert.equal(await wall.locator('.sc:not(.locked)').count(), 18);
   const text = (await wall.textContent()).replace(/\s+/g, ' ');
   assert.match(text, /First MissionComplete your first missionEarned 6 Sep/); assert.match(text, /Four Teachers/, 'a secret scroll that was earned shows its name');
   assert.doesNotMatch(text, /Dawn Patrol|Thursday Scholar|The Hat/, 'secret scrolls not yet earned stay hidden');
   assert.equal(await wall.locator('.sc.secret').count(), 4);
-  assert.match(text, /Secret · 2 \/ 6/); assert.match(text, /Streaks · 4 \/ 6/);
+  assert.match(text, /Secret · 2 \/ 6/); assert.match(text, /Streaks · 4 \/ 8/);
   assert.equal(await B.page.evaluate(() => document.getElementById('achpop').hidden), true, 'nothing pops for scrolls earned long ago');
   await sleep(2300);
   assert.equal(await B.page.evaluate(() => JSON.parse(localStorage.getItem('leaf-ach-seen')).length), 18);
@@ -559,7 +559,7 @@ test('achievements wall: every scroll with its date, hidden ones masked, and a m
   assert.equal(await B.page.evaluate(() => JSON.parse(localStorage.getItem('leaf-ach-seen')).includes('dawn')), true);
   await B.tab('ninja');
   assert.match(await B.page.locator('#ach-wall [data-ach="dawn"]').textContent(), /Dawn Patrol.*Earned 15 Nov/);
-  assert.match(await B.page.locator('#ach-wall .section-head').textContent(), /19 \/ 33/);
+  assert.match(await B.page.locator('#ach-wall .section-head').textContent(), /19 \/ 35/);
   await B.page.waitForSelector('#achpop', {state:'hidden', timeout:6000});
   await B.page.reload(); await B.page.waitForSelector('#ach-wall'); await sleep(2500);
   assert.equal(await B.page.evaluate(() => document.getElementById('achpop').hidden), true, 'it is announced once');

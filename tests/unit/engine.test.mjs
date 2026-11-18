@@ -341,7 +341,7 @@ test('chapter titles follow what happened in the month', () => {
 
 test('achievements: each is earned on the right day, and the old seventeen still mean what they meant', () => {
   const C = E.compute(FIX, at('2026-11-15', 10)), A = Object.fromEntries(E.achievements(C).map(a => [a.id, a.date]));
-  assert.equal(E.ACHIEVEMENTS.length, 33); assert.equal(new Set(E.ACHIEVEMENTS.map(a => a.id)).size, 33);
+  assert.equal(E.ACHIEVEMENTS.length, 35); assert.equal(new Set(E.ACHIEVEMENTS.map(a => a.id)).size, 35);
   ['first', 's7', 's30', 's100', 'pr', 'clean', 'p10', 'p15', 'p20', 'd25', 'd30', 'd40', 'tp1k', 'td2k', 'scale', 'genin', 'comeback'].forEach(id => assert.ok(id in A, `${id} is still there`));
   assert.equal(A.first, '2026-09-06'); assert.equal(A.p10, '2026-09-06', 'the starting max already counts');
   assert.equal(A.s7, '2026-09-12'); assert.equal(A.s30, null); assert.equal(A.clean, '2026-09-12');
@@ -515,4 +515,62 @@ test('jutsu: each unlocks at its rank, is only an exercise once its own baseline
   const C3 = E.compute(L, at('2026-11-17', 9));
   assert.equal(C3.todayRec.plan.ex, 'archer-pullups'); assert.equal(C3.todayRec.info.target, 2);
   agree(L, at('2026-11-17', 9), 'jutsu day');
+});
+
+/* ---------- sleep ---------- */
+test('sleep: a good night needs hours, bedtime and wake time; earlier is fine; on call keeps the streak; nothing costs XP', () => {
+  const V = cleanWeek();
+  V.sleep = {
+    '2026-11-02':{date:'2026-11-02', mins:470, score:85, bed:'19:40', wake:'03:50'},   // good + score bonus
+    '2026-11-03':{date:'2026-11-03', mins:460, score:79, bed:'18:30', wake:'02:40'},   // earlier is fine: good, no bonus
+    '2026-11-04':{date:'2026-11-04', oncall:true, mins:0, score:null, bed:null, wake:null},
+    '2026-11-05':{date:'2026-11-05', mins:500, score:90, bed:'00:30', wake:'04:00'},   // asleep after midnight: short, still +10
+    '2026-11-06':{date:'2026-11-06', mins:440, score:70, bed:'19:30', wake:'03:30'}    // 7h20 < 7h30: short
+  };
+  const C = E.compute(V, at('2026-11-08', 12));
+  const st = d => C.sleep.days[d];
+  assert.deepEqual(['02','03','04','05','06','07','08'].map(x => st('2026-11-' + x).status), ['good','good','oncall','short','short','missed','open']);
+  assert.deepEqual(['02','03','04','05','06'].map(x => st('2026-11-' + x).xp), [30, 20, 0, 10, 0]);
+  assert.equal(st('2026-11-04').streak, 2, 'on call keeps the streak');
+  assert.equal(st('2026-11-05').streak, 0); assert.equal(C.sleep.best, 2);
+  assert.equal(st('2026-11-05').checks.bed, false); assert.equal(st('2026-11-06').checks.hours, false);
+  const without = E.compute(Object.assign(clone(V), {sleep:{}}), at('2026-11-08', 12));
+  assert.equal(C.total - without.total, 60, 'sleep XP is added on top and nothing is ever taken away');
+  assert.equal(C.weeks['2026-11-01'].xp, without.weeks['2026-11-01'].xp, 'sleep XP stays out of the shadow clone race');
+});
+
+test('sleep: the goal comes from the schedule, so a change starts tomorrow and never rewrites a past night', () => {
+  const V = cleanWeek();
+  V.sleep = {'2026-11-03':{date:'2026-11-03', mins:460, score:80, bed:'19:40', wake:'03:50'}};
+  V.settings.scheduleHistory.push(Object.assign(clone(V.settings.scheduleHistory[0]), {from:'2026-11-04', sleep:{mins:480, bedBy:1170, wakeBy:240}}));
+  V.sleep['2026-11-04'] = {date:'2026-11-04', mins:460, score:80, bed:'19:40', wake:'03:50'};
+  const C = E.compute(V, at('2026-11-04', 12));
+  assert.equal(C.sleep.days['2026-11-03'].status, 'good', 'the old goal still judges the old night');
+  assert.equal(C.sleep.days['2026-11-04'].status, 'short');
+  assert.deepEqual(C.sleep.days['2026-11-04'].checks, {hours:false, bed:false, wake:true});
+});
+
+test('sleep: the Worker agrees with the app day by day, also when resuming from a checkpoint', () => {
+  const V = cleanWeek();
+  V.sleep = {}; ['2026-11-02','2026-11-03','2026-11-05','2026-11-06','2026-11-09','2026-11-10'].forEach((d, i) => { V.sleep[d] = {date:d, mins:440 + i * 10, score:75 + i * 2, bed:'19:45', wake:'03:55'}; });
+  V.sleep['2026-11-04'] = {date:'2026-11-04', oncall:true, mins:0};
+  const now = at('2026-11-11', 20), A = E.compute(V, now), W = computeAll(V, now);
+  assert.equal(W.total, A.total);
+  A.sleep.list.forEach(r => { assert.equal(W.sleep.days[r.date].status, r.status, r.date); assert.equal(W.sleep.days[r.date].xp, r.xp, r.date); });
+  const cp = computeAll(V, now, {until:'2026-11-07'}).state, R = computeAll(V, now, {resume:cp});
+  assert.equal(R.total, A.total); assert.equal(R.sleep.streak, A.sleep.streak);
+});
+
+test('sleep: a backup keeps good nights and drops broken ones', () => {
+  const V = cleanWeek();
+  const d = Object.assign({app:'The Leaf Village'}, clone(V), {sleep:{
+    '2026-11-02':{date:'2026-11-02', mins:470, score:85, bed:'19:40', wake:'03:50'},
+    '2026-11-03':{date:'2026-11-03', oncall:true},
+    '2026-11-04':{date:'2026-11-04', mins:'lots'},
+    'yesterday':{mins:400}}});
+  const r = E.cleanBackup(d, at('2026-11-08', 12));
+  assert.equal(r.ok, true);
+  assert.deepEqual(Object.keys(r.data.sleep).sort(), ['2026-11-02','2026-11-03']);
+  assert.equal(r.data.sleep['2026-11-02'].mins, 470);
+  assert.ok(r.fixed >= 2);
 });

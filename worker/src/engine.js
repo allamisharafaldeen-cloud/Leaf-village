@@ -138,6 +138,47 @@ export function computeStudy(data, today, nowMs, opts){
   }
   return res;
 }
+/* ---------- sleep (same rules as leaf-engine.js) ---------- */
+export const SLEEP = {goodXp:20, scoreXp:10, scoreMin:80};
+const SLEEP_DEFAULT = {mins:450, bedBy:1200, wakeBy:240};
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const clockMin = v => { const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})$/.exec(v) : null; if(!m) return null; const h = +m[1], mi = +m[2]; return (h < 24 && mi < 60) ? h * 60 + mi : null; };
+const inRange = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+export const sleepGoal = (s, d) => { const e = entryFor(s || {}, d), p = (e && isObj(e.sleep)) ? e.sleep : {};
+  return {mins:inRange(p.mins, 240, 720) ? p.mins : SLEEP_DEFAULT.mins, bedBy:inRange(p.bedBy, 0, 1439) ? p.bedBy : SLEEP_DEFAULT.bedBy, wakeBy:inRange(p.wakeBy, 0, 1439) ? p.wakeBy : SLEEP_DEFAULT.wakeBy}; };
+const eveClock = m => m < 720 ? m + 1440 : m, mornClock = m => m >= 1080 ? m - 1440 : m;
+function sleepNight(doc){
+  if(!isObj(doc)) return null;
+  const oncall = !!doc.oncall, mins = (typeof doc.mins === 'number' && isFinite(doc.mins) && doc.mins > 0) ? Math.min(Math.round(doc.mins), 1440) : 0;
+  const score = (typeof doc.score === 'number' && isFinite(doc.score)) ? Math.max(0, Math.min(100, Math.round(doc.score))) : null;
+  return {oncall, mins, score, bed:clockMin(doc.bed), wake:clockMin(doc.wake), logged:!oncall && mins > 0};
+}
+export function computeSleep(data, today, opts){
+  const s = data.settings || {}, docs = isObj(data.sleep) ? data.sleep : {}, o = opts || {}, from = o.resume || null, until = o.until || today;
+  const res = {days:{}, list:[], streak:from && from.sleep ? from.sleep.streak : 0, best:from && from.sleep ? from.sleep.best : 0, start:from && from.sleep ? from.sleep.start : null};
+  const dates = Object.keys(docs).filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k) && k <= today && sleepNight(docs[k])).sort();
+  if(!res.start && dates.length) res.start = dates[0];
+  if(!res.start) return res;
+  const first = from && addDays(from.date, 1) > res.start ? addDays(from.date, 1) : res.start;
+  for(let d = first, g = 0; d <= until && g < 4000; d = addDays(d, 1), g++){
+    const n = sleepNight(docs[d]), goal = sleepGoal(s, d), exam = isExam(s, d);
+    const checks = n && n.logged ? {hours:n.mins >= goal.mins, bed:n.bed != null && eveClock(n.bed) <= eveClock(goal.bedBy), wake:n.wake != null && mornClock(n.wake) <= mornClock(goal.wakeBy)} : null;
+    let status;
+    if(n && n.oncall) status = 'oncall';
+    else if(checks && checks.hours && checks.bed && checks.wake) status = 'good';
+    else if(exam) status = 'exam';
+    else if(checks) status = 'short';
+    else status = d < today ? 'missed' : 'open';
+    let xp = status === 'good' ? SLEEP.goodXp : 0;
+    if(checks && n.score != null && n.score >= SLEEP.scoreMin) xp += SLEEP.scoreXp;
+    if(status === 'good'){ res.streak++; res.best = Math.max(res.best, res.streak); }
+    else if(status === 'short' || status === 'missed') res.streak = 0;
+    const rec = {date:d, mins:n ? n.mins : 0, score:n ? n.score : null, oncall:!!(n && n.oncall), logged:!!(n && n.logged), goal, checks, status, xp, streak:res.streak};
+    res.days[d] = rec; res.list.push(rec);
+  }
+  return res;
+}
+
 function comboMatches(hours, sets){
   const ts = sets.map(x => +new Date(x.t)).filter(n => !isNaN(n)).sort((a, b) => a - b), used = new Set(); let n = 0;
   hours.forEach(h => { const i = ts.findIndex((t, k) => !used.has(k) && t >= h && t <= h + STUDY.comboWindow); if(i >= 0){ used.add(i); n++; } });
@@ -162,7 +203,7 @@ export function computeAll(data, nowMs, opts){
   const bodyDates = new Set(bodyList.map(b => b.date));
   let total = 0, peak = 0, streak = 0, bestStreak = 0, doneCount = 0, missedCount = 0, last = from ? from.date : null;
   if(from){ total = from.total; peak = from.peak; streak = from.streak; bestStreak = from.bestStreak; doneCount = from.doneCount; missedCount = from.missedCount; }
-  const study = computeStudy(data, today, nowMs, o);
+  const study = computeStudy(data, today, nowMs, o), sleep = computeSleep(data, today, o);
   if(s.startDate && s.startDate <= today){
     let guard = 0;
     for(let d = from ? addDays(from.date, 1) : s.startDate; d <= until && guard < 4000; d = addDays(d, 1), guard++){
@@ -230,7 +271,9 @@ export function computeAll(data, nowMs, opts){
       const before = total;
       if(srec){ total = Math.max(0, total + srec.xp); if(srec.award) awards.push(study.awards.find(a => a.date === d)); }
       total = Math.max(0, total + xp);
+      const slr = sleep.days[d];
       W.xp += total - before; if(srec) W.mins += srec.mins;
+      if(slr) total += slr.xp;
       if(dow(d) === 6 && d < today){ W.rival = raceResult(W, weeks[addDays(wk, -RIVAL.back)]); if(W.rival && W.rival.win){ xp += RIVAL.xp; total += RIVAL.xp; } }
       peak = Math.max(peak, rankFor(total));
       days.push({date:d, plan, sets, status, xp, base, info, streak, bonus});
@@ -241,15 +284,15 @@ export function computeAll(data, nowMs, opts){
   const r = RANKS[peak], nx = RANKS[peak + 1];
   /* everything needed to carry on from the last processed day */
   const tail = last ? Object.keys(weeks).filter(k => k <= last).sort().slice(-4).map(k => { const w = weeks[k]; return {start:w.start, days:w.days, xp:w.xp, repsAll:w.repsAll, mins:w.mins, ex:w.ex || 0}; }) : [];
-  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), study:{streak:study.streak, best:study.best}, tail} : null;
-  return { today, settings:s, study, awards, weekNow, weeks, todayRec, days, state, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount,
+  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), study:{streak:study.streak, best:study.best}, sleep:{streak:sleep.streak, best:sleep.best, start:sleep.start}, tail} : null;
+  return { today, settings:s, study, sleep, awards, weekNow, weeks, todayRec, days, state, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount,
     maxes, best, prs, totalReps, exIds, body:bodyList, bodyDates,
     rank:r.name, nextRank:nx ? nx.name : null, xpToNext:nx ? Math.max(0, nx.xp - total) : null };
 }
 
 /* turn a flat {path: data} map (what the database holds) into the snapshot the engine reads */
 export function snapshotFromDocs(map){
-  const out = {settings:null, days:{}, study:{}, body:{}, timer:null, summary:null};
+  const out = {settings:null, days:{}, study:{}, body:{}, sleep:{}, timer:null, summary:null};
   Object.keys(map).forEach(path => {
     const v = map[path]; if(!v || typeof v !== 'object') return;
     if(path === 'leaf/main') out.settings = v;
@@ -258,6 +301,7 @@ export function snapshotFromDocs(map){
     else if(path.startsWith('leaf/main/days/')) out.days[path.slice(15)] = v;
     else if(path.startsWith('leaf/main/study/')) out.study[path.slice(16)] = v;
     else if(path.startsWith('leaf/main/body/')) out.body[path.slice(15)] = v;
+    else if(path.startsWith('leaf/main/sleep/')) out.sleep[path.slice(16)] = v;
   });
   return out;
 }

@@ -175,6 +175,55 @@ function computeStudy(data, today, now){
   }
   return res;
 }
+/* ---------- sleep ----------
+   Each night is logged on the morning you wake up: minutes slept and a 0-100 score (both copied from a sleep app),
+   plus the times you fell asleep and woke up. A good night meets all three goals: long enough, asleep by the
+   bedtime, up by the wake time (earlier is always fine). Goals live in the schedule entry, so a change starts
+   tomorrow like every other plan change. Missing a night never costs XP; it only resets the sleep streak.
+   An on-call night (hospital shift) is neutral: no XP, and the streak is kept. */
+const SLEEP = {goodXp:20, scoreXp:10, scoreMin:80, aura:.1};
+const SLEEP_DEFAULT = {mins:450, bedBy:1200, wakeBy:240};
+const clockMin = v => { const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})$/.exec(v) : null; if(!m) return null; const h = +m[1], mi = +m[2]; return (h < 24 && mi < 60) ? h*60 + mi : null; };
+const inRange = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
+const sleepPlanOf = e => { const p = (e && isObj(e.sleep)) ? e.sleep : {};
+  return {mins:inRange(p.mins, 240, 720) ? p.mins : SLEEP_DEFAULT.mins, bedBy:inRange(p.bedBy, 0, 1439) ? p.bedBy : SLEEP_DEFAULT.bedBy, wakeBy:inRange(p.wakeBy, 0, 1439) ? p.wakeBy : SLEEP_DEFAULT.wakeBy}; };
+const sleepGoal = (s, d) => sleepPlanOf(entryFor(s || {}, d));
+/* bedtimes compare on a noon-to-noon clock (so 00:30 is later than 20:00), wake times on a 6 pm-to-6 pm clock */
+const eveClock = m => m < 720 ? m + 1440 : m, mornClock = m => m >= 1080 ? m - 1440 : m;
+const bedOk = (bed, by) => bed != null && eveClock(bed) <= eveClock(by);
+const wakeOk = (w, by) => w != null && mornClock(w) <= mornClock(by);
+function sleepNight(doc){
+  if(!isObj(doc)) return null;
+  const oncall = !!doc.oncall, mins = (typeof doc.mins === 'number' && isFinite(doc.mins) && doc.mins > 0) ? Math.min(Math.round(doc.mins), 1440) : 0;
+  const score = (typeof doc.score === 'number' && isFinite(doc.score)) ? Math.max(0, Math.min(100, Math.round(doc.score))) : null;
+  return {oncall, mins, score, bed:clockMin(doc.bed), wake:clockMin(doc.wake), logged:!oncall && mins > 0};
+}
+function computeSleep(data, today){
+  const s = data.settings || {}, docs = isObj(data.sleep) ? data.sleep : {};
+  const res = {days:{}, list:[], streak:0, best:0, start:null};
+  const dates = Object.keys(docs).filter(k => isDate(k) && k <= today && sleepNight(docs[k])).sort();
+  if(!dates.length) return res;
+  res.start = dates[0];
+  for(let d = res.start, g = 0; d <= today && g < 4000; d = addDays(d, 1), g++){
+    const n = sleepNight(docs[d]), goal = sleepGoal(s, d), exam = isExam(s, d);
+    const checks = n && n.logged ? {hours:n.mins >= goal.mins, bed:bedOk(n.bed, goal.bedBy), wake:wakeOk(n.wake, goal.wakeBy)} : null;
+    let status;
+    if(n && n.oncall) status = 'oncall';
+    else if(checks && checks.hours && checks.bed && checks.wake) status = 'good';
+    else if(exam) status = 'exam';
+    else if(checks) status = 'short';
+    else status = d < today ? 'missed' : 'open';
+    let xp = status === 'good' ? SLEEP.goodXp : 0;
+    if(checks && n.score != null && n.score >= SLEEP.scoreMin) xp += SLEEP.scoreXp;
+    const before = res.streak;
+    if(status === 'good'){ res.streak++; res.best = Math.max(res.best, res.streak); }
+    else if(status === 'short' || status === 'missed') res.streak = 0;
+    const rec = {date:d, mins:n ? n.mins : 0, score:n ? n.score : null, bed:n ? n.bed : null, wake:n ? n.wake : null, oncall:!!(n && n.oncall), logged:!!(n && n.logged), goal, checks, exam, status, xp, streak:res.streak, broke:(status === 'short' || status === 'missed') && before > 0};
+    res.days[d] = rec; res.list.push(rec);
+  }
+  return res;
+}
+
 /* match each completed study hour to one workout set logged within the next 60 minutes */
 function comboMatches(hours, sets){
   const ts = sets.map(x => +new Date(x.t)).filter(n => !isNaN(n)).sort((a, b) => a - b), used = new Set(); let n = 0; const free = [];
@@ -201,7 +250,7 @@ function compute(data, nowMs){
   const days = [], prs = [], weeks = {}, awards = [];
   const body = bodyList(data), bodyDates = new Set(body.map(b => b.date));
   let total = 0, peak = 0, streak = 0, bestStreak = 0, doneCount = 0, missedCount = 0;
-  const study = computeStudy(data, today, now); let readyUntil = 0;
+  const study = computeStudy(data, today, now), sleep = computeSleep(data, today); let readyUntil = 0;
   if(isDate(s.startDate) && s.startDate <= today){
     let guard = 0;
     for(let d = s.startDate; d <= today && guard < 4000; d = addDays(d, 1), guard++){
@@ -269,11 +318,14 @@ function compute(data, nowMs){
       const beforeTotal = total;
       if(srec){ total = Math.max(0, total + srec.xp); if(srec.award) awards.push(study.awards.find(a => a.date === d)); }
       total = Math.max(0, total + xp);
+      /* sleep XP is added after, and kept out of the week's race total (the shadow clone's older weeks had none) */
+      const slr = sleep.days[d], slxp = slr ? slr.xp : 0;
       W.xp += total - beforeTotal; if(srec) W.mins += srec.mins;
+      total += slxp;
       let rival = 0;
       if(dowOf(d) === 6 && d < today){ W.rival = raceResult(W, weeks[addDays(wk, -RIVAL.back)]); if(W.rival && W.rival.win){ rival = RIVAL.xp; xp += rival; total += rival; } }
       peak = Math.max(peak, rankFor(total));
-      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, rival, sxp:srec ? srec.xp : 0, gain:total - beforeTotal, total, peak, maxes:plan.type === 'test' ? Object.assign({}, maxes) : null});
+      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, rival, sxp:srec ? srec.xp : 0, slxp, gain:total - beforeTotal, total, peak, maxes:plan.type === 'test' ? Object.assign({}, maxes) : null});
     }
   }
   const todayRec = days.length && days[days.length-1].date === today ? days[days.length-1] : null;
@@ -283,7 +335,7 @@ function compute(data, nowMs){
   const power = weight ? Math.round(((maxes.pullups || 0)*3 + (maxes.dips || 0))*weight/10) : null;
   const weekNow = weeks[weekStart(today)] || {qual:0, weigh:0, prDone:false, days:0, missed:0};
   const startedMidWeek = weekStart(s.startDate || today) === weekStart(today) && dowOf(s.startDate || today) !== 0;
-  return { settings:s, now, study, readyUntil, awards, weekNow, weeks, startedMidWeek, today, todayRec, days, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount, maxes, best, maxHist, prs, totalReps, weekList, cleanWeeks, body, weight, power, exIds };
+  return { settings:s, now, study, sleep, readyUntil, awards, weekNow, weeks, startedMidWeek, today, todayRec, days, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount, maxes, best, maxHist, prs, totalReps, weekList, cleanWeeks, body, weight, power, exIds };
 }
 
 /* when a streak broke, and when a broken streak was rebuilt to 7 */
@@ -343,6 +395,7 @@ function cleanBackup(d, nowMs){
       const st = {week:okT(sp.week) ? sp.week : STUDY_DEFAULT.week, end:okT(sp.end) ? sp.end : STUDY_DEFAULT.end};
       if(!same(st, e.study)){ out.study = st; fixed++; }
     }
+    if(e.sleep !== undefined){ const sl = sleepPlanOf(e); if(!same(sl, e.sleep)){ out.sleep = sl; fixed++; } }
     hist.push(out);
   });
   if(!hist.length){ hist.push({from:s.startDate, plan:JSON.parse(JSON.stringify(DEFAULT_PLAN)), gtg:Object.assign({}, DEFAULT_GTG), test:{sets:2, ex:Object.keys(s.exercises).slice(0, 2)}}); fixed++; }
@@ -375,6 +428,13 @@ function cleanBackup(d, nowMs){
     fixed += list.length - good.length;
     return Object.assign({}, doc, {date:k, entries:good});
   });
+  const sleep = coll(d.sleep, (k, doc) => {
+    const n = sleepNight(doc); if(!n || (!n.oncall && !n.logged)) return null;
+    const out = {date:k, mins:n.mins, score:n.score, bed:n.bed == null ? null : doc.bed, wake:n.wake == null ? null : doc.wake, oncall:n.oncall};
+    if(typeof doc.t === 'string') out.t = doc.t;
+    if(out.mins !== doc.mins || out.score !== (doc.score === undefined ? null : doc.score) || (doc.bed != null && n.bed == null) || (doc.wake != null && n.wake == null)) fixed++;
+    return out;
+  });
   const body = coll(d.body, (k, doc) => (typeof doc.weight === 'number' && isFinite(doc.weight) && doc.weight >= 20 && doc.weight <= 500) ? (doc.date === k ? doc : Object.assign({}, doc, {date:k})) : null);
   let timer = d.timer;
   if(timer != null){
@@ -384,6 +444,7 @@ function cleanBackup(d, nowMs){
     if(!okRun && !okIdle){ timer = {state:'idle'}; if(!(isObj(d.timer) && d.timer.state === 'running')) fixed++; }
   }
   const out = Object.assign({}, d, {settings:s, days, study, body, timer});
+  if(d.sleep !== undefined) out.sleep = sleep;
   if(!isObj(d.prefs)) delete out.prefs;
   if(!isObj(d.media)) delete out.media;
   if(studyStart != null && !isDate(studyStart)) delete out.studyStart;
@@ -419,6 +480,8 @@ const ACHIEVEMENTS = [
   {id:'s100',     cat:'Streaks',  name:'Hundred-Day Vow',    need:'Hold a 100-day workout streak'},
   {id:'ss7',      cat:'Streaks',  name:'Seven Scrolls',      need:'Hold a 7-day study streak'},
   {id:'ss30',     cat:'Streaks',  name:'Thirty Lamps',       need:'Hold a 30-day study streak'},
+  {id:'sl7',      cat:'Streaks',  name:'Seven Quiet Nights', need:'Seven good nights of sleep in a row'},
+  {id:'sl30',     cat:'Streaks',  name:'The Rested Mind',    need:'Thirty good nights of sleep in a row'},
   {id:'comeback', cat:'Streaks',  name:'Back from the Dead', need:'Rebuild a broken streak to 7 days'},
   {id:'dawn',     cat:'Secret',   name:'Dawn Patrol',        need:'Log a set between 4 and 6 in the morning', hidden:true},
   {id:'offday8',  cat:'Secret',   name:'Thursday Scholar',   need:'Fill the scroll on an off-day Thursday (8 hours)', hidden:true},
@@ -473,6 +536,7 @@ function achievements(C){
     const wk = weekStart(r.date), W = sw[wk] || (sw[wk] = {days:0, need:0, full:0});
     W.days++; if(r.tgt && !r.tgt.off){ W.need++; if(r.mins >= r.tgt.full) W.full++; }
   });
+  (C.sleep ? C.sleep.list : []).forEach(r => { if(r.streak >= 7) set('sl7', r.date); if(r.streak >= 30) set('sl30', r.date); });
   Object.keys(sw).forEach(wk => { const W = sw[wk]; if(W.days === 7 && W.need >= 6 && W.full === W.need && addDays(wk, 6) <= C.today) set('fullweek', addDays(wk, 6)); });
   Object.values(monthsOf(C)).forEach(m => { if(m.perfect) set('month', m.end); });
   const st = streakStory(C); if(st.first) set('comeback', st.first);
@@ -517,8 +581,12 @@ function monthReport(C, ym){
   const body = C.body.filter(b => b.date >= first && b.date <= end);
   const story = streakStory(C), comeback = !!(story.comeback && story.comeback.date >= first && story.comeback.date <= end);
   const exam = examList(s).some(e => e && e.start <= end && e.end >= first);
+  const sl = (C.sleep ? C.sleep.list : []).filter(r => r.date >= first && r.date <= end), slLog = sl.filter(r => r.logged), slScore = slLog.filter(r => r.score != null);
+  const sleepR = sl.length ? {nights:slLog.length, good:sl.filter(r => r.status === 'good').length, oncall:sl.filter(r => r.status === 'oncall').length,
+    avgMins:slLog.length ? slLog.reduce((m, r) => m + r.mins, 0)/slLog.length : 0, avgScore:slScore.length ? Math.round(slScore.reduce((m, r) => m + r.score, 0)/slScore.length) : null,
+    bestStreak:sl.reduce((m, r) => Math.max(m, r.streak), 0)} : null;
   const R = {ym, label:monthLabel(ym), from, to, complete:end < C.today, name:s.name || 'Ninja', study, reps, maxes, prs, missions, xp, bestStreak, rankFrom, rankTo, promoted:rankTo > rankFrom,
-    awards:awards.length, earned, comeback, exam, weight:body.length ? {from:body[0].weight, to:body[body.length-1].weight, n:body.length} : null, totalAfter:lastDay ? lastDay.total : 0};
+    awards:awards.length, earned, comeback, exam, sleep:sleepR, weight:body.length ? {from:body[0].weight, to:body[body.length-1].weight, n:body.length} : null, totalAfter:lastDay ? lastDay.total : 0};
   R.title = chapterTitle(R);
   R.summary = hokageSummary(R);
   return R;
@@ -623,7 +691,7 @@ function rival(C){
   const ws = weekStart(C.today), cs = addDays(ws, -RIVAL.back), k = dowOf(C.today);
   const byDate = {}; C.days.forEach(d => { byDate[d.date] = d; });
   const sum = (start, n) => { const t = {xp:0, repsAll:0, mins:0, days:0, exam:0};
-    for(let i = 0; i < n; i++){ const d = addDays(start, i), r = byDate[d]; if(!r) continue; t.days++; t.xp += r.gain - (r.rival || 0); r.sets.forEach(x => { t.repsAll += x.reps; }); if(isExam(C.settings, d)) t.exam++; const sr = C.study.days[d]; if(sr) t.mins += sr.mins; }
+    for(let i = 0; i < n; i++){ const d = addDays(start, i), r = byDate[d]; if(!r) continue; t.days++; t.xp += r.gain - (r.rival || 0) - (r.slxp || 0); r.sets.forEach(x => { t.repsAll += x.reps; }); if(isExam(C.settings, d)) t.exam++; const sr = C.study.days[d]; if(sr) t.mins += sr.mins; }
     return t; };
   const lastWk = addDays(ws, -7), L = C.weeks[lastWk], last = (L && L.rival) ? Object.assign({week:lastWk, xp:L.rival.win ? RIVAL.xp : 0}, L.rival) : null;
   const themWeek = sum(cs, 7), me = sum(ws, k + 1), them = sum(cs, k + 1), meWeek = sum(ws, 7);
@@ -659,6 +727,7 @@ return {
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
+  SLEEP, SLEEP_DEFAULT, sleepPlanOf, sleepGoal, clockMin, bedOk, wakeOk, sleepNight, computeSleep,
   ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival, FOCUS, focusSpans, timerSpans, JUTSU, jutsu
 };
 });

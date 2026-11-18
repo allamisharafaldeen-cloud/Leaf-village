@@ -1,16 +1,18 @@
 /* The Leaf Village · what the senseis say, and when.
    decide() is a pure function: give it the synced documents, the time and the slot, and it returns
    the one notification to send (or nothing). The rules are the ones from docs/fable-session-1.md. */
-import { computeAll, planFor, examFor, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt } from './engine.js';
+import { computeAll, planFor, examFor, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, sleepGoal } from './engine.js';
 import { LINES, SENSEI_NAMES, fill } from './lines.js';
 
-export const SLOT_BY_HOUR = {5:'MORNING', 11:'MIDDAY', 17:'EVENING', 22:'LASTCALL'};
+/* 5:40, 11:40, 14:40, then the last call two hours before the 19:00 sleep window and Jiraiya's bedtime reminder an hour before it */
+export const SLOT_BY_HOUR = {5:'MORNING', 11:'MIDDAY', 14:'EVENING', 17:'LASTCALL', 18:'BEDTIME'};
 export const slotAt = nowMs => SLOT_BY_HOUR[hourAt(nowMs)] || null;
-export const TITLES = {MORNING:'Morning briefing', MIDDAY:'Midday check', EVENING:'Evening check', LASTCALL:'Last call'};
-export const NOTIFY_DEFAULT = {enabled:true, briefing:true, streak:true, test:true, promotion:true, weekly:true, study:true};
+export const TITLES = {MORNING:'Morning briefing', MIDDAY:'Midday check', EVENING:'Afternoon check', LASTCALL:'Last call', BEDTIME:'Bedtime'};
+export const NOTIFY_DEFAULT = {enabled:true, briefing:true, streak:true, test:true, promotion:true, weekly:true, study:true, sleep:true};
 export const MAX_CHARS = 320;
 
 const fmtH = m => { m = Math.max(0, Math.round(m)); const h = Math.floor(m / 60), r = m % 60; return h ? (r ? `${h}h ${r}m` : `${h}h`) : `${r}m`; };
+const clock = m => { m = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
 const fmtN = n => String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + fmtN(n);
 const hash = str => { let h = 2166136261; for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
@@ -48,6 +50,11 @@ export function decide({data, nowMs, slot, picks, resume}){
   const say = (sensei, key, vars) => { const prev = out.picks[key]; const text = fill(choose(key, out.picks, today), Object.assign({name}, vars)); out.pieces.push({sensei, key, prev, text:text.charAt(0).toUpperCase() + text.slice(1)}); };
   const lower = id => exName(s, id).toLowerCase();
 
+  /* bedtime: Jiraiya, an hour before the sleep window (tonight's night is logged on tomorrow's date) */
+  if(slot === 'BEDTIME'){
+    if(n.sleep){ const g = sleepGoal(s, addDays(today, 1)); say('jiraiya', 'jiraiya.bedtime', {from:clock(g.bedBy - 60), by:clock(g.bedBy), wake:clock(g.wakeBy), hours:fmtH(g.mins)}); }
+    return finish(out);
+  }
   /* exam week: no nags at all; one calm line in the morning */
   const exam = examFor(s, today);
   if(exam){
@@ -78,6 +85,9 @@ export function decide({data, nowMs, slot, picks, resume}){
       else say('jiraiya', 'jiraiya.brief.rest', {});
     }
     if(n.briefing && studyOpen) say('hiruzen', 'hiruzen.study.target', {min:fmtH(rec.tgt.min), full:fmtH(rec.tgt.full)});
+    /* last night not in the Sleep Scroll yet (only once the sleep log has been started) */
+    const sl = C.sleep && C.sleep.start ? C.sleep.days[today] : null;
+    if(n.sleep && C.sleep && C.sleep.start && (!sl || (!sl.logged && !sl.oncall))) say('jiraiya', 'jiraiya.sleep.log', {});
     return finish(out);
   }
 

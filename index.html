@@ -28,7 +28,7 @@
   --scrim:rgba(14,22,16,.62); --rod:#3b2a1c;
   --on-image:#ffffff; --on-image-muted:rgba(255,255,255,.78); --glass:rgba(8,12,10,.58); --shade:rgba(6,10,8,.86); --shade-mid:rgba(6,10,8,.34);
   --card-glass:rgba(247,249,242,.74); --paper-glass:rgba(233,238,225,.6);
-  --study:#2f6fb0; --study-soft-ink:#9bbbd9; --exam:#7b4bb3;
+  --study:#2f6fb0; --study-soft-ink:#9bbbd9; --exam:#7b4bb3; --sleep:#5a4fc4; --sleep-soft:#b9b3ea;
   --f-display:"Dela Gothic One","Arial Black","Hiragino Kaku Gothic StdN",sans-serif;
   --f-body:"Zen Kaku Gothic New",system-ui,-apple-system,"Segoe UI",sans-serif;
   --f-data:"Chakra Petch",ui-monospace,"SF Mono",Menlo,monospace;
@@ -37,14 +37,14 @@
   :root:not([data-theme="light"]){
     --paper:#0c140f; --card:#141f18; --ink:#e5ede1; --muted:#93a597; --line:#253529;
     --leaf:#72c07a; --leaf-soft:#1b3121; --chakra:#ff8a3d; --chakra-2:#ffc247; --chakra-soft:#3a2315; --glow:rgba(255,138,61,.38);
-    --on-chakra:#1c0e04; --seal:#ff6b5e; --danger:#ff7a6b; --danger-soft:#3a1c19; --rest:#8fb1d8; --rest-soft:#1a2737; --primary:#72c07a; --primary-soft:#1b3121; --chakra-ink:#ff8a3d; --card-glass:rgba(20,31,24,.68); --paper-glass:rgba(12,20,15,.55); --study:#7fb3ea; --study-soft-ink:#3d5f80; --exam:#9b6fd6; --bg-a:#13241a; --bg-b:#0c140f; --panel:#6d7f71;
+    --on-chakra:#1c0e04; --seal:#ff6b5e; --danger:#ff7a6b; --danger-soft:#3a1c19; --rest:#8fb1d8; --rest-soft:#1a2737; --primary:#72c07a; --primary-soft:#1b3121; --chakra-ink:#ff8a3d; --card-glass:rgba(20,31,24,.68); --paper-glass:rgba(12,20,15,.55); --study:#7fb3ea; --study-soft-ink:#3d5f80; --exam:#9b6fd6; --sleep:#a89cf5; --sleep-soft:#3e3870; --bg-a:#13241a; --bg-b:#0c140f; --panel:#6d7f71;
     --scrim:rgba(0,0,0,.7); --rod:#c9a77c; color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --paper:#0c140f; --card:#141f18; --ink:#e5ede1; --muted:#93a597; --line:#253529;
   --leaf:#72c07a; --leaf-soft:#1b3121; --chakra:#ff8a3d; --chakra-2:#ffc247; --chakra-soft:#3a2315; --glow:rgba(255,138,61,.38);
-  --on-chakra:#1c0e04; --seal:#ff6b5e; --danger:#ff7a6b; --danger-soft:#3a1c19; --rest:#8fb1d8; --rest-soft:#1a2737; --primary:#72c07a; --primary-soft:#1b3121; --chakra-ink:#ff8a3d; --card-glass:rgba(20,31,24,.68); --paper-glass:rgba(12,20,15,.55); --study:#7fb3ea; --study-soft-ink:#3d5f80; --exam:#9b6fd6; --bg-a:#13241a; --bg-b:#0c140f; --panel:#6d7f71;
+  --on-chakra:#1c0e04; --seal:#ff6b5e; --danger:#ff7a6b; --danger-soft:#3a1c19; --rest:#8fb1d8; --rest-soft:#1a2737; --primary:#72c07a; --primary-soft:#1b3121; --chakra-ink:#ff8a3d; --card-glass:rgba(20,31,24,.68); --paper-glass:rgba(12,20,15,.55); --study:#7fb3ea; --study-soft-ink:#3d5f80; --exam:#9b6fd6; --sleep:#a89cf5; --sleep-soft:#3e3870; --bg-a:#13241a; --bg-b:#0c140f; --panel:#6d7f71;
   --scrim:rgba(0,0,0,.7); --rod:#c9a77c; color-scheme:dark;
 }
 *{box-sizing:border-box}
@@ -177,6 +177,35 @@ body.has-bg .chal{background:var(--paper-glass)}
 .mscroll.study .btn.chakra-btn{background:#24598f; color:#fff; box-shadow:0 6px 18px rgba(36,89,143,.3)}
 .mscroll.study .xp-chip.pos{color:#24598f}
 .mscroll.study .complete-badge{background:#24598f}
+.mscroll.sleep .ms-paper{--ink:#1d1a2e; --muted:#58536f; --line:#d0cbe6; --card:#f8f7fd; --paper:#e9e6f6; --paper-glass:#e9e6f6; --chakra-ink:#4a3fae; --seal:#4a3fae;
+  background:radial-gradient(120% 70% at 50% 40%, #f7f6fd 0%, #ebe8f7 70%, #dcd7f0 100%)}
+.mscroll.sleep .ms-paper::before,.mscroll.sleep .ms-paper::after{background:repeating-linear-gradient(45deg,#272152 0 6px,#352d6b 6px 12px)}
+.mscroll.sleep .zig{background-color:#352d6b; background-image:linear-gradient(135deg,#d6d1ee 25%,transparent 25%),linear-gradient(225deg,#d6d1ee 25%,transparent 25%); border-color:#1c1840}
+.mscroll.sleep .roll-paper{background:linear-gradient(180deg,#aaa3c8 0%,#e9e6f6 22%,#f7f6fd 48%,#dcd7f0 76%,#958db8 100%)}
+.mscroll.sleep .roll-band{background:linear-gradient(180deg,#14112b 0%,#463c88 30%,#332b68 68%,#110e24 100%)}
+.mscroll.sleep .roll-cord{background:linear-gradient(90deg,#5d5594,#cfc9ec 50%,#5d5594); box-shadow:13px 0 0 -2px #8c84bf}
+.mscroll.sleep .roll-seal{border-color:#4a3fae; color:#4a3fae}
+.mscroll.sleep.done .roll-seal{border-color:#2b6a3c; color:#2b6a3c}
+.mscroll.sleep .btn.chakra-btn{background:#4a3fae; color:#fff; box-shadow:0 6px 18px rgba(74,63,174,.3)}
+.mscroll.sleep .xp-chip.pos{color:#4a3fae}
+.mscroll.sleep .complete-badge{background:#4a3fae}
+.mscroll.sleep .hokage-line{background:rgba(255,255,255,.6)}
+.sl-checks{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
+.sl-checks li{display:flex; flex-direction:column; gap:2px; padding:10px; border-radius:12px; background:rgba(255,255,255,.65); border:1.5px solid var(--line); min-width:0}
+.sl-checks li b{font-family:var(--f-data); font-size:20px; line-height:1.1; color:var(--ink)}
+.sl-checks li span{font-size:12px; color:var(--muted)}
+.sl-checks li.ok{border-color:#3c8a55} .sl-checks li.ok b::after{content:" ✓"; color:#2b6a3c; font-size:15px}
+.sl-checks li.no{border-color:var(--seal); background:#fdf3f2} .sl-checks li.no b::after{content:" ✗"; color:#b8322c; font-size:15px}
+.sl-score{display:inline-flex; align-items:baseline; gap:6px; font-size:13px; color:var(--muted)}
+.sl-score b{font-family:var(--f-data); font-size:22px; color:#4a3fae}
+.sl-form .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.sl-form .hm{display:flex; gap:6px; align-items:center}
+.sl-form .hm input{min-width:0; flex:1}
+.sl-form input{width:100%; box-sizing:border-box}
+.oncall-btn{align-self:flex-start}
+.mini-steppers.sleep-minis b{font-size:17px; min-width:6ch}
+@media (max-width:560px){ .mini-steppers.sleep-minis{grid-template-columns:1fr} .mini-steppers.sleep-minis .mini{flex-direction:row; justify-content:space-between; padding:8px 12px} .sl-checks li b{font-size:16px} .sl-checks li{padding:8px} }
+.oncall-btn.warn{border-color:var(--seal); color:var(--seal)}
 .hokage-line{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; background:rgba(255,255,255,.55); border:1px solid var(--line)}
 .hokage-line p{margin:0; font-size:14px; line-height:1.4}
 .hokage-line .sensei-av{box-shadow:none; border-width:2px; font-size:16px}
@@ -399,7 +428,7 @@ body.has-bg .stage::after{background:linear-gradient(to top,var(--shade-mid) 0%,
 .plan-row{display:grid; grid-template-columns:84px 1fr; gap:10px; align-items:center}
 .plan-row label{font-weight:700; font-size:14px}
 .plan-row label small{display:block; font-weight:400; color:var(--muted); font-size:11.5px}
-select,input[type=number],input[type=text],input[type=date]{width:100%; min-width:0; padding:10px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--paper); font-size:15px}
+select,input[type=number],input[type=text],input[type=date],input[type=time]{width:100%; min-width:0; padding:10px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--paper); font-size:15px}
 .mini-steppers{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
 .mini{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-radius:12px; background:var(--paper); text-align:center}
 .mini span{font-size:11.5px; color:var(--muted)}
@@ -768,7 +797,7 @@ const CINE_CACHE = 'leaf-cine';
 const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
 const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
 const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const PATH = { settings:'leaf/main', days:'leaf/main/days', body:'leaf/main/body', media:'leaf/media', prefs:'leaf/prefs', study:'leaf/main/study', timer:'leaf/timer' };
+const PATH = { settings:'leaf/main', days:'leaf/main/days', body:'leaf/main/body', media:'leaf/media', prefs:'leaf/prefs', study:'leaf/main/study', sleep:'leaf/main/sleep', timer:'leaf/timer' };
 const LOCAL_KEY = 'leaf-village-v1';
 
 /* ---------- rank themes (taken from each rank photo) ---------- */
@@ -887,9 +916,9 @@ function syncPrefsFromStore(){
 let duckHook=null;
 
 /* ---------- state & storage ---------- */
-const state = { mode:'loading', settings:null, media:null, prefs:null, timer:null, days:{}, body:{}, study:{}, loaded:{settings:false,days:false,body:false,media:false,prefs:false,study:false,timer:false}, stale:false, error:null, readOnly:false };
-const pending = { settings:null, media:null, prefs:null, timer:null, days:{}, body:{}, study:{} };
-const ui = { tab:'mission', reps:{}, draft:null, weigh:null, setup:null, newEx:{name:'',max:''}, confirm:null, confirmTimer:null, overlayKey:null, viewRank:null, scrollOpen:{work:false, study:false}, uploading:{}, statsMode:'workout', studyMonth:null, examStart:null, syncKey:'', syncEdit:false, syncBusy:false, pushBusy:false, pushMsg:'' };
+const state = { mode:'loading', settings:null, media:null, prefs:null, timer:null, days:{}, body:{}, study:{}, sleep:{}, loaded:{settings:false,days:false,body:false,media:false,prefs:false,study:false,sleep:false,timer:false}, stale:false, error:null, readOnly:false };
+const pending = { settings:null, media:null, prefs:null, timer:null, days:{}, body:{}, study:{}, sleep:{} };
+const ui = { tab:'mission', reps:{}, draft:null, weigh:null, setup:null, newEx:{name:'',max:''}, confirm:null, confirmTimer:null, overlayKey:null, viewRank:null, scrollOpen:{work:false, study:false, sleep:false}, sleepForm:null, uploading:{}, statsMode:'workout', studyMonth:null, examStart:null, syncKey:'', syncEdit:false, syncBusy:false, pushBusy:false, pushMsg:'' };
 let db = null;
 
 const S = () => pending.settings || state.settings;
@@ -901,19 +930,19 @@ const getBody = d => pending.body[d] || state.body[d];
 const allBody = () => { const m=Object.assign({}, state.body, pending.body); return Object.values(m).filter(b=>b && typeof b.weight==='number').sort((a,b)=>a.date<b.date?-1:1); };
 
 function loadLocal(){
-  try{ const raw=localStorage.getItem(LOCAL_KEY); if(raw){ const o=JSON.parse(raw); state.settings=o.settings||null; state.days=o.days||{}; state.body=o.body||{}; state.study=o.study||{}; state.timer=o.timer||null; } }catch(e){}
+  try{ const raw=localStorage.getItem(LOCAL_KEY); if(raw){ const o=JSON.parse(raw); state.settings=o.settings||null; state.days=o.days||{}; state.body=o.body||{}; state.study=o.study||{}; state.sleep=o.sleep||{}; state.timer=o.timer||null; } }catch(e){}
 }
 function saveLocal(){
-  try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({settings:state.settings, days:state.days, body:state.body, study:state.study, timer:state.timer, media:state.media, prefs:state.prefs})); }
+  try{ localStorage.setItem(LOCAL_KEY, JSON.stringify({settings:state.settings, days:state.days, body:state.body, study:state.study, sleep:state.sleep, timer:state.timer, media:state.media, prefs:state.prefs})); }
   catch(e){ state.error='This browser blocked saving. Your logs will be lost when you close the page.'; }
 }
 
 async function initStore(){
   const timer = setTimeout(()=>{ if(!allLoaded()){ state.stale=true; render(); } }, 10000);
   try{ db = (window.claude && typeof window.claude.use==='function') ? await window.claude.use('db') : null; }catch(e){ db=null; }
-  if(!db){ clearTimeout(timer); state.mode='local'; loadLocal(); state.loaded={settings:true,days:true,body:true,media:true,prefs:true,study:true,timer:true}; render(); return; }
+  if(!db){ clearTimeout(timer); state.mode='local'; loadLocal(); state.loaded={settings:true,days:true,body:true,media:true,prefs:true,study:true,sleep:true,timer:true}; render(); return; }
   state.mode='db';
-  const fresh = {settings:false,days:false,body:false,media:false,prefs:false,study:false,timer:false};
+  const fresh = {settings:false,days:false,body:false,media:false,prefs:false,study:false,sleep:false,timer:false};
   const onFresh = (k, meta) => { if(meta && !meta.fromCache){ fresh[k]=true; if(Object.values(fresh).every(Boolean)){ clearTimeout(timer); state.stale=false; } } };
   const onErr = e => { clearTimeout(timer); state.error = (e && e.code==='revoked') ? 'This page lost access to your saved data. Reopen it to continue.' : 'Your saved data could not be loaded. Close the app fully and open it again.'; render(); };
   db.doc(PATH.settings).onSnapshot(s=>{ state.settings = s.exists ? clone(s.data()) : null; state.loaded.settings=true; dataRev++; onFresh('settings', s.metadata); render(); }, onErr);
@@ -923,6 +952,7 @@ async function initStore(){
   db.collection(PATH.study).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.study=m; state.loaded.study=true; dataRev++; onFresh('study', q.metadata); render(); }, onErr);
   db.doc(PATH.timer).onSnapshot(s=>{ state.timer = s.exists ? clone(s.data()) : null; state.loaded.timer=true; dataRev++; onFresh('timer', s.metadata); render(); }, onErr);
   db.collection(PATH.body).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.body=m; state.loaded.body=true; dataRev++; onFresh('body', q.metadata); render(); }, onErr);
+  db.collection(PATH.sleep).onSnapshot(q=>{ const m={}; q.docs.forEach(d=>{ m[d.id]=clone(d.data()); }); state.sleep=m; state.loaded.sleep=true; dataRev++; onFresh('sleep', q.metadata); render(); }, onErr);
 }
 const allLoaded = () => Object.values(state.loaded).every(Boolean);
 
@@ -998,7 +1028,7 @@ const provisionalPieces = () => E.provisionalPieces(timerDoc(), Date.now());
 /* the snapshot the engine reads: what is saved, with anything still being saved laid on top */
 function engineData(){
   const over=(a,b)=>{ for(const k in b) return Object.assign({}, a, b); return a; };
-  return {settings:S(), days:over(state.days,pending.days), study:over(state.study,pending.study), body:over(state.body,pending.body), timer:timerDoc()};
+  return {settings:S(), days:over(state.days,pending.days), study:over(state.study,pending.study), body:over(state.body,pending.body), sleep:over(state.sleep,pending.sleep), timer:timerDoc()};
 }
 function compute(){ return E.compute(engineData(), Date.now()); }
 /* the engine walks the whole history, so its result is kept until the data or the day changes
@@ -1059,7 +1089,9 @@ function todayPower(C){
   if(t && t.plan.type!=='rest'){ const [d,n]=workoutUnits(t); done+=d; need+=n; }
   const sr=C.study && C.study.days && C.study.days[C.today];
   if(sr && sr.tgt){ const n=(sr.tgt.off ? sr.tgt.full : sr.tgt.min)/60; need+=n; done+=Math.min(sr.mins/60, n); }
-  return need ? clamp(done/need,0,1) : 0;
+  /* a good night's sleep starts the day with a little charge already in the aura */
+  const sl=C.sleep && C.sleep.days[C.today], head=(sl && sl.status==='good') ? E.SLEEP.aura : 0;
+  return need ? head+(1-head)*clamp(done/need,0,1) : head;
 }
 let lastTap=null, lastTouch=null;
 document.addEventListener('pointerdown', e=>{ const c=e.target.closest && e.target.closest('[data-act],button,.btn,label,select,input,a'); if(c) lastTouch={el:c, at:performance.now()}; const b=e.target.closest && e.target.closest('button,.btn'); if(!b) return; const r=b.getBoundingClientRect(); lastTap={x:r.left+r.width/2, y:r.top+r.height/2, t:Date.now()}; }, {capture:true, passive:true});
@@ -1450,6 +1482,126 @@ function studyCard(C){
     </button>
   </section>`;
 }
+/* ---------- sleep: the scroll after Study ---------- */
+const clockText = m => `${pad(Math.floor((((m%1440)+1440)%1440)/60))}:${pad(((m%60)+60)%60)}`;
+const SLEEP_LINES = {
+  open:['Morning, {name}. Before the day runs off with you, write down last night: hours, score, and when you slept and woke.', 'Good research needs good notes. Log last night while it is still fresh in your head.', 'The great sage checks his notes every morning. Hours, score, bedtime, wake time: write them down.'],
+  first:['From now on I keep the sleep log, {name}. Every morning, copy last night from your sleep app: hours, score, and when you slept and woke.'],
+  good:['{hours} and in bed on time. That is how a legend recovers. Sleep streak: {streak}.', 'Now that is a proper night. A rested ninja trains twice as hard and remembers twice as much.', 'Asleep early, up early, {hours} in between. Even I am impressed, and I am hard to impress.'],
+  short:['Not a full night: {miss}. The body keeps score, so try again tonight.', 'Close, but the scroll wants all three: {miss}. Tonight is a new chance.', 'A sage does not scold, he observes: {miss}. Bed by {bedBy} tonight.'],
+  oncall:['A night on call. Saving lives counts as training too, {name}. Your sleep streak is safe.', 'Hospital shift? Then rest when you can. The streak waits for you.'],
+  exam:['Exam week. Sleep is part of the studying. Log it if you can; the sleep streak is frozen.'],
+  lost:['The scroll stayed empty yesterday. No harm done to your XP, but the streak starts again. Log today\'s night.']
+};
+function sleepMiss(rec){
+  const g=rec.goal, out=[];
+  if(!rec.checks.hours) out.push(`${fmtH(rec.mins)} slept, ${fmtH(g.mins)} needed`);
+  if(!rec.checks.bed) out.push(rec.bed==null?'no bedtime written':`asleep at ${clockText(rec.bed)}, after ${clockText(g.bedBy)}`);
+  if(!rec.checks.wake) out.push(rec.wake==null?'no wake time written':`up at ${clockText(rec.wake)}, after ${clockText(g.wakeBy)}`);
+  return out.join(', ');
+}
+function sleepLine(C, rec){
+  const sl=C.sleep, y=sl.days[addDays(C.today,-1)];
+  const v={name:(S().name||'ninja'), streak:sl.streak, hours:fmtH(rec.mins||0), bedBy:clockText(rec.goal.bedBy), miss:rec.checks?sleepMiss(rec):''};
+  let key;
+  if(!sl.start) key='first';
+  else if(rec.status==='oncall') key='oncall';
+  else if(rec.status==='good') key='good';
+  else if(rec.logged) key = rec.exam ? 'exam' : 'short';
+  else if(rec.exam) key='exam';
+  else key = (y && y.status==='missed') ? 'lost' : 'open';
+  const arr=SLEEP_LINES[key];
+  return fillLine(arr[(parse(C.today).getDate()+key.length)%arr.length], v);
+}
+function sleepToday(C){
+  const r=C.sleep.days[C.today]; if(r) return r;
+  return {date:C.today, mins:0, score:null, bed:null, wake:null, oncall:false, logged:false, goal:E.sleepGoal(S()||{}, C.today), checks:null, exam:isExam(C.today), status:'open', xp:0, streak:C.sleep.streak};
+}
+const getSleep = d => pending.sleep[d] || state.sleep[d];
+function sleepDraftFrom(doc){
+  const m = doc && doc.mins>0 ? doc.mins : null;
+  return {h:m!=null?String(Math.floor(m/60)):'', m:m!=null?String(m%60):'', score:doc && typeof doc.score==='number'?String(doc.score):'', bed:(doc&&doc.bed)||'', wake:(doc&&doc.wake)||''};
+}
+function sleepCard(C){
+  if(!S()) return '';
+  const rec=sleepToday(C), g=rec.goal, good=rec.status==='good', oncall=rec.status==='oncall', entered=rec.logged||oncall;
+  const editing = !state.readOnly && (!entered || ui.sleepEdit);
+  if(editing && !ui.sleepForm){ const prev=getSleep(C.today) || getSleep(addDays(C.today,-1)); ui.sleepForm = getSleep(C.today) ? sleepDraftFrom(prev) : Object.assign(sleepDraftFrom(null), prev && !prev.oncall ? {bed:prev.bed||'', wake:prev.wake||''} : {}); }
+  const f=ui.sleepForm||sleepDraftFrom(null);
+  const summary = rec.logged ? `<ul class="sl-checks">
+      <li class="${rec.checks.hours?'ok':'no'}"><b>${fmtH(rec.mins)}</b><span>slept · goal ${fmtH(g.mins)}</span></li>
+      <li class="${rec.checks.bed?'ok':'no'}"><b>${rec.bed!=null?clockText(rec.bed):'—'}</b><span>asleep · by ${clockText(g.bedBy)}</span></li>
+      <li class="${rec.checks.wake?'ok':'no'}"><b>${rec.wake!=null?clockText(rec.wake):'—'}</b><span>up · by ${clockText(g.wakeBy)}</span></li></ul>
+      ${rec.score!=null?`<span class="sl-score">Sleep score <b>${rec.score}</b>${rec.score>=E.SLEEP.scoreMin?` · +${E.SLEEP.scoreXp} XP`:''}</span>`:''}`
+    : oncall ? `<p class="notice" style="margin:0">On call last night. Nothing is required, and your sleep streak of ${C.sleep.streak} is safe.</p>` : '';
+  const form = editing ? `<div class="sl-form">
+      <div class="form-grid">
+        <label class="field"><span>Hours slept</span><span class="hm"><input id="sl-h" type="number" inputmode="numeric" min="0" max="16" placeholder="7" value="${esc(f.h)}" data-bind="sleepForm.h" aria-label="Hours"><span>h</span><input id="sl-m" type="number" inputmode="numeric" min="0" max="59" placeholder="30" value="${esc(f.m)}" data-bind="sleepForm.m" aria-label="Minutes"><span>m</span></span></label>
+        <label class="field"><span>Sleep score (0–100)</span><input id="sl-score" type="number" inputmode="numeric" min="0" max="100" placeholder="85" value="${esc(f.score)}" data-bind="sleepForm.score"></label>
+        <label class="field"><span>Fell asleep</span><input id="sl-bed" type="time" value="${esc(f.bed)}" data-bind="sleepForm.bed"></label>
+        <label class="field"><span>Woke up</span><input id="sl-wake" type="time" value="${esc(f.wake)}" data-bind="sleepForm.wake"></label>
+      </div></div>
+      <div class="btnrow"><button type="button" class="btn chakra-btn" data-act="sl-save">${entered?'Save changes':'Log last night'}</button>${entered?'<button type="button" class="btn ghost" data-act="sl-cancel">Cancel</button>':''}</div>
+      ${oncall?'':`<button type="button" class="btn small ghost oncall-btn${ui.confirm==='oncall'?' warn':''}" data-act="sl-oncall">${ui.confirm==='oncall'?'Tap again: I was on call last night':'Night shift / on call'}</button>`}` : '';
+  const change = !editing && !state.readOnly ? `<button class="linkbtn" data-act="sl-edit">Change today's entry</button>` : '';
+  const statusLine = editing && !entered ? `<div class="deadline">Today only: once the day ends, last night locks.</div>` : '';
+  const progress = good ? `Good night · ${fmtH(rec.mins)}${rec.score!=null?` · score ${rec.score}`:''}` : oncall ? 'On call · streak safe' : rec.logged ? `${fmtH(rec.mins)} · ${rec.exam?'exam week':'goal missed'}` : 'Log last night';
+  const done = good || oncall, seal='眠', open=!!ui.scrollOpen.sleep;
+  return `<section class="mscroll sleep${done?' done':''}${open?' open':''}" data-sid="sleep" aria-label="Last night's sleep">
+    <button type="button" class="ms-rod ms-top" data-act="scroll-toggle" aria-expanded="${open}" aria-label="Open or roll up the sleep scroll"><span class="cap l"></span><span class="cap r"></span></button>
+    <div class="ms-paper-wrap"><div class="ms-paper-clip"${open?'':' inert'}><div class="ms-paper">
+      <div class="zig" aria-hidden="true"></div>
+      <div class="ms-inner">
+        <div class="seal" aria-hidden="true">${seal}<small>SLEEP</small></div>
+        <div class="eyebrow">眠 · ${fmtH(g.mins)} · asleep by ${clockText(g.bedBy)} · up by ${clockText(g.wakeBy)}</div>
+        <h2 class="mission-title">Sleep Scroll</h2>
+        <div class="hokage-line">${senseiAvatar('jiraiya',40)}<p>${esc(sleepLine(C, rec))}</p></div>
+        ${summary}
+        ${good?`<div class="complete-badge">${ico.check} Good night</div>`:''}
+        ${form}
+        <div class="today-line"><span class="xp-chip pos">Sleep ${signed(rec.xp)} XP · streak ${C.sleep.streak}</span>${change}</div>
+        ${statusLine}
+      </div>
+      <div class="zig flip" aria-hidden="true"></div>
+    </div></div></div>
+    <button type="button" class="ms-roll" data-act="scroll-toggle" aria-expanded="${open}">
+      <span class="roll-wood" aria-hidden="true"></span>
+      <span class="roll-paper"><span class="roll-band l"></span><span class="roll-band r"></span><span class="roll-cord"></span>
+        <span class="roll-label"><span class="roll-seal" aria-hidden="true">${done?ico.check:seal}</span><span><b>Sleep Scroll</b><small>${esc(progress)}</small></span></span></span>
+      <span class="cap l" aria-hidden="true"></span><span class="cap r" aria-hidden="true"></span>
+    </button>
+  </section>`;
+}
+function sleepAction(act, el){
+  if(state.readOnly) return;
+  const C=lastC; if(!C || !S()) return;
+  const today=C.today, before=sleepToday(C);
+  if(act==='sl-edit'){ ui.sleepEdit=true; ui.sleepForm=sleepDraftFrom(getSleep(today)); render(); return; }
+  if(act==='sl-cancel'){ ui.sleepEdit=false; ui.sleepForm=null; render(); return; }
+  const finish=(doc, label)=>{
+    const prevAw=(lastC&&lastC.awards||[]).length;
+    save('sleep', today, doc); ui.sleepEdit=false; ui.sleepForm=null;
+    const after=sleepToday(lastC||C), gained=after.xp-(before.xp||0);
+    if(gained>0) stagePowerUp(gained);
+    if(after.status==='good' && before.status!=='good'){ SFX.play('complete'); FX.leafBurst(); toast(`Good night logged · ${signed(after.xp)} XP`); }
+    else { SFX.play('scroll'); toast(label(after)); }
+    if(lastC) announceAwards(lastC, prevAw);
+  };
+  if(act==='sl-oncall'){
+    if(!confirmTap('oncall')) return;
+    finish({date:today, oncall:true, mins:0, score:null, bed:null, wake:null, t:new Date().toISOString()}, ()=>'On-call night saved. Your sleep streak is safe.');
+    return;
+  }
+  if(act==='sl-save'){
+    const f=ui.sleepForm||{}, h=f.h===''?0:Number(f.h), m=f.m===''?0:Number(f.m), mins=Math.round(h*60+m);
+    if(!(h>=0 && m>=0 && m<60) || !(mins>0) || mins>16*60){ toast('Enter how long you slept, for example 7 h 30 m.'); return; }
+    let score=null;
+    if(f.score!=='' && f.score!=null){ score=Math.round(Number(f.score)); if(!(score>=0 && score<=100)){ toast('The sleep score goes from 0 to 100.'); return; } }
+    if(E.clockMin(f.bed)==null || E.clockMin(f.wake)==null){ toast('Add the time you fell asleep and the time you woke up.'); return; }
+    finish({date:today, mins, score, bed:f.bed, wake:f.wake, oncall:false, t:new Date().toISOString()}, a=>a.status==='good'?`Night saved · ${signed(a.xp)} XP`:a.exam?'Night saved. Exam week: the sleep streak is frozen.':`Night saved. Goal missed: ${sleepMiss(a)}.`);
+    return;
+  }
+}
 function examBanner(C){
   const e=examFor(C.today); if(!e) return '';
   const n=daysBetween(e.start, C.today)+1, len=daysBetween(e.start, e.end)+1;
@@ -1532,6 +1684,48 @@ function studyStatsView(C){
   const totals=`<section class="card"><h2>Study totals</h2><div class="statrow"><div><b>${fmtH(totalM)}</b><span>studied</span></div><div><b>${doneN}</b><span>${doneN===1?'day':'days'} at minimum</span></div><div><b>${best&&best.mins?fmtH(best.mins):'—'}</b><span>best day</span></div></div><div class="statrow"><div><b>${missN}</b><span>missed</span></div><div><b>${shN}</b><span>${shN===1?'shield':'shields'} used</span></div><div><b>${st.best}</b><span>best streak</span></div></div></section>`;
   return tiles+week+month+year+totals;
 }
+function sleepChart(C){
+  const W=340, H=180, L=30, R=8, T=18, B=26, n=14, days=Array.from({length:n},(_,k)=>addDays(C.today,k-n+1));
+  const recs=days.map(d=>C.sleep.days[d]||null), goal=E.sleepGoal(S()||{}, C.today).mins/60;
+  const top=Math.max(10, Math.ceil(Math.max(goal, ...recs.map(r=>r?r.mins/60:0)))), Y=h=>T+(1-h/top)*(H-T-B), slot=(W-L-R)/n, bw=slot*.6;
+  let g='';
+  for(let h=0; h<=top; h+=2){ const y=Y(h).toFixed(1); g+=`<line class="gridline" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text class="ax" x="${L-6}" y="${(+y+3.5).toFixed(1)}" text-anchor="end">${h}h</text>`; }
+  days.forEach((d,k)=>{
+    const r=recs[k], x=L+slot*k+(slot-bw)/2;
+    if(r && r.logged){
+      const y=Y(r.mins/60), col=r.status==='good'?'var(--sleep)':r.status==='exam'?'var(--exam)':'var(--sleep-soft)';
+      g+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,Y(0)-y).toFixed(1)}" rx="3" style="fill:${col}"><title>${esc(shortDate(d))}: ${fmtH(r.mins)}${r.score!=null?` · score ${r.score}`:''}</title></rect>`;
+      if(r.score!=null) g+=`<text class="ax" x="${(x+bw/2).toFixed(1)}" y="${(y-4).toFixed(1)}" text-anchor="middle" style="font-size:8.5px">${r.score}</text>`;
+    } else if(r && r.oncall){ g+=`<rect x="${x.toFixed(1)}" y="${(Y(0)-6).toFixed(1)}" width="${bw.toFixed(1)}" height="6" rx="2" style="fill:var(--muted)"><title>${esc(shortDate(d))}: on call</title></rect>`; }
+    else if(r && r.status==='missed'){ g+=`<rect x="${x.toFixed(1)}" y="${(Y(0)-4).toFixed(1)}" width="${bw.toFixed(1)}" height="4" rx="2" style="fill:var(--danger)"><title>${esc(shortDate(d))}: not logged</title></rect>`; }
+    if(k%2===(n-1)%2) g+=`<text class="ax" x="${(x+bw/2).toFixed(1)}" y="${H-9}" text-anchor="middle"${d===C.today?' style="font-weight:700;fill:var(--ink)"':''}>${parse(d).getDate()}</text>`;
+  });
+  const yg=Y(goal).toFixed(1); g+=`<line x1="${L}" x2="${W-R}" y1="${yg}" y2="${yg}" style="stroke:var(--ink)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours slept over the last two weeks">${g}</svg></div>`;
+}
+function sleepStatsView(C){
+  const sl=C.sleep, g=E.sleepGoal(S()||{}, C.today);
+  if(!sl.start) return `<section class="card"><h2>Sleep</h2><p class="empty">Your sleep log starts with your first night. Open the Sleep Scroll on the Mission tab tomorrow morning and copy last night from your sleep app.</p><p class="muted small">Goal: ${fmtH(g.mins)}, asleep by ${clockText(g.bedBy)}, up by ${clockText(g.wakeBy)}.</p></section>`;
+  const logged=sl.list.filter(r=>r.logged), last7=logged.filter(r=>r.date>addDays(C.today,-7)), last=logged[logged.length-1]||null;
+  const avg=a=>a.length?a.reduce((m,r)=>m+r.mins,0)/a.length:0, sc=a=>{ const x=a.filter(r=>r.score!=null); return x.length?Math.round(x.reduce((m,r)=>m+r.score,0)/x.length):null; };
+  const ws=weekStart(C.today), goodWk=sl.list.filter(r=>r.date>=ws && r.status==='good').length;
+  const goodN=sl.list.filter(r=>r.status==='good').length, shortN=sl.list.filter(r=>r.status==='short').length, missN=sl.list.filter(r=>r.status==='missed').length, onN=sl.list.filter(r=>r.status==='oncall').length;
+  const bedAvg = a => { const x=a.filter(r=>r.bed!=null); if(!x.length) return '—'; const m=Math.round(x.reduce((t,r)=>t+(r.bed<720?r.bed+1440:r.bed),0)/x.length); return clockText(m); };
+  const wakeAvg = a => { const x=a.filter(r=>r.wake!=null); if(!x.length) return '—'; const m=Math.round(x.reduce((t,r)=>t+(r.wake>=1080?r.wake-1440:r.wake),0)/x.length); return clockText(m); };
+  const tiles=`<div class="tiles">
+    <div class="tile power" style="--chakra:var(--sleep)"><span class="eyebrow">Sleep streak</span><span class="big num">${sl.streak}<small> ${sl.streak===1?'night':'nights'}</small></span><span class="sub">Best ${sl.best} · on-call nights keep it</span></div>
+    <div class="tile"><span class="eyebrow">Last night</span><span class="big num">${last?fmtH(last.mins):'—'}</span><span class="sub">${last?`${last.score!=null?`Score ${last.score} · `:''}${esc(shortDate(last.date))}`:'Not logged yet'}</span></div>
+    <div class="tile"><span class="eyebrow">7-night average</span><span class="big num">${last7.length?fmtH(avg(last7)):'—'}</span><span class="sub">Goal ${fmtH(g.mins)}</span></div>
+    <div class="tile"><span class="eyebrow">Average score</span><span class="big num">${sc(last7)!=null?sc(last7):'—'}</span><span class="sub">Last 7 nights</span></div>
+    <div class="tile"><span class="eyebrow">Good nights</span><span class="big num">${goodWk}<small> this week</small></span><span class="sub">All three goals met</span></div>
+  </div>`;
+  const chart=`<section class="card"><div class="section-head"><h2>Last two weeks</h2><span class="eyebrow">Hours slept · score on top</span></div>${sleepChart(C)}
+    <div class="legend"><span><i style="background:var(--sleep)"></i>Good night</span><span><i style="background:var(--sleep-soft)"></i>Goal missed</span><span><i style="background:var(--muted)"></i>On call</span><span><i style="background:var(--danger)"></i>Not logged</span><span><i style="border-top:2px dashed var(--ink);height:0;border-radius:0"></i>${fmtH(g.mins)}</span></div></section>`;
+  const totals=`<section class="card"><h2>Sleep totals</h2>
+    <div class="statrow"><div><b>${goodN}</b><span>good ${goodN===1?'night':'nights'}</span></div><div><b>${shortN}</b><span>goal missed</span></div><div><b>${missN}</b><span>not logged</span></div></div>
+    <div class="statrow"><div><b>${bedAvg(last7)}</b><span>average bedtime (7 nights)</span></div><div><b>${wakeAvg(last7)}</b><span>average wake time</span></div><div><b>${onN}</b><span>on-call ${onN===1?'night':'nights'}</span></div></div></section>`;
+  return tiles+chart+totals;
+}
 function examCard(C){
   const s=S(), list=examWeeks().sort((a,b)=>a.start<b.start?-1:1), today=C.today;
   const active=examFor(today), upcoming=list.find(e=>e.start>today);
@@ -1560,7 +1754,7 @@ function examCard(C){
 const SENSEIS = {
   kakashi: {id:'kakashi', name:'Kakashi', role:'Groove days', spec:'Precision and consistency', color:'#5b77a6', challenge:E.CHALLENGES.kakashi},
   guy:     {id:'guy', name:'Guy', role:'Test days', spec:'All-out effort and new maxes', color:'#2f9a5c', challenge:E.CHALLENGES.guy},
-  jiraiya: {id:'jiraiya', name:'Jiraiya', role:'Rest days and weigh-ins', spec:'Recovery and growth', color:'#c0392b', challenge:E.CHALLENGES.jiraiya},
+  jiraiya: {id:'jiraiya', name:'Jiraiya', role:'Rest days, weigh-ins and sleep', spec:'Recovery and growth', color:'#c0392b', challenge:E.CHALLENGES.jiraiya},
   hiruzen: {id:'hiruzen', name:'Third Hokage', role:'Sundays, promotions, weekly report', spec:'Discipline and the long road', color:'#c8952a', challenge:E.CHALLENGES.hiruzen}
 };
 const SENSEI_ORDER = ['kakashi','guy','jiraiya','hiruzen'];
@@ -1793,7 +1987,7 @@ function progressionAction(act){
   } else { save('settings', null, s); SFX.play('tick'); toast(P.changed ? 'Keeping your own settings.' : 'Settings stay as they are.'); }
 }
 function missionView(C){
-  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + rivalCard(C) + weekStrip(C) + upNext(C);
+  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + sleepCard(C) + rivalCard(C) + weekStrip(C) + upNext(C);
 }
 
 /* --- charts --- */
@@ -1877,14 +2071,15 @@ function statsView(C){
   const cal = `<section class="card"><div class="section-head"><h2>Training calendar</h2><span class="eyebrow">12 weeks</span></div>${heatmap(C)}<div class="legend"><span><i style="background:var(--leaf)"></i>Done</span><span><i style="background:var(--rest-soft);border:1px solid var(--rest)"></i>Rest</span><span><i style="background:var(--danger)"></i>Missed</span><span><i style="background:var(--exam)"></i>Exam week</span><span><i style="background:var(--chakra-soft);border:1px solid var(--chakra)"></i>Today</span></div></section>`;
   const totals = `<section class="card"><h2>Totals</h2><div class="statrow"><div><b>${fmt(C.totalReps.pullups||0)}</b><span>pull-ups</span></div><div><b>${fmt(C.totalReps.dips||0)}</b><span>dips</span></div><div><b>${C.doneCount}</b><span>missions done</span></div></div><div class="statrow"><div><b>${C.missedCount}</b><span>missed</span></div><div><b>${C.prs.length}</b><span>new maxes</span></div><div><b>${fmt(C.total)}</b><span>total XP</span></div></div>
     ${C.prs.length?`<ul class="list">${C.prs.slice(-5).reverse().map(p=>`<li><span>${esc(exName(p.ex))} · ${esc(shortDate(p.date))}</span><b class="num">${p.v} reps</b></li>`).join('')}</ul>`:''}</section>`;
-  const toggle=`<div class="stats-mode" role="group" aria-label="Stats view"><button type="button" class="chip" data-act="stats-mode" data-v="workout" aria-pressed="${ui.statsMode!=='study'}">Workout</button><button type="button" class="chip" data-act="stats-mode" data-v="study" aria-pressed="${ui.statsMode==='study'}">Study</button></div>`;
+  const toggle=`<div class="stats-mode" role="group" aria-label="Stats view"><button type="button" class="chip" data-act="stats-mode" data-v="workout" aria-pressed="${ui.statsMode!=='study' && ui.statsMode!=='sleep'}">Workout</button><button type="button" class="chip" data-act="stats-mode" data-v="study" aria-pressed="${ui.statsMode==='study'}">Study</button><button type="button" class="chip" data-act="stats-mode" data-v="sleep" aria-pressed="${ui.statsMode==='sleep'}">Sleep</button></div>`;
   if(ui.statsMode==='study') return topbar('Stats') + toggle + reportCard(C) + studyStatsView(C);
+  if(ui.statsMode==='sleep') return topbar('Stats') + toggle + sleepStatsView(C);
   return topbar('Stats') + toggle + reportCard(C) + tiles + repsCard + maxCard + wCard + cal + totals;
 }
 
 /* --- plan --- */
 function currentEntry(){ const h=sortedHistory(S()); return h[h.length-1] || {from:S().startDate}; }
-const entryDraft = e => { const n=E.normEntry(e); return {plan:Array.from({length:7},(_,k)=>(n.plan[k] && typeof n.plan[k]==='object') ? n.plan[k] : {type:'rest'}), gtg:n.gtg, test:n.test, combo:n.combo, study:studyPlanOf(e)}; };
+const entryDraft = e => { const n=E.normEntry(e); return {plan:Array.from({length:7},(_,k)=>(n.plan[k] && typeof n.plan[k]==='object') ? n.plan[k] : {type:'rest'}), gtg:n.gtg, test:n.test, combo:n.combo, study:studyPlanOf(e), sleep:E.sleepPlanOf(e)}; };
 function ensureDraft(){
   if(ui.draft) return;
   ui.draft = clone(entryDraft(currentEntry()));
@@ -1926,6 +2121,12 @@ function planView(C){
     <p class="muted num" style="margin:0;font-size:13px">Thursday is your study rest day. Weekly challenge: 30 hours.</p>
   </section>
   <section class="card">
+    <h2>Sleep</h2>
+    <p class="muted" style="margin:0;font-size:14px">A good night meets all three: long enough, asleep by the bedtime, up by the wake time. Earlier is always fine. The same goal every day of the week.</p>
+    <div class="mini-steppers sleep-minis">${mini('Sleep at least','slMins',fmtH(d.sleep.mins),'per night')}${mini('Asleep by','slBed',clockText(d.sleep.bedBy),`window ${clockText(d.sleep.bedBy-60)}–${clockText(d.sleep.bedBy)}`)}${mini('Up by','slWake',clockText(d.sleep.wakeBy),`window ${clockText(d.sleep.wakeBy-60)}–${clockText(d.sleep.wakeBy)}`)}</div>
+    <p class="muted num" style="margin:0;font-size:13px">Jiraiya's bedtime reminder comes an hour before the window opens.</p>
+  </section>
+  <section class="card">
     <h2>Test days</h2>
     <div class="mini-steppers" style="grid-template-columns:minmax(0,1fr) 2fr">${mini('Sets each','testSets',d.test.sets,'to failure')}<div class="checks" style="align-content:center">${testChecks}</div></div>
   </section>
@@ -1954,6 +2155,10 @@ function planView(C){
       <span>Shadow clone: beat your week from four weeks ago on two of XP, reps and study hours</span><b>+${E.RIVAL.xp} weekly</b>
       <span>Third Hokage: 30 study hours in a week</span><b>+${STUDY.weekXp} weekly</b>
       <span>Missed study minimum</span><b>No XP lost, study streak resets</b>
+      <span>Good night of sleep (hours, bedtime and wake time all met)</span><b>+${E.SLEEP.goodXp}</b>
+      <span>Sleep score ${E.SLEEP.scoreMin} or higher</span><b>+${E.SLEEP.scoreXp}</b>
+      <span>Short or unlogged night</span><b>No XP lost, sleep streak resets</b>
+      <span>On-call night</span><b>Sleep streak kept</b>
       <span>Test set</span><b>+${XP.testRep}/rep</b>
       <span>Test complete</span><b>+${XP.testComplete}</b>
       <span>New max</span><b>+${XP.pr}</b>
@@ -2714,7 +2919,7 @@ function setupSyncCard(){
     <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="sync-on"${busy?' disabled':''}>${busy?'Bringing your village…':'Bring my village here'}</button></div>
   </section>`;
 }
-const NOTIFY_ROWS=[['briefing','Morning briefing'],['streak','Mission reminders'],['test','Test-day messages'],['study','Study reminders'],['promotion','Promotion is close'],['weekly','Sunday weekly report']];
+const NOTIFY_ROWS=[['briefing','Morning briefing'],['streak','Mission reminders'],['test','Test-day messages'],['study','Study reminders'],['sleep','Bedtime reminder'],['promotion','Promotion is close'],['weekly','Sunday weekly report']];
 function pushErrorText(e){
   const c=e && e.code;
   if(c==='denied') return 'Notifications were not allowed. To change that, open the iPad\'s Settings app → Notifications → Leaf Village.';
@@ -2739,7 +2944,7 @@ function notifyCard(){
   return `<section class="card">
     <div class="section-head"><h2>Reminders</h2><span class="eyebrow">${P.on?'On':'Off'}</span></div>
     <p class="muted small">Your senseis send one short notification at each of these times, written from what you have really logged that day. When nothing needs saying, they stay quiet.</p>
-    <ul class="alarm-list">${row('5:40 am','Morning briefing · today\'s mission and study target')}${row('11:40 am','Midday check · sets and study hours so far')}${row('5:40 pm','Evening check · finish the mission')}${row('10:40 pm','Last call · protect both streaks before midnight')}</ul>
+    <ul class="alarm-list">${row('5:40 am','Morning briefing · today\'s mission and study target')}${row('11:40 am','Midday check · sets and study hours so far')}${row('2:40 pm','Afternoon check · finish the mission')}${row('5:00 pm','Last call · two hours before bed, protect both streaks')}${row('6:00 pm','Bedtime · Jiraiya, an hour before your sleep window')}</ul>
     ${body}
     ${sw('enabled','All reminders')}
     ${NOTIFY_ROWS.map(([k,l])=>sw(k,l,!n.enabled)).join('')}
@@ -2807,7 +3012,7 @@ function settingsView(C){
 }
 
 async function downloadBackup(){
-  const data={app:'The Leaf Village', exported:new Date().toISOString(), settings:S(), prefs:prefsDoc()||prefs, media:media(), days:Object.assign({},state.days,pending.days), body:Object.assign({},state.body,pending.body), study:Object.assign({},state.study,pending.study), timer:timerDoc()||null, studyStart:(S()||{}).studyStart||null, examWeeks:(S()||{}).examWeeks||[]};
+  const data={app:'The Leaf Village', exported:new Date().toISOString(), settings:S(), prefs:prefsDoc()||prefs, media:media(), days:Object.assign({},state.days,pending.days), body:Object.assign({},state.body,pending.body), study:Object.assign({},state.study,pending.study), sleep:Object.assign({},state.sleep,pending.sleep), timer:timerDoc()||null, studyStart:(S()||{}).studyStart||null, examWeeks:(S()||{}).examWeeks||[]};
   const text=JSON.stringify(data,null,2), name=`leaf-village-backup-${todayStr()}.json`;
   const mark=()=>{ try{ localStorage.setItem('leaf-last-backup', String(Date.now())); }catch(e){} render(); };
   let dl=null; try{ dl=(window.claude && typeof window.claude.use==='function') ? await window.claude.use('downloads') : null; }catch(e){ dl=null; }
@@ -2857,7 +3062,7 @@ async function applyImport(){
   if(d.prefs && typeof d.prefs==='object') map[PATH.prefs]=d.prefs;
   if(d.media && typeof d.media==='object') map[PATH.media]=d.media;
   if(d.timer && typeof d.timer==='object') map[PATH.timer]=d.timer;
-  [['days',d.days],['body',d.body],['study',d.study]].forEach(([k,o])=>{ Object.keys(o||{}).forEach(id=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(id) && o[id] && typeof o[id]==='object') map[`${PATH[k]}/${id}`]=o[id]; }); });
+  [['days',d.days],['body',d.body],['study',d.study],['sleep',d.sleep]].forEach(([k,o])=>{ Object.keys(o||{}).forEach(id=>{ if(/^\d{4}-\d{2}-\d{2}$/.test(id) && o[id] && typeof o[id]==='object') map[`${PATH[k]}/${id}`]=o[id]; }); });
   try{ await window.LeafLocal.replaceAll(map); }
   catch(e){ toast('The backup couldn\'t be saved on this phone.'); return; }
   try{ if(d.prefs) localStorage.setItem('leaf-prefs', JSON.stringify(d.prefs)); }catch(e){}
@@ -2964,7 +3169,7 @@ function reportHtml(C, ym){
         ${box('Reps', '', repLine(R).map(esc).concat(R.prs.length?[`${R.prs.length} new ${R.prs.length===1?'max':'maxes'}`]:[]))}
         ${box('Maxes', '', maxLine(R).map(esc))}
         ${box('XP gained', signed(R.xp), [R.promoted?`${esc(r0.name)} → ${esc(r1.name)}`:`Rank: ${esc(r1.name)}`, `${fmt(R.totalAfter)} XP at month end`])}
-        ${box('Streak records', '', [`Workout: ${R.bestStreak} ${R.bestStreak===1?'day':'days'}`, st.days||st.mins?`Study: ${st.bestStreak} ${st.bestStreak===1?'day':'days'}`:'', R.weight?`Weight ${R.weight.from.toFixed(1)}${R.weight.n>1?` → ${R.weight.to.toFixed(1)}`:''} kg`:''])}
+        ${box('Streak records', '', [`Workout: ${R.bestStreak} ${R.bestStreak===1?'day':'days'}`, st.days||st.mins?`Study: ${st.bestStreak} ${st.bestStreak===1?'day':'days'}`:'', R.sleep?`Sleep: ${R.sleep.bestStreak} ${R.sleep.bestStreak===1?'night':'nights'} · ${R.sleep.good} good, avg ${fmtH(R.sleep.avgMins)}${R.sleep.avgScore!=null?`, score ${R.sleep.avgScore}`:''}`:'', R.weight?`Weight ${R.weight.from.toFixed(1)}${R.weight.n>1?` → ${R.weight.to.toFixed(1)}`:''} kg`:''])}
         <div class="rbox wide"><span class="eyebrow">Achievements earned</span>${R.earned.length?`<ul>${R.earned.map(a=>`<li>${esc(a.name)}</li>`).join('')}</ul>`:'<span>None this month</span>'}</div>
       </div>
       <div class="hokage-words">${senseiAvatar('hiruzen',44)}<div><span class="bubble-name" style="--sc:${SENSEIS.hiruzen.color}"><i></i>Third Hokage</span>${R.summary.map(t=>`<p>${esc(t)}</p>`).join('')}</div></div>
@@ -2998,7 +3203,7 @@ function drawReport(C, ym){
   box(X2,y,CW,232,'Maxes', '', maxLine(R));
   y+=256;
   box(L,y,CW,232,'XP gained', signed(R.xp), [R.promoted?`${r0.name} → ${r1.name}`:`Rank: ${r1.name}`, `${fmt(R.totalAfter)} XP at month end`]);
-  box(X2,y,CW,232,'Streak records', '', [`Workout: ${R.bestStreak} days`, st.days||st.mins?`Study: ${st.bestStreak} days`:'', R.weight?`Weight ${R.weight.from.toFixed(1)}${R.weight.n>1?` → ${R.weight.to.toFixed(1)}`:''} kg`:'']);
+  box(X2,y,CW,232,'Streak records', '', [`Workout: ${R.bestStreak} days`, st.days||st.mins?`Study: ${st.bestStreak} days`:'', R.sleep?`Sleep: ${R.sleep.bestStreak} nights · ${R.sleep.good} good`:'', R.weight?`Weight ${R.weight.from.toFixed(1)}${R.weight.n>1?` → ${R.weight.to.toFixed(1)}`:''} kg`:'']);
   y+=256;
   const names=R.earned.map(a=>a.name).join(' · ') || 'None this month';
   g.font=F(24,'r'); const lines=Math.max(1, Math.ceil(g.measureText(names).width/(W-168-48)));
@@ -3359,9 +3564,10 @@ document.addEventListener('click', e=>{
   if(act==='import-yes'){ applyImport(); return; }
   if(act==='import-no'){ ui.importData=null; render(); return; }
   if(act==='scroll-toggle'){ const sid=(el.closest('.mscroll')||{dataset:{}}).dataset.sid||'work'; ui.scrollOpen[sid]=!ui.scrollOpen[sid]; applyScrollState(true, sid); SFX.play('scroll'); return; }
-  if(act==='stats-mode'){ ui.statsMode=el.dataset.v==='study'?'study':'workout'; render(); return; }
+  if(act==='stats-mode'){ ui.statsMode=['study','sleep'].includes(el.dataset.v)?el.dataset.v:'workout'; render(); return; }
   if(act==='smonth'){ const [y,m]=(ui.studyMonth||todayStr().slice(0,7)).split('-').map(Number); const dt=new Date(y, m-1+Number(el.dataset.d), 1); ui.studyMonth=`${dt.getFullYear()}-${pad(dt.getMonth()+1)}`; render(); return; }
   if(act && act.startsWith('st-')){ studyAction(act, el); return; }
+  if(act && act.startsWith('sl-')){ sleepAction(act, el); return; }
   if(act==='exam-start' || act==='exam-end' || act==='exam-cancel'){ examAction(act); return; }
 
   if(act==='sensei-talk'){ ui.lineNonce=(ui.lineNonce||0)+1; SFX.play('tick'); render(); return; }
@@ -3417,6 +3623,12 @@ document.addEventListener('click', e=>{
       const t=ui.draft.study[k.startsWith('stWeek')?'week':'end'];
       if(k.endsWith('Full')){ t.full=clamp(t.full+dd*60,60,14*60); t.min=Math.min(t.min,t.full); }
       else { t.min=clamp(t.min+dd*60,60,t.full); }
+    }
+    else if(k==='slMins' || k==='slBed' || k==='slWake'){
+      const sl=ui.draft.sleep=Object.assign({}, E.SLEEP_DEFAULT, ui.draft.sleep);
+      if(k==='slMins') sl.mins=clamp(sl.mins+dd*30,240,720);
+      else if(k==='slBed') sl.bedBy=(sl.bedBy+dd*30+1440)%1440;
+      else sl.wakeBy=(sl.wakeBy+dd*30+1440)%1440;
     }
     else if(k==='testSets'){ ui.draft.test.sets=clamp(ui.draft.test.sets+dd,1,5); }
     else if(k==='comboSets'){ ui.draft.combo=Object.assign({sets:3}, ui.draft.combo); ui.draft.combo.sets=clamp(ui.draft.combo.sets+dd,1,8); }

@@ -39,18 +39,18 @@ export const LINES = {
   'kakashi.evening': [
     'Evening. {progress}. Finish before you\'re tired; sloppy reps don\'t count for much.',
     '{progress} and the sun is going down. Knock the rest out, strict as ever.',
-    'Still {progress}. I\'m patient, {name}, but midnight isn\'t.',
+    'Still {progress}. I\'m patient, {name}, but bedtime isn\'t.',
     '{progress}. A couple of short visits to the bar tonight and the mission is closed.',
     'Evening check: {progress}. {stake} rides on the rest. Keep the form clean.',
     'It\'s {progress}. Start now and you can still take long rests between sets.'
   ],
   'kakashi.lastcall': [
-    'Last call. {progress}. Finish before midnight or it costs you {stake}.',
+    'Last call. {progress}. Finish before bed or it costs you {stake}.',
     '{progress} with the day almost gone. {stake} on the line. Clean sets, now.',
-    'Even I\'d worry about being this late. {progress}. Midnight takes {stake}.',
+    'Even I\'d worry about being this late. {progress}. Bedtime takes {stake}.',
     '{name}, it\'s {progress}. A few strict sets now save {stake}. Go.',
-    'Final check: {progress}. Rest between sets, but finish by midnight. {stake} at stake.',
-    'The day ends at midnight. {progress}. Don\'t hand over {stake} for nothing.'
+    'Final check: {progress}. Rest between sets, but finish before bed. {stake} at stake.',
+    'Your day ends at bedtime. {progress}. Don\'t hand over {stake} for nothing.'
   ],
 
   /* ---------- Third Hokage · Sunday missions ---------- */
@@ -87,10 +87,10 @@ export const LINES = {
     'Still {progress}, {name}. One set at a time; that is how every long road is walked.'
   ],
   'hiruzen.lastcall': [
-    'The night is late, {name}. {progress}. Midnight would take {stake}; finish now.',
+    'The night is late, {name}. {progress}. Bedtime would take {stake}; finish now.',
     '{progress} and little time remains. Do not let {stake} slip away tonight.',
-    'Last call. {progress}. A few careful sets before midnight keep {stake} safe.',
-    'It is nearly midnight and {progress}. Rise once more, {name}; {stake} depends on it.',
+    'Last call. {progress}. A few careful sets before bed keep {stake} safe.',
+    'Bedtime is near and {progress}. Rise once more, {name}; {stake} depends on it.',
     '{progress}. The village sleeps, but your duty is not yet done. {stake} is at risk.',
     'Before the day closes: {progress}. Protect {stake}, then rest well.'
   ],
@@ -122,11 +122,11 @@ export const LINES = {
     '{progress}! Do the remaining sets now, while your spirit burns brightest!'
   ],
   'guy.lastcall': [
-    'LAST CALL! {progress}! Finish before midnight or lose {stake}! You can do this!',
-    '{progress} and midnight is charging at us! Charge back! {stake} is on the line!',
+    'LAST CALL! {progress}! Finish before bed or lose {stake}! You can do this!',
+    '{progress} and bedtime is charging at us! Charge back! {stake} is on the line!',
     'No giving up now, {name}! {progress}! A few all-out sets save {stake}!',
     'The final hour! {progress}! Get to the bar and fight for {stake}!',
-    '{progress}! Finish by midnight and I\'ll run a hundred laps for you! {stake} at stake!',
+    '{progress}! Finish before bed and I\'ll run a hundred laps for you! {stake} at stake!',
     'It\'s now or never! {progress}! Protect {stake} with everything you have!'
   ],
 
@@ -139,6 +139,22 @@ export const LINES = {
     'Rest day! I\'d train you myself, but my research won\'t write itself. Recover well.',
     'Nothing to lift today. A wise ninja guards recovery the way I guard my notebooks.',
     'The great sage declares a rest day. Your streak is safe; your only job is to recover.'
+  ],
+  'jiraiya.bedtime': [
+    'Lights out in an hour. Asleep between {from} and {by}, {hours} of sleep, up by {wake}. The great sage has spoken.',
+    'One hour to your sleep window, {name}. Screens down, phone away. Tomorrow\'s legend is built tonight.',
+    'Even my research stops for bed. Be asleep by {by} and the morning scroll writes itself.',
+    'The window opens at {from}. A rested ninja trains harder and remembers more. Start winding down now.',
+    'Bedtime approaches, {name}. {hours} tonight and up by {wake}: that is the deal we made.',
+    'Put the books away soon. Sleep is where today\'s studying sticks. Asleep by {by}.'
+  ],
+  'jiraiya.sleep.log': [
+    'Write down last night in the Sleep Scroll: hours, score, bedtime and wake time.',
+    'Good research needs good notes. Log last night\'s sleep while you remember it.',
+    'Before the day runs off with you, copy last night from your sleep app into the scroll.',
+    'The sleep log is waiting, {name}. Four numbers and you\'re done.',
+    'A sage keeps records. Last night\'s sleep goes in the scroll this morning.',
+    'Morning! How did you sleep? The scroll wants the numbers.'
   ],
   'jiraiya.weigh': [
     'Step on the scale and log it, kid. Field research needs numbers: {have}/{goal} this week.',
@@ -176,27 +192,27 @@ export const LINES = {
   ],
   'hiruzen.study.evening0': [
     'No study logged today, and evening is here. {min} is still needed; begin now.',
-    'The study scroll is still empty, {name}. {min} before midnight keeps the streak.',
+    'The study scroll is still empty, {name}. {min} before bed keeps the streak.',
     'Evening has come without a page read. Start the timer; today asks for {min}.',
     'Not a minute at the desk yet. {min} is a long way to go, so the best time to start is now.',
     'Your books have waited all day, {name}. Give them {min} tonight.',
     'An empty scroll at dusk. {min} is today\'s minimum; one hour first, then the next.'
   ],
   'hiruzen.study.lastcall': [
-    'Study: exactly {need} still needed before midnight.',
+    'Study: exactly {need} still needed before bed.',
     'The books need {need} more tonight, {name}, to keep the study streak.',
-    '{need} of study stand between you and today\'s minimum. Midnight is near.',
+    '{need} of study stand between you and today\'s minimum. Bedtime is near.',
     'You are {need} short of the study minimum. There is just time, if you begin now.',
-    'For your studies: {need} still owed before midnight. Sit down now, {name}.',
+    'For your studies: {need} still owed before bed. Sit down now, {name}.',
     '{need} more at the desk and the study streak lives another day.'
   ],
   'hiruzen.study.shield': [
-    'If today was truly hard, tap "Protect my streak" before midnight.',
-    'Your weekly shield is unused: if today was truly hard, tap "Protect my streak" before midnight.',
-    'Should today have been truly hard, you may tap "Protect my streak" before midnight.',
-    'The shield is still yours this week. "Protect my streak" before midnight, only if today was truly hard.',
-    'No shame in a truly hard day: "Protect my streak" is there until midnight, once a week.',
-    'If the day was truly too much, tap "Protect my streak" before midnight. Be honest with yourself.'
+    'If today was truly hard, tap "Protect my streak" before bed.',
+    'Your weekly shield is unused: if today was truly hard, tap "Protect my streak" before bed.',
+    'Should today have been truly hard, you may tap "Protect my streak" before bed.',
+    'The shield is still yours this week. "Protect my streak" before bed, only if today was truly hard.',
+    'No shame in a truly hard day: "Protect my streak" is there until bed, once a week.',
+    'If the day was truly too much, tap "Protect my streak" before bed. Be honest with yourself.'
   ],
 
   /* ---------- Third Hokage · exam week, promotion, weekly report ---------- */

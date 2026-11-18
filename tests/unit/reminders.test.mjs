@@ -127,14 +127,14 @@ test('a running study timer counts toward today', () => {
   const d = run('2026-11-10', 'EVENING', data => {
     data.days['2026-11-10'] = clone(BASE.days['2026-11-10']);
     data.study['2026-11-10'] = {date:'2026-11-10', entries:[{start:iso('2026-11-10', 6, 0), end:iso('2026-11-10', 8, 0), min:120, src:'timer'}]};
-    data.timer = {state:'running', segStart:at('2026-11-10', 16, 40), checkAt:at('2026-11-10', 19, 40), sessionMs:0};
+    data.timer = {state:'running', segStart:at('2026-11-10', 13, 40), checkAt:at('2026-11-10', 16, 40), sessionMs:0};
   });
   assert.match(d.body, /3h/);   // 2h logged + 1h on the timer
   assert.match(d.body, /1h\b/); // 1h still needed
   const capped = run('2026-11-10', 'LASTCALL', data => {
     data.days['2026-11-10'] = clone(BASE.days['2026-11-10']);
     delete data.study['2026-11-10'];
-    data.timer = {state:'running', segStart:at('2026-11-10', 12, 0), checkAt:at('2026-11-10', 15, 0), sessionMs:0};
+    data.timer = {state:'running', segStart:at('2026-11-10', 11, 0), checkAt:at('2026-11-10', 14, 0), sessionMs:0};
   });
   assert.match(capped.body, /1h\b/, 'a forgotten timer stops counting at its 3-hour check: 3h counted, 1h needed');
 });
@@ -145,7 +145,7 @@ test('last call with the shield still available: he is told about "Protect my st
   assert.deepEqual(keys(d), ['kakashi.lastcall', 'hiruzen.study.lastcall', 'hiruzen.study.shield']);
   assert.match(lineOf(d, 'hiruzen'), /2h/, '2h of the 4h minimum still needed');
   assert.match(lineOf(d, 'hiruzen'), /"Protect my streak"/);
-  assert.match(lineOf(d, 'hiruzen'), /before midnight/);
+  assert.match(lineOf(d, 'hiruzen'), /before bed/);
   assert.match(lineOf(d, 'hiruzen'), /truly/);
   assert.equal(d.title, 'Last call');
 });
@@ -270,7 +270,7 @@ test('a line is never repeated on consecutive days', () => {
 test('every pool has at least 6 original lines that fit, and only uses placeholders it is given', () => {
   const worst = {name:'Sharafaldeen', need:12, goal:15, target:25, ex:'weighted pull-ups', combo:'8 × 25 weighted pull-ups and 8 × 40 ring dips', maxes:'38 weighted pull-ups and 62 ring dips', sets:5,
     progress:'weighted pull-ups 10/12, ring dips 11/12', stake:'150 XP and your 365-day streak', penalty:150, streak:365, have:1, goal2:2, min:'10h 30m', full:'13h 30m', done:'9h 59m',
-    day:7, days:7, xp:'+12,345', rank:'Tailed Beast Mode', reps:'1,234 pull-ups, 2,345 dips', missed:5, hours:'61h 45m', prs:'2 new maxes'};
+    day:7, days:7, xp:'+12,345', rank:'Tailed Beast Mode', reps:'1,234 pull-ups, 2,345 dips', missed:5, hours:'61h 45m', prs:'2 new maxes', from:'19:00', by:'20:00', wake:'04:00'};
   const limit = {'hiruzen.weekly':150, 'hiruzen.study.shield':110};
   Object.keys(LINES).forEach(key => {
     const pool = LINES[key];
@@ -285,4 +285,25 @@ test('every pool has at least 6 original lines that fit, and only uses placehold
     assert.ok(SENSEI_NAMES[sensei], `${key} belongs to a sensei`);
     if(sensei === 'guy') pool.forEach(t => assert.ok(/!/.test(t), `Guy shouts: ${t}`));
   });
+});
+
+test('bedtime: Jiraiya an hour before the sleep window, with the goal for tonight; the switch turns it off', () => {
+  const d = run('2026-11-10', 'BEDTIME');
+  wellFormed(d);
+  assert.deepEqual(keys(d), ['jiraiya.bedtime']);
+  assert.equal(d.title, 'Bedtime');
+  assert.match(d.body, /^Jiraiya: /);
+  const custom = run('2026-11-10', 'BEDTIME', data => { data.settings.scheduleHistory.push({from:'2026-11-11', plan:data.settings.scheduleHistory[0].plan, gtg:{sets:6, minSets:5, pct:50}, test:{sets:2, ex:['pullups','dips']}, sleep:{mins:480, bedBy:1230, wakeBy:270}}); }, {'jiraiya.bedtime':{i:-1, d:'2026-11-09'}});
+  assert.match(custom.body, /19:30 and 20:30, 8h of sleep, up by 04:30/, 'tonight belongs to tomorrow, so tomorrow\'s goal is used');
+  assert.equal(run('2026-11-10', 'BEDTIME', data => { data.settings.notify = {sleep:false}; }).send, false);
+  assert.equal(run('2026-10-06', 'BEDTIME').send, true, 'sleep still matters in an exam week');
+});
+
+test('morning: Jiraiya asks for last night only once the sleep log has started, and stops once it is logged', () => {
+  const none = run('2026-11-10', 'MORNING');
+  assert.ok(!keys(none).includes('jiraiya.sleep.log'), 'no sleep log yet: nothing about sleep');
+  const started = data => { data.sleep = {'2026-11-08':{date:'2026-11-08', mins:470, score:84, bed:'19:30', wake:'03:50'}}; };
+  assert.ok(keys(run('2026-11-10', 'MORNING', started)).includes('jiraiya.sleep.log'));
+  const logged = data => { started(data); data.sleep['2026-11-10'] = {date:'2026-11-10', mins:460, score:80, bed:'19:40', wake:'03:55'}; };
+  assert.ok(!keys(run('2026-11-10', 'MORNING', logged)).includes('jiraiya.sleep.log'));
 });

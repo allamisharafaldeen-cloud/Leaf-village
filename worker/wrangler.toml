@@ -18,8 +18,8 @@ database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
 [triggers]
-# 5:40, 11:40, 17:40 and 22:40 in Baghdad (UTC+3)
-crons = ["40 2,8,14,19 * * *"]
+# 5:40, 11:40 and 14:40 in Baghdad (UTC+3), then 17:00 (last call) and 18:00 (bedtime)
+crons = ["40 2,8,11 * * *", "0 14,15 * * *"]
 
 [observability]
 enabled = true

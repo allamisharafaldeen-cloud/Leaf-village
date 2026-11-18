@@ -7,7 +7,7 @@ export const dataOf = b => ({settings:b.settings, days:b.days, study:b.study, bo
 export const clone = v => JSON.parse(JSON.stringify(v));
 /* Baghdad wall-clock time → the real instant */
 export const at = (date, hh, mm = 0) => Date.parse(`${date}T00:00:00Z`) - 3 * 3600000 + (hh * 60 + mm) * 60000;
-export const SLOT_TIME = {MORNING:[5, 40], MIDDAY:[11, 40], EVENING:[17, 40], LASTCALL:[22, 40]};
+export const SLOT_TIME = {MORNING:[5, 40], MIDDAY:[11, 40], EVENING:[14, 40], LASTCALL:[17, 0], BEDTIME:[18, 0]};
 export const slotTime = (date, slot) => at(date, SLOT_TIME[slot][0], SLOT_TIME[slot][1]);
 /* drop everything logged after `nowMs`, so a test sees the day as it was at that minute */
 export function asOf(data, nowMs){

@@ -45,7 +45,7 @@ test('export: Download backup gives the same file format and the same data back'
   const [dl] = await Promise.all([A.page.waitForEvent('download'), A.page.click('[data-act="backup"]')]);
   assert.match(dl.suggestedFilename(), /^leaf-village-backup-2026-11-15\.json$/);
   const out = JSON.parse(readFileSync(await dl.path(), 'utf8'));
-  assert.deepEqual(Object.keys(out).sort(), Object.keys(fixture).sort(), 'same top-level fields as before');
+  assert.deepEqual(Object.keys(out).sort(), Object.keys(fixture).concat(fixture.sleep ? [] : ['sleep']).sort(), 'same top-level fields as before, plus the sleep log');
   assert.equal(out.app, 'The Leaf Village');
   ['settings', 'days', 'study', 'body', 'studyStart', 'examWeeks', 'timer'].forEach(k => assert.deepEqual(out[k], fixture[k], k));
   assert.ok(!JSON.stringify(out).includes('leaf-sync'), 'no sync bookkeeping leaks into the backup');
@@ -176,7 +176,7 @@ test('Undo still removes only the most recent entry, and the other device follow
 
 test('settings: the latest edit wins and reaches the other device (reminder switches)', async () => {
   await A.setTime(T0 + min(80)); await A.tab('settings');
-  assert.equal(await A.page.locator('[data-act="notify"]').count(), 7, 'seven reminder switches');
+  assert.equal(await A.page.locator('[data-act="notify"]').count(), 8, 'eight reminder switches');
   await A.page.evaluate(() => document.querySelector('[data-act="notify"][data-k="weekly"]').click());
   await until(async () => ((await A.docs())['leaf/main'].notify || {}).weekly === false, 'the switch to save');
   await A.sync(); await B.sync();

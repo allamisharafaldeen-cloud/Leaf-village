@@ -7,7 +7,7 @@
    POST /push/test         send a test notification
    GET  /reminders/preview what a slot would say right now (nothing is sent)
    GET  /health            is the Worker up (no data)
-   cron 02:40, 08:40, 14:40, 19:40 UTC = 5:40, 11:40, 17:40, 22:40 in Baghdad
+   cron 02:40, 08:40, 11:40, 14:00, 15:00 UTC = 5:40, 11:40, 14:40, 17:00 (last call), 18:00 (bedtime) in Baghdad
 
    Everything except /health needs the sync key. */
 import LeafMerge from '../../leaf-merge.js';
@@ -245,7 +245,7 @@ async function runSlot(env, nowMs, slot){
   const picks = parseObj(await metaGet(env, 'picks')) || {};
   const d = await decideNow(env, nowMs, slot, picks);
   if(!d.send){ report.note = 'nothing to say'; await metaSet(env, 'last_run', JSON.stringify(report)); return report; }
-  report.status = await deliver(env, subs, payloadFor(env, d.title, d.body, 'leaf-' + slot.toLowerCase()), {ttl:slot === 'LASTCALL' ? 3600 : 3 * 3600, nowMs});
+  report.status = await deliver(env, subs, payloadFor(env, d.title, d.body, 'leaf-' + slot.toLowerCase()), {ttl:(slot === 'LASTCALL' || slot === 'BEDTIME') ? 3600 : 3 * 3600, nowMs});
   report.sent = report.status.filter(x => x >= 200 && x < 300).length;
   await env.DB.batch([
     env.DB.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').bind('picks', JSON.stringify(d.picks)),
@@ -264,7 +264,7 @@ async function handleTest(req, env){
   const subs = await allSubs(env);
   if(!subs.length) return reply(req, env, 200, {ok:true, sent:0, devices:0});
   const srow = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/main'`).first(), s = (srow && parseObj(srow.data)) || {};
-  const body = `Third Hokage: Notifications are working, ${s.name || 'ninja'}. The village will find you at 5:40, 11:40, 17:40 and 22:40.`;
+  const body = `Third Hokage: Notifications are working, ${s.name || 'ninja'}. The village will find you at 5:40, 11:40, 14:40 and 17:00, and Jiraiya at 18:00 before bed.`;
   const status = await deliver(env, subs, payloadFor(env, 'The Leaf Village', body, 'leaf-test'), {ttl:600});
   return reply(req, env, 200, {ok:true, devices:subs.length, sent:status.filter(x => x >= 200 && x < 300).length, status});
 }
