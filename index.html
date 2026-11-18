@@ -763,7 +763,7 @@ const RANK_LOOK = {
 };
 /* Rank-up cinematics: each plays once, at the moment that rank is earned (and again from its card in the Ninja tab).
    They live in their own cache so app updates don't download them again. */
-const CINE = {'chunin':'media/cine-chunin-v2.mp4'};
+const CINE = {'chunin':'media/cine-chunin-v2.mp4','special-jonin':'media/cine-special-jonin.mp4'};
 const CINE_CACHE = 'leaf-cine';
 const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
 const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
