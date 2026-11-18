@@ -859,6 +859,8 @@ const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
 const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chakra)' : 'var(--rest)';
 
 /* ---------- per-device preferences ---------- */
+/* iPhone: let sounds and music play even when the ring/silent switch is on silent (iOS 17+). */
+try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
 const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false};
 const prefs = Object.assign({}, PREF_DEFAULTS, (()=>{ try{ return JSON.parse(localStorage.getItem('leaf-prefs')||'{}')||{}; }catch(e){ return {}; } })());
 try{ if(localStorage.getItem('leaf-sound')==='off') prefs.sfxOn=false; }catch(e){}
