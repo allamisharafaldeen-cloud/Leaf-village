@@ -763,7 +763,7 @@ const RANK_LOOK = {
 };
 /* Rank-up cinematics: each plays once, at the moment that rank is earned (and again from its card in the Ninja tab).
    They live in their own cache so app updates don't download them again. */
-const CINE = {'chunin':'media/cine-chunin.mp4'};
+const CINE = {'chunin':'media/cine-chunin-v2.mp4'};
 const CINE_CACHE = 'leaf-cine';
 const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
 const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
@@ -3178,7 +3178,10 @@ function markScene(key){ try{ localStorage.setItem('leaf-scene-'+key,'1'); }catc
 function prefetchCine(C){
   try{
     const nx=RANKS[C.peak+1], cur=RANKS[C.peak], list=[nx&&CINE[nx.id], cur&&CINE[cur.id]].filter(Boolean);
-    if(!list.length || !('caches' in window) || navigator.onLine===false) return;
+    if(!('caches' in window)) return;
+    if(!prefetchCine.swept){ prefetchCine.swept=1; const keep=new Set(Object.values(CINE).map(u=>new URL(u, location.href).pathname));
+      caches.open(CINE_CACHE).then(c=>c.keys().then(ks=>ks.forEach(r=>{ if(!keep.has(new URL(r.url).pathname)) c.delete(r); }))).catch(()=>{}); }
+    if(!list.length || navigator.onLine===false) return;
     list.forEach(u=>{ const abs=new URL(u, location.href).href; if((prefetchCine.done||(prefetchCine.done={}))[abs]) return; prefetchCine.done[abs]=1;
       caches.open(CINE_CACHE).then(c=>c.match(abs).then(hit=>hit || fetch(abs).then(r=>r.ok?c.put(abs,r):null))).catch(()=>{ delete prefetchCine.done[abs]; }); });
   }catch(e){}
