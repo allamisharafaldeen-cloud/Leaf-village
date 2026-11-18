@@ -455,6 +455,34 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .notice{font-size:13px; padding:9px 12px; border-radius:10px; background:var(--rest-soft)}
 
 /* ninja tab */
+.tf-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.tf-row{display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 6px; border-radius:12px}
+.tf-row.on{background:var(--chakra-soft)}
+.tf-thumb{position:relative; width:54px; height:78px; border-radius:10px; overflow:hidden; background:radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%), var(--ink); display:flex; align-items:flex-end; justify-content:center}
+.tf-thumb img{height:94%; width:auto; max-width:120%; object-fit:contain}
+.tf-row.locked .tf-thumb{background:var(--ink)}
+.tf-row.locked .tf-thumb img{filter:brightness(0) drop-shadow(0 0 4px color-mix(in srgb, var(--c) 70%, transparent)); opacity:.9}
+.tf-row.locked .tf-thumb::after{content:"?"; position:absolute; inset:0; display:grid; place-items:center; font-family:var(--f-display); font-size:26px; color:var(--c); text-shadow:0 0 10px var(--c)}
+.tf-info{display:flex; flex-direction:column; gap:2px; min-width:0}
+.tf-info b{font-weight:700}
+.tf-world{font-size:12.5px; color:var(--muted)}
+.tf-hint{font-size:13px; font-style:italic}
+.tf-row.open .tf-hint{font-style:normal; font-family:var(--f-data); font-size:12px; color:var(--muted)}
+.tf-bar{display:block; height:6px; border-radius:999px; background:var(--line,rgba(127,127,127,.25)); overflow:hidden; margin-top:4px}
+.tf-bar i{display:block; height:100%; background:var(--chakra); border-radius:999px}
+.tf-n{font-family:var(--f-data); font-size:12px; color:var(--muted)}
+.tf-pill{all:unset; cursor:pointer; display:inline-flex; align-items:center; margin:6px 0 0 6px; padding:4px 10px; border-radius:999px; background:rgba(0,0,0,.45); color:#fff; border:1.5px solid var(--aura); font-family:var(--f-data); font-weight:700; font-size:12px; letter-spacing:.06em; text-transform:uppercase; box-shadow:0 0 12px var(--aura)}
+.tf-pill:focus-visible{outline:3px solid var(--chakra); outline-offset:2px}
+.tf-reveal .tf-art{position:relative; height:min(46vh,380px); display:flex; align-items:flex-end; justify-content:center; background:radial-gradient(circle at 50% 62%, color-mix(in srgb, var(--c) 55%, transparent), transparent 68%), #0d0d10; overflow:hidden}
+.tf-reveal .tf-art img{height:96%; width:auto; max-width:100%; object-fit:contain; aspect-ratio:auto; position:static; filter:drop-shadow(0 0 18px var(--c)); animation:tfrise .9s cubic-bezier(.2,1.3,.4,1) both .25s}
+.tf-reveal h2{color:var(--c)}
+.tf-reveal .tf-world{margin:-6px 0 0; color:#c9c3b8; font-size:13.5px}
+@keyframes tfrise{from{opacity:0; transform:scale(.85) translateY(14px)}to{opacity:1; transform:none}}
+.poof{position:absolute; left:50%; top:52%; width:0; height:0; z-index:6; pointer-events:none}
+.poof i{position:absolute; left:-55px; top:-55px; width:110px; height:110px; border-radius:50%; background:radial-gradient(circle at 40% 35%, #fff, rgba(235,235,240,.92) 45%, rgba(210,210,220,0) 72%); animation:poof 1.1s ease-out forwards; animation-delay:var(--d)}
+.poof b{position:absolute; left:-90px; top:-90px; width:180px; height:180px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.95), rgba(255,255,255,0) 70%); animation:poofcore .9s ease-out forwards}
+@keyframes poof{0%{transform:rotate(var(--a)) translateX(0) scale(.3); opacity:1}55%{opacity:.95}100%{transform:rotate(var(--a)) translateX(95px) scale(1.5); opacity:0}}
+@keyframes poofcore{0%{transform:scale(.2); opacity:1}40%{transform:scale(1.25); opacity:1}100%{transform:scale(1.6); opacity:0}}
 .ladder{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px}
 .ladder li{border-radius:12px}
 .ladder .rank-btn{all:unset; box-sizing:border-box; width:100%; display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 6px; border-radius:12px; cursor:pointer}
@@ -780,6 +808,8 @@ const CUT_AR = {"eight-gates": 0.505, "byakugan": 1.059, "akatsuki": 0.382, "sus
 const AURA_BOX = {"genin": [-3.06, -1.72, 105.16, 103.53], "chunin": [-2.62, -2.0, 106.72, 103.16], "special-jonin": [-5.68, -1.75, 108.35, 102.86], "jonin": [-2.71, -2.09, 106.98, 103.3], "anbu": [-1.41, -0.32, 101.49, 100.96], "akatsuki": [-3.98, -1.29, 108.19, 103.08], "sannin": [-7.67, -2.43, 114.19, 104.13], "tailed-beast": [-3.39, 0.13, 104.22, 101.06], "eight-gates": [-11.53, -0.04, 123.48, 102.67], "kage": [-2.57, -2.01, 105.07, 103.93], "hokage": [-4.41, -2.28, 108.15, 104.84], "sage": [-3.84, -2.04, 106.99, 104.22], "susanoo": [-1.09, -6.2, 105.57, 105.97]};
 const CUT_V = {"academy": "-v2", "genin": "-v3", "chunin": "-v3", "special-jonin": "-v3", "jonin": "-v3", "six-paths": "-v2", "anbu": "-v2", "akatsuki": "-v2", "sannin": "-v2", "tailed-beast": "-v2", "eight-gates": "-v2", "kage": "-v2", "hokage": "-v2", "sage": "-v2", "susanoo": "-v2"};
 const AURA = {"eight-gates": "#ff3b2f", "byakugan": "#dfe3ff", "akatsuki": "#ff4a4a", "susanoo": "#b46bff", "academy": "#6ec3ff", "genin": "#6ec3ff", "chunin": "#5fe0c0", "special-jonin": "#a9c8ff", "jonin": "#4a7dff", "anbu": "#b9c8ff", "sannin": "#ffb84a", "kage": "#f2f0ea", "hokage": "#ffb14a", "sage": "#ff8a3d", "tailed-beast": "#ffc229", "six-paths": "#ffe27a"};
+/* transformation jutsu forms: body cut-out aspect ratio and where the aura layer sits around it (% of the body box) */
+const GUEST_ART = {"ayanokoji": {"ar": 0.344, "box": [-13.92, -0.63, 115.75, 101.14]}, "eren": {"ar": 0.636, "box": [-1.93, -1.32, 103.6, 102.33]}, "gojo": {"ar": 0.437, "box": [-11.81, -2.49, 115.68, 104.1]}, "gon": {"ar": 0.636, "box": [-1.28, -1.03, 101.96, 101.85]}, "isagi": {"ar": 0.362, "box": [-16.76, -1.1, 132.36, 102.24]}, "jinwoo": {"ar": 0.64, "box": [-4.9, -1.23, 109.21, 102.37]}, "kaneki": {"ar": 0.614, "box": [-1.31, -0.76, 102.98, 101.57]}, "kirito": {"ar": 0.478, "box": [-6.38, -0.93, 107.53, 101.91]}, "lelouch": {"ar": 0.598, "box": [-1.52, -0.25, 103.12, 101.12]}, "tanjiro": {"ar": 0.533, "box": [-2.07, -1.32, 103.43, 102.67]}, "tobi": {"ar": 0.394, "box": [-15.5, -0.42, 131.0, 100.8]}};
 /* the rules (rank thresholds, XP, streak tiers) live in leaf-engine.js; this is how each rank looks */
 const E = window.LeafEngine;
 /* Guard against a half-updated app: a new page served with an engine script left over from the previous version.
@@ -915,7 +945,7 @@ const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chak
 /* ---------- per-device preferences ---------- */
 /* iPhone: let sounds and music play even when the ring/silent switch is on silent (iOS 17+). */
 try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
-const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, cards:'solid', sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false};
+const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, cards:'solid', sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false, transform:null, tfSeen:{}};
 const prefs = Object.assign({}, PREF_DEFAULTS, (()=>{ try{ return JSON.parse(localStorage.getItem('leaf-prefs')||'{}')||{}; }catch(e){ return {}; } })());
 try{ if(localStorage.getItem('leaf-sound')==='off') prefs.sfxOn=false; }catch(e){}
 let prefsTimer=null, appliedPrefs=null;
@@ -1125,20 +1155,20 @@ function stageVisible(){ const st=document.querySelector('.stage'); if(!st) retu
 function updateMinibar(C){
   const mb=document.getElementById('minibar'); if(!mb) return;
   if(!C || ui.tab!=='mission' || !S()){ mb.classList.remove('show'); return; }
-  const r=RANKS[C.peak], nx=RANKS[C.peak+1];
+  const r=RANKS[C.peak], nx=RANKS[C.peak+1], L=stageLook(C, r);
   const pct = nx ? clamp((C.total-r.xp)/(nx.xp-r.xp)*100,0,100) : 100;
-  const key=[C.peak,C.total,C.streak,C.study.streak,!!C.study.start].join('|');
+  const key=[C.peak,C.total,C.streak,C.study.streak,!!C.study.start,L.face].join('|');
   if(mb.dataset.key!==key){
-    mb.dataset.key=key; mb.style.setProperty('--aura', r.aura);
+    mb.dataset.key=key; mb.style.setProperty('--aura', L.aura);
     const fill=mb.querySelector('.mb-fill');
-    if(fill && mb.dataset.rank===String(C.peak)){
+    if(fill && mb.dataset.rank===String(C.peak)+L.face){
       fill.style.width=pct+'%';
       mb.querySelector('.mb-xp-text').textContent=`${fmt(C.total)} XP`;
       mb.querySelector('.mb-flame b').textContent=C.streak;
       const sb=mb.querySelector('.mb-study b'); if(sb) sb.textContent=C.study.streak;
     } else {
-      mb.dataset.rank=String(C.peak);
-      mb.innerHTML=`<div class="mb-face"><img src="${r.photo}" alt=""></div>
+      mb.dataset.rank=String(C.peak)+L.face;
+      mb.innerHTML=`<div class="mb-face"><img src="${L.face}" alt=""></div>
         <div class="mb-mid"><div class="mb-top"><b>${esc(r.name)}</b><span class="mb-xp-text">${fmt(C.total)} XP</span></div><div class="mb-track"><div class="mb-fill" style="width:${pct}%"></div></div></div>
         <div class="mb-streaks"><span class="mb-flame">${flame}<b>${C.streak}</b></span>${C.study.start?`<span class="mb-study">${ico.scrollS}<b>${C.study.streak}</b></span>`:''}</div>`;
     }
@@ -1168,6 +1198,21 @@ function stagePowerUp(gained){
   const f=document.createElement('div'); f.className='xp-float'; f.dataset.morph='keep'; f.textContent=`${signed(gained)} XP`; st.appendChild(f); setTimeout(()=>f.remove(),1300);
   const r=st.getBoundingClientRect(); FX.sparkBurst(r.left+r.width/2, r.top+r.height*.55, getComputedStyle(st).getPropertyValue('--aura').trim()||'#ffd27a');
 }
+/* ---------- transformation jutsu ---------- */
+const tfList = C => C._tfl || (C._tfl = E.transforms(C).map(t=>Object.assign(t, GUEST_ART[t.id]||{ar:.5, box:null}, {cut:`guests/${t.id}-cut.webp`, auraImg:`guests/${t.id}-aura.webp`, face:`guests/${t.id}-face.jpg`})));
+function activeTf(C){ const id=prefs.transform; if(!id || !C) return null; const t=tfList(C).find(x=>x.id===id); return t && t.date ? t : null; }
+/* the picture on the stage: the rank's own form, or the transformation being worn */
+function stageLook(C, r){
+  const g=activeTf(C);
+  return g ? {cut:g.cut, cutAr:g.ar, auraBox:g.box, aura:g.color, auraImg:g.auraImg, face:g.face, name:g.name, tf:g}
+           : {cut:r.cut, cutAr:r.cutAr, auraBox:r.auraBox, aura:r.aura, auraImg:`ranks/${r.id}-aura.webp`, face:r.photo, name:r.name, tf:null};
+}
+function tfPoof(){
+  const st=document.querySelector('.stage .char-wrap') || document.querySelector('.tf-reveal .tf-art'); if(!st || prefs.anim==='off') return;
+  const p=document.createElement('div'); p.className='poof'; p.setAttribute('aria-hidden','true');
+  p.innerHTML=Array.from({length:9},(_,i)=>`<i style="--a:${i*40}deg;--d:${(i%3)*.05}s"></i>`).join('')+'<b></b>';
+  st.appendChild(p); setTimeout(()=>p.remove(), 1300);
+}
 function ninjaHeader(C){
   const s=S(), r=RANKS[C.peak], nx=RANKS[C.peak+1];
   const dayNum = daysBetween(s.startDate, C.today)+1;
@@ -1181,23 +1226,23 @@ function ninjaHeader(C){
   const name = esc(s.name||'Ninja');
   const xpbar = `<div class="xpbar"><div class="xptrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Progress to next rank"><div class="xpfill" style="width:${pct}%"></div></div><div class="xprow">${left}${right}</div></div>`;
   if(r.cut){
-    const pw=todayPower(C), hasBg=!!bgShow(bgSlotNow());
+    const pw=todayPower(C), hasBg=!!bgShow(bgSlotNow()), L=stageLook(C, r);
     const sparks = pw>0 ? Array.from({length:Math.round(3+pw*7)},(_,i)=>`<i class="spark" style="--x:${12+((i*37)%76)}%;--d:${((i*0.61)%3).toFixed(2)}s;--t:${(2.4+(i%4)*.45).toFixed(2)}s"></i>`).join('') : '';
     return `
-  <section class="stage${pw>=1?' charged':''}${r.auraBox?' has-art':''}" style="--rk:${r.color};--aura:${r.aura};--power:${pw.toFixed(2)};--rankp:${nx?clamp(pct/100,0,1).toFixed(3):1}" aria-label="Your rank">
+  <section class="stage${pw>=1?' charged':''}${L.auraBox?' has-art':''}${L.tf?' transformed':''}" style="--rk:${r.color};--aura:${L.aura};--power:${pw.toFixed(2)};--rankp:${nx?clamp(pct/100,0,1).toFixed(3):1}" aria-label="Your rank">
     ${hasBg?'':`<div class="stage-back" style="background-image:url('${r.scene}')"></div>`}
     <div class="aura"><span></span></div>
     ${sparks}
     <div class="char-wrap">
-      <div class="char-glow-wrap"><div class="char-glow" style="--ar:${r.cutAr};-webkit-mask-image:url('${r.cut}');mask-image:url('${r.cut}')"></div></div>
-      ${r.auraBox?`<div class="aura-box" style="--ar:${r.cutAr}" aria-hidden="true"><img class="aura-art" src="ranks/${r.id}-aura.webp" alt="" style="left:${r.auraBox[0]}%;top:${r.auraBox[1]}%;width:${r.auraBox[2]}%;height:${r.auraBox[3]}%"></div>`:''}
-      <img class="char" src="${r.cut}" alt="${name} as ${esc(r.name)}" style="--ar:${r.cutAr}">
+      <div class="char-glow-wrap"><div class="char-glow" style="--ar:${L.cutAr};-webkit-mask-image:url('${L.cut}');mask-image:url('${L.cut}')"></div></div>
+      ${L.auraBox?`<div class="aura-box" style="--ar:${L.cutAr}" aria-hidden="true"><img class="aura-art" src="${L.auraImg}" alt="" style="left:${L.auraBox[0]}%;top:${L.auraBox[1]}%;width:${L.auraBox[2]}%;height:${L.auraBox[3]}%"></div>`:''}
+      <img class="char" src="${L.cut}" alt="${name} as ${esc(L.name)}" style="--ar:${L.cutAr}">
     </div>
     <i class="ring" aria-hidden="true"></i>
     <div class="streak${C.streak?'':' cold'}" title="Workout streak">${flame}<b>${C.streak}</b><span>streak</span></div>
     ${C.study.start?`<div class="sstreak${C.study.streak?'':' cold'}" title="Study streak">${ico.scrollS}<b>${C.study.streak}</b><span>study</span></div>`:''}
     ${C.sleep && C.sleep.start?`<div class="sstreak${C.sleep.streak?'':' cold'}${C.study.start?' second':''}" title="Sleep streak">${ico.zzzS}<b>${C.sleep.streak}</b><span>sleep</span></div>`:''}
-    <div class="stage-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1><span class="rank-pill"><i></i>${esc(r.name)}</span>${pw>=1?'<span class="charged-pill">Fully charged</span>':''}</div>
+    <div class="stage-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1><span class="rank-pill"><i></i>${esc(r.name)}</span>${L.tf?`<button type="button" class="tf-pill" data-act="tf-off" aria-label="Release the transformation">as ${esc(L.tf.name.split(' ')[0])} ✕</button>`:''}${pw>=1?'<span class="charged-pill">Fully charged</span>':''}</div>
   </section>` + xpbar;
   }
   if(r.scene) return `
@@ -2200,6 +2245,37 @@ function planView(C){
 }
 
 /* --- jutsu unlocks --- */
+function transformCard(C){
+  const list=tfList(C), open=list.filter(t=>t.date).length, on=activeTf(C);
+  const rows=list.map(t=>{
+    const pct=Math.round(clamp(t.n/t.goal,0,1)*100);
+    const thumb=`<span class="tf-thumb" style="--c:${t.color}"><img src="${t.cut}" alt="" loading="lazy"></span>`;
+    if(!t.date) return `<li class="tf-row locked" data-tf="${t.id}">${thumb}<span class="tf-info"><b>${esc(t.mission)}</b><span class="tf-world">A guest from ${esc(t.world)}</span><span class="tf-hint">“${esc(t.hint)}”</span>
+      <span class="tf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${t.goal}" aria-valuenow="${t.n}" aria-label="${esc(t.mission)} progress"><i style="width:${pct}%"></i></span><span class="tf-n num">${fmt(t.n)} / ${fmt(t.goal)} ${esc(t.unit)}</span></span></li>`;
+    const wearing=on && on.id===t.id;
+    return `<li class="tf-row open${wearing?' on':''}" data-tf="${t.id}">${thumb}<span class="tf-info"><b>${esc(t.name)}</b><span class="tf-world">${esc(t.world)} · ${esc(t.mission)}</span><span class="tf-hint">Earned ${esc(shortDate(t.date))}</span></span>
+      ${state.readOnly?'':wearing?`<button type="button" class="btn small ghost" data-act="tf-off">Release</button>`:`<button type="button" class="btn small chakra-btn" data-act="tf-on" data-id="${t.id}">Transform</button>`}</li>`;
+  }).join('');
+  return `<section class="card" id="tf-card"><div class="section-head"><h2>Transformation Jutsu</h2><span class="eyebrow">${open} / ${list.length} unlocked</span></div>
+    <p class="muted" style="margin:0;font-size:13px">Every ninja learns the Transformation Jutsu. Each hidden form unlocks through its own secret mission. Wearing one only changes your look: your rank, XP and theme stay your own, and you can release it any time.</p>
+    <ul class="tf-list">${rows}</ul></section>`;
+}
+function tfDue(C){
+  if(state.readOnly || !settled() || !state.loaded.prefs || (ui.tfHold && Date.now()<ui.tfHold)) return null;
+  const seen=prefs.tfSeen||{}; return tfList(C).find(t=>t.date && !seen[t.id]) || null;
+}
+function tfAction(act, el){
+  if(state.readOnly || !lastC) return;
+  const ov=document.getElementById('overlay');
+  if(act==='tf-off'){ if(!prefs.transform) return; prefs.transform=null; savePrefs(); SFX.play('tick'); render(); tfPoof(); toast('Transformation released'); return; }
+  const id=el.dataset.id, t=tfList(lastC).find(x=>x.id===id); if(!t || !t.date) return;
+  if(act==='tf-seen' || act==='tf-wear'){ prefs.tfSeen=Object.assign({}, prefs.tfSeen, {[id]:t.date}); }
+  if(act==='tf-on' || act==='tf-wear'){ prefs.transform=id; }
+  savePrefs(); ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null;
+  if(act==='tf-on' || act==='tf-wear'){ SFX.play('promo'); ui.tfHold=Date.now()+2500; setTimeout(()=>{ if(lastC) renderOverlay(lastC); }, 2600); toast(`Transformation Jutsu: ${t.name}`);
+    if(ui.tab!=='mission'){ location.hash='mission'; scrollTo(0,0); setTimeout(tfPoof, 150); } else { render(); tfPoof(); } }
+  else render();
+}
 function jutsuCard(C){
   const list=E.jutsu(C), open=list.filter(j=>j.unlocked).length;
   const rows=list.map(j=>{
@@ -2326,6 +2402,7 @@ function ninjaView(C){
   </section>`}
   ${senseisCard(C)}
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
+  ${transformCard(C)}
   ${jutsuCard(C)}
   ${storyCard(C)}
   ${achievementsCard(C)}`;
@@ -3500,6 +3577,20 @@ function renderOverlay(C){
     </div>`;
     FX.flash(); SFX.play('promo'); setTimeout(()=>FX.leafBurst(),350);
     ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus();
+  } else if(tfDue(C)){
+    const t=tfDue(C), key='tf-'+t.id; if(ui.overlayKey===key) return; ui.overlayKey=key;
+    ov.innerHTML=`<div class="scene tf-reveal" role="dialog" aria-modal="true" aria-labelledby="tf-title" style="--c:${t.color}">
+      <div class="tf-art"><img src="${t.cut}" alt="${esc(s.name||'Ninja')} as ${esc(t.name)}"></div>
+      <div class="scene-body">
+        <div class="eyebrow">Transformation Jutsu unlocked</div>
+        <h2 id="tf-title">${esc(t.name)}</h2>
+        <p class="tf-world">A guest from ${esc(t.world)}</p>
+        <p><b>Hidden mission complete: ${esc(t.mission)}.</b> ${esc(t.need)}.</p>
+        <button class="btn chakra-btn" data-act="tf-wear" data-id="${t.id}" style="width:100%">Transform now</button>
+        <button class="btn ghost" data-act="tf-seen" data-id="${t.id}" style="width:100%">Later</button>
+      </div>
+    </div>`;
+    FX.flash(); SFX.play('promo'); ov.hidden=false; setTimeout(tfPoof, 60); const btn=ov.querySelector('button'); if(btn) btn.focus();
   } else if(ui.recap){
     const key='recap-'+ui.recap; if(ui.overlayKey===key) return;
     const html=recapHtml(C, ui.recap);
@@ -3705,6 +3796,7 @@ document.addEventListener('click', e=>{
   if(act==='prog-accept' || act==='prog-keep'){ progressionAction(act); return; }
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
+  if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen'){ tfAction(act, el); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }

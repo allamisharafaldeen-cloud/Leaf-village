@@ -52,7 +52,9 @@ export async function startRig(basePort){
       page.on('console', m => { if(m.type() === 'error' && !/Failed to load resource|net::ERR_/.test(m.text())) errors.push(`${name} console: ${m.text()}`); });
       const dev = {name, ctx, page,
         async open(hash){ await page.goto(rig.appUrl + (hash || ''), {waitUntil:'domcontentloaded'}); await page.waitForFunction(() => !document.querySelector('.loading')); return dev; },
-        async tab(t){ await page.evaluate(h => { location.hash = h; }, t); await page.waitForSelector(`nav a[data-tab="${t}"][aria-current="page"]`); },
+        async tab(t){ await page.evaluate(h => { location.hash = h; }, t); await page.waitForSelector(`nav a[data-tab="${t}"][aria-current="page"]`); await dev.laterReveals(); },
+        /* a Transformation Jutsu reveal (a form the fixture's logs already earned) is answered "Later", as a person would */
+        async laterReveals(){ for(let i = 0; i < 12; i++){ const b = page.locator('#overlay [data-act="tf-seen"]'); if(!(await b.count())) break; await b.first().click(); await page.waitForTimeout(150); } },
         /* every saved document on this device */
         docs(){ return page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.open('leaf-village-local'); r.onerror = () => rej(r.error); r.onsuccess = () => { const out = {}; const t = r.result.transaction('docs', 'readonly'); const c = t.objectStore('docs').openCursor(); c.onsuccess = () => { const cur = c.result; if(cur){ out[cur.key] = cur.value; cur.continue(); } }; t.oncomplete = () => { r.result.close(); res(out); }; }; })); },
         sync(){ return page.evaluate(() => window.LeafSync.syncNow()); },
@@ -61,6 +63,7 @@ export async function startRig(basePort){
         async importBackup(file){
           await page.setInputFiles('#import-file', file);
           await page.waitForSelector('[data-act="import-yes"]');
+          await dev.laterReveals();
           /* the app reloads itself after importing: wait for the new page, not the old one */
           await page.evaluate(() => { window.__beforeImport = true; });
           await page.click('[data-act="import-yes"]');
@@ -72,6 +75,7 @@ export async function startRig(basePort){
           await page.fill('#sync-key', key || KEY);
           await page.click('[data-act="sync-on"]');
           await page.waitForFunction(() => { const s = window.LeafSync.status(); return s.state !== 'syncing' && (s.last > 0 || !!s.error); });
+          await page.waitForTimeout(300); await dev.laterReveals();
         },
         async logSet(reps){
           await dev.tab('mission');

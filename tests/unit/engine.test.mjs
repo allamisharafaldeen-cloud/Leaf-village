@@ -574,3 +574,51 @@ test('sleep: a backup keeps good nights and drops broken ones', () => {
   assert.equal(r.data.sleep['2026-11-02'].mins, 470);
   assert.ok(r.fixed >= 2);
 });
+
+/* ---------- transformation jutsu: hidden missions ---------- */
+const tf = (C, id) => E.transforms(C).find(t => t.id === id);
+const goodNight = (V, d) => { (V.sleep = V.sleep || {})[d] = {date:d, mins:470, score:85, bed:'19:30', wake:'03:30'}; };
+function perfectWeek(){
+  const V = cleanWeek(); V.settings.studyStart = START;
+  for(let k = 0; k < 7; k++){ const d = E.addDays(START, k); if(E.dowOf(d) !== 4) study(V, d, 480); goodNight(V, d); }
+  return V;
+}
+test('transformations: reps missions (Gon in one day, Kaneki lifetime) know the day they were earned', () => {
+  const V = cleanWeek();
+  let C = E.compute(V, at('2026-11-07', 12));
+  assert.equal(tf(C, 'gon').date, null); assert.equal(tf(C, 'gon').n, 59, 'best day so far: the test day');
+  sets(V, '2026-11-07', 'dips', 25, 4);
+  C = E.compute(V, at('2026-11-07', 20));
+  assert.equal(tf(C, 'gon').date, '2026-11-07'); assert.equal(tf(C, 'gon').n, 100);
+  assert.equal(tf(C, 'kaneki').date, null); assert.ok(tf(C, 'kaneki').n < 993);
+  sets(V, '2026-11-08', 'pullups', 50, 14);
+  C = E.compute(V, at('2026-11-08', 22));
+  assert.equal(tf(C, 'kaneki').date, '2026-11-08'); assert.equal(tf(C, 'kaneki').n, 993);
+  assert.equal(E.transforms(C).length, 11);
+});
+test('transformations: the Perfect Week needs every scroll with no shield; Checkmate needs the full study goal; Dual Wielder counts days', () => {
+  const V = perfectWeek();
+  let C = E.compute(V, at('2026-11-07', 21));
+  assert.equal(tf(C, 'ayanokoji').date, '2026-11-07'); assert.equal(tf(C, 'lelouch').date, '2026-11-07');
+  assert.equal(tf(C, 'kirito').n, 7); assert.equal(tf(C, 'jinwoo').n, 7);
+  const midweek = E.compute(V, at('2026-11-04', 21));
+  assert.equal(tf(midweek, 'ayanokoji').date, null); assert.equal(tf(midweek, 'ayanokoji').n, 4, 'four perfect days so far this week');
+  const short = clone(V); short.sleep['2026-11-03'].mins = 300;
+  C = E.compute(short, at('2026-11-07', 21));
+  assert.equal(tf(C, 'ayanokoji').date, null, 'a short night spoils the perfect week'); assert.equal(tf(C, 'lelouch').date, '2026-11-07', 'Checkmate does not look at sleep');
+  assert.equal(tf(C, 'jinwoo').n, 4, 'the daily quest run starts again after the short night'); assert.equal(tf(C, 'kirito').n, 7);
+  const minOnly = clone(V); minOnly.study['2026-11-02'].entries[0].min = 250;
+  C = E.compute(minOnly, at('2026-11-07', 21));
+  assert.equal(tf(C, 'lelouch').date, null, 'the minimum is not the plan'); assert.equal(tf(C, 'ayanokoji').date, '2026-11-07');
+});
+test('transformations: Tatakae counts test days with a new max; Tanjiro and Tobi read the sleep streak', () => {
+  const V = cleanWeek();
+  V.days['2026-11-13'] = {date:'2026-11-13', sets:[{ex:'pullups', reps:12, t:iso('2026-11-13', 17)}, {ex:'pullups', reps:9, t:iso('2026-11-13', 17, 10)}, {ex:'dips', reps:20, t:iso('2026-11-13', 17, 20)}, {ex:'dips', reps:18, t:iso('2026-11-13', 17, 30)}]};
+  let C = E.compute(V, at('2026-11-13', 20));
+  assert.equal(tf(C, 'eren').n, 2, 'two new maxes on the same day count once; a second test day makes two');
+  const S = village();
+  for(let k = 0; k < 40; k++){ const d = E.addDays(START, k); if(k !== 5) goodNight(S, d); else (S.sleep[d] = {date:d, mins:300, score:50, bed:'21:00', wake:'02:00'}); }
+  C = E.compute(S, at('2026-12-10', 12));
+  assert.equal(tf(C, 'tanjiro').date, E.addDays(START, 19), 'fourteen good nights after the short one');
+  assert.equal(tf(C, 'tobi').date, E.addDays(START, 26), 'a broken streak rebuilt to 21');
+});

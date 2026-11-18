@@ -78,7 +78,7 @@ for(let d = START; d <= LAST; d = addDays(d, 1)){
 }
 const backup = {
   app:'The Leaf Village', exported:'2026-11-11T19:00:00.000Z', settings,
-  prefs:{anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:false, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, sfxOn:false, soundLen:{}, senseiFrame:{}},
+  prefs:{anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:false, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, sfxOn:false, soundLen:{}, senseiFrame:{}, tfSeen:Object.fromEntries(['ayanokoji','gon','kaneki','eren','tanjiro','kirito','lelouch','isagi','gojo','tobi','jinwoo'].map(id => [id, '2026-11-01']))},
   media:{bg:{}, sounds:{}, music:[], senseis:{}},
   days, body, study, timer:{state:'idle'}, studyStart:STUDY_START, examWeeks:settings.examWeeks
 };

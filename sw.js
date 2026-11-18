@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '912ca79106';
+const VERSION = '546413eb65';
 const CACHE = 'leaf-' + VERSION;
 const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
@@ -137,7 +137,40 @@ const FILES = [
  "media/wp-chunin-2.jpg",
  "media/wp-chunin-3.jpg",
  "media/wp-chunin-4.jpg",
- "media/wp-chunin-5.jpg"
+ "media/wp-chunin-5.jpg",
+ "guests/ayanokoji-aura.webp",
+ "guests/ayanokoji-cut.webp",
+ "guests/ayanokoji-face.jpg",
+ "guests/eren-aura.webp",
+ "guests/eren-cut.webp",
+ "guests/eren-face.jpg",
+ "guests/gojo-aura.webp",
+ "guests/gojo-cut.webp",
+ "guests/gojo-face.jpg",
+ "guests/gon-aura.webp",
+ "guests/gon-cut.webp",
+ "guests/gon-face.jpg",
+ "guests/isagi-aura.webp",
+ "guests/isagi-cut.webp",
+ "guests/isagi-face.jpg",
+ "guests/jinwoo-aura.webp",
+ "guests/jinwoo-cut.webp",
+ "guests/jinwoo-face.jpg",
+ "guests/kaneki-aura.webp",
+ "guests/kaneki-cut.webp",
+ "guests/kaneki-face.jpg",
+ "guests/kirito-aura.webp",
+ "guests/kirito-cut.webp",
+ "guests/kirito-face.jpg",
+ "guests/lelouch-aura.webp",
+ "guests/lelouch-cut.webp",
+ "guests/lelouch-face.jpg",
+ "guests/tanjiro-aura.webp",
+ "guests/tanjiro-cut.webp",
+ "guests/tanjiro-face.jpg",
+ "guests/tobi-aura.webp",
+ "guests/tobi-cut.webp",
+ "guests/tobi-face.jpg",
 ];
 
 self.addEventListener('install', e=>{

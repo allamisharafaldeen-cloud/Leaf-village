@@ -722,7 +722,79 @@ function jutsu(C){
     return Object.assign({}, j, {at, rankName:RANKS[at].name, unlocked:C.peak >= at, learned, baseline:learned && base[j.id] ? base[j.id] : null, max:learned ? C.maxes[j.id] : null}); });
 }
 
+/* ---------- transformation jutsu: hidden forms from other worlds ----------
+   Each form unlocks through its own hidden mission, worked out from the logs like an achievement,
+   so it knows the day it was earned. Wearing one only changes the picture; the rank stays the rank. */
+const TRANSFORMS = [
+  {id:'ayanokoji', name:'Kiyotaka Ayanokoji', world:'Classroom of the Elite', color:'#9b7bff', mission:'The Perfect Week', hint:'Seven days. Every scroll. No shield.', need:'A Sunday-to-Saturday week where every workout, study and sleep scroll is complete, with no shield and no exam pass', goal:7, unit:'days this week'},
+  {id:'gon', name:'Gon Freecss', world:'Hunter x Hunter', color:'#5fe07a', mission:'Jajanken', hint:'Rock. One day, everything you have.', need:'100 reps or more in a single day', goal:100, unit:'reps on your best day'},
+  {id:'kaneki', name:'Ken Kaneki', world:'Tokyo Ghoul', color:'#ff3b4a', mission:'1000 − 7', hint:'1000 − 7 = ?', need:'993 lifetime reps', goal:993, unit:'lifetime reps'},
+  {id:'eren', name:'Eren Yeager', world:'Attack on Titan', color:'#ffb347', mission:'Tatakae', hint:'Keep moving forward. Three times past your limit.', need:'Set a new max on 3 different test days', goal:3, unit:'test days with a new max'},
+  {id:'tanjiro', name:'Tanjiro Kamado', world:'Demon Slayer', color:'#ff7a2f', mission:'Total Concentration: Constant', hint:'Breathe, even in your sleep. Fourteen nights.', need:'A sleep streak of 14 good nights', goal:14, unit:'night sleep streak'},
+  {id:'kirito', name:'Kirito', world:'Sword Art Online', color:'#5fb8ff', mission:'Dual Wielder', hint:'Two blades. Fourteen days.', need:'14 days in a row with both the Workout Scroll and the Study Scroll complete', goal:14, unit:'days in a row'},
+  {id:'lelouch', name:'Lelouch vi Britannia', world:'Code Geass', color:'#e0457b', mission:'Checkmate', hint:'Follow the plan. Every move, for a week.', need:'A Sunday-to-Saturday week with no missed mission and the full study goal reached on every study day', goal:7, unit:'days this week'},
+  {id:'isagi', name:'Yoichi Isagi', world:'Blue Lock', color:'#3f8cff', mission:'Ego', hint:'Devour your shadow. Four weeks running.', need:'Beat your shadow clone 4 weeks in a row', goal:4, unit:'weeks in a row'},
+  {id:'gojo', name:'Satoru Gojo', world:'Jujutsu Kaisen', color:'#6fd3ff', mission:'Limitless', hint:'The strongest studies the most. One month.', need:'150 hours of study in one calendar month', goal:150, unit:'hours in your best month'},
+  {id:'tobi', name:'Tobi', world:'Naruto Shippuden', color:'#a98bd6', mission:'Back From the Dead', hint:'Nobody is watching.', need:'After a streak breaks, rebuild it to 21 days', goal:21, unit:'days rebuilt'},
+  {id:'jinwoo', name:'Sung Jinwoo', world:'Solo Leveling', color:'#8a5cff', mission:'The Daily Quest', hint:'Daily Quest. Do not fail. Thirty days.', need:'30 days in a row with every scroll complete: workout, study and sleep', goal:30, unit:'days in a row'}
+];
+function transforms(C){
+  if(C._tf) return C._tf;
+  const got = {}, prog = {}, set = (id, date) => { if(date && (!got[id] || date < got[id])) got[id] = date; };
+  const wd = {}; C.days.forEach(d => { wd[d.date] = d; });
+  const sd = C.study.days || {}, ld = (C.sleep && C.sleep.days) || {};
+  /* one scroll on one day: ok, neutral (exam pass, shield, on-call: skipped), bad (breaks a run) or open (today, not decided) */
+  const W = d => { const r = wd[d]; if(!r) return 'bad'; return (r.status === 'done' || r.status === 'rest') ? 'ok' : r.status === 'exam' ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
+  const Sx = d => { const r = sd[d]; if(!r) return 'bad'; return (r.status === 'done' || r.status === 'rest') ? 'ok' : (r.status === 'exam' || r.status === 'shield') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
+  const L = d => { const r = ld[d]; if(!r) return d === C.today ? 'open' : 'bad'; return r.status === 'good' ? 'ok' : (r.status === 'oncall' || r.status === 'exam') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
+  const join = list => list.includes('bad') ? 'bad' : list.includes('open') ? 'open' : list.includes('neutral') ? 'neutral' : 'ok';
+  const starts = [C.settings.startDate, C.study.start, C.sleep && C.sleep.start].filter(isDate).sort();
+  const runs = {kirito:0, jinwoo:0}; prog.kirito = 0; prog.jinwoo = 0;
+  let reps = 0, bestDay = 0;
+  const prDays = new Set(C.prs.map(p => p.date));
+  if(starts.length) for(let d = starts[0], g = 0; d <= C.today && g < 4000; d = addDays(d, 1), g++){
+    [['kirito', join([W(d), Sx(d)]), 14], ['jinwoo', join([W(d), Sx(d), L(d)]), 30]].forEach(([id, st, n]) => {
+      if(st === 'ok') runs[id]++; else if(st === 'bad') runs[id] = 0;
+      prog[id] = runs[id]; if(runs[id] >= n) set(id, d);
+    });
+    const r = wd[d];
+    if(r){ const dayReps = r.sets.reduce((m, x) => m + x.reps, 0); reps += dayReps; bestDay = Math.max(bestDay, dayReps); if(dayReps >= 100) set('gon', d); if(reps >= 993) set('kaneki', d); }
+  }
+  prog.gon = bestDay; prog.kaneki = reps;
+  let prn = 0; [...prDays].sort().forEach(d => { prn++; if(prn >= 3) set('eren', d); }); prog.eren = prn;
+  (C.sleep ? C.sleep.list : []).forEach(r => { if(r.streak >= 14) set('tanjiro', r.date); });
+  prog.tanjiro = C.sleep ? C.sleep.streak : 0;
+  /* the two week missions: Ayanokoji (all three scrolls, no shield, no exam) and Lelouch (the plan to the letter) */
+  const ayaDay = d => { const a = [W(d), Sx(d), L(d)]; return a.includes('neutral') ? 'bad' : join(a); };
+  const lelDay = d => { const w = W(d); if(w !== 'ok') return w === 'open' ? 'open' : 'bad'; const r = sd[d]; if(!r) return 'bad';
+    if(!r.tgt || r.tgt.off) return 'ok'; if(r.status === 'exam') return 'bad'; return r.mins >= r.tgt.full ? 'ok' : d === C.today ? 'open' : 'bad'; };
+  if(starts.length) for(let ws = weekStart(starts[0]), g = 0; ws <= C.today && g < 600; ws = addDays(ws, 7), g++){
+    [['ayanokoji', ayaDay], ['lelouch', lelDay]].forEach(([id, fn]) => {
+      let ok = 0, bad = false;
+      for(let k = 0; k < 7; k++){ const d = addDays(ws, k); if(d > C.today) break; const st = fn(d); if(st === 'ok') ok++; else if(st === 'bad') bad = true; }
+      if(!bad && ok === 7) set(id, addDays(ws, 6));
+      if(ws === weekStart(C.today)) prog[id] = bad ? 0 : ok;
+    });
+  }
+  let iso = 0; prog.isagi = 0;
+  C.weekList.forEach(w => { if(!w.rival) return; if(w.rival.win){ iso++; if(iso >= 4) set('isagi', addDays(w.start, 6)); } else iso = 0; prog.isagi = iso; });
+  const months = {}; let bestM = 0;
+  C.study.list.forEach(r => { const m = monthOf(r.date); months[m] = (months[m] || 0) + r.mins; bestM = Math.max(bestM, months[m]); if(months[m] >= 150*60) set('gojo', r.date); });
+  prog.gojo = Math.floor(bestM/60);
+  /* Tobi: a streak that broke (workout, study or sleep) and was rebuilt to 21 */
+  let tobi = 0;
+  const scan = (list, isBreak) => { let pending = false; list.forEach((rec, i) => { if(isBreak(rec, i)) pending = true; if(pending){ if(rec.streak >= 21){ set('tobi', rec.date); pending = false; } } }); if(pending) tobi = Math.max(tobi, list.length ? list[list.length-1].streak : 0); };
+  scan(C.days, (rec, i) => rec.status === 'missed' && i > 0 && (C.days[i-1].streak || 0) > 0);
+  scan(C.study.list, rec => rec.broke);
+  if(C.sleep) scan(C.sleep.list, rec => rec.broke);
+  prog.tobi = tobi;
+  const out = TRANSFORMS.map(t => Object.assign({}, t, {date:got[t.id] || null, n:got[t.id] ? t.goal : Math.min(t.goal, prog[t.id] || 0)}));
+  Object.defineProperty(C, '_tf', {value:out, enumerable:false});
+  return out;
+}
+
 return {
+  TRANSFORMS, transforms,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,

@@ -148,7 +148,20 @@
   "bgFocus": {},
   "sfxOn": false,
   "soundLen": {},
-  "senseiFrame": {}
+  "senseiFrame": {},
+  "tfSeen": {
+   "ayanokoji": "2026-11-01",
+   "gon": "2026-11-01",
+   "kaneki": "2026-11-01",
+   "eren": "2026-11-01",
+   "tanjiro": "2026-11-01",
+   "kirito": "2026-11-01",
+   "lelouch": "2026-11-01",
+   "isagi": "2026-11-01",
+   "gojo": "2026-11-01",
+   "tobi": "2026-11-01",
+   "jinwoo": "2026-11-01"
+  }
  },
  "media": {
   "bg": {},
