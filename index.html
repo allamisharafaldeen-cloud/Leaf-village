@@ -774,6 +774,23 @@ const CUT_V = {"academy": "-v2", "genin": "-v3", "chunin": "-v3", "special-jonin
 const AURA = {"eight-gates": "#ff3b2f", "byakugan": "#dfe3ff", "akatsuki": "#ff4a4a", "susanoo": "#b46bff", "academy": "#6ec3ff", "genin": "#6ec3ff", "chunin": "#5fe0c0", "special-jonin": "#a9c8ff", "jonin": "#4a7dff", "anbu": "#b9c8ff", "sannin": "#ffb84a", "kage": "#f2f0ea", "hokage": "#ffb14a", "sage": "#ff8a3d", "tailed-beast": "#ffc229", "six-paths": "#ffe27a"};
 /* the rules (rank thresholds, XP, streak tiers) live in leaf-engine.js; this is how each rank looks */
 const E = window.LeafEngine;
+/* Guard against a half-updated app: a new page served with an engine script left over from the previous version.
+   That only happens for a moment during an update, so wait for the new offline copy and reload once. */
+(function staleEngineGuard(){
+  if(E && typeof E.computeSleep === 'function') return;
+  let tries=0; try{ tries=+sessionStorage.getItem('leaf-stale-reload')||0; }catch(e){}
+  if(tries>=2) return;
+  try{ sessionStorage.setItem('leaf-stale-reload', String(tries+1)); }catch(e){}
+  const go=()=>location.reload();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('controllerchange', go);
+    navigator.serviceWorker.getRegistration().then(r=>{ if(r) r.update(); }).catch(()=>{});
+    setTimeout(go, 4000);
+  } else go();
+  if(document.body) document.body.insertAdjacentHTML('beforeend','<p style="position:fixed;inset:auto 0 45% 0;text-align:center;font:600 17px system-ui;color:#2b3a2b">Updating the village…</p>');
+  throw new Error('Updating the village…');
+})();
+try{ sessionStorage.removeItem('leaf-stale-reload'); }catch(e){}
 const RANK_LOOK = {
   'academy':      {color:'#8a968c', walls:['wp-konoha-roof','wp-ichiraku','wp-konoha-street','wp-konoha-naruto','wp-konoha-classic']},
   'genin':        {color:'#3e9150', focus:'58% 22%', walls:['wp-genin-1','wp-genin-2','wp-genin-3','wp-genin-4','wp-genin-5']},

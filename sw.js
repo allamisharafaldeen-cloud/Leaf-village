@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '2fb7d591ec';
+const VERSION = 'af538b80b0';
 const CACHE = 'leaf-' + VERSION;
 const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
@@ -176,6 +176,13 @@ self.addEventListener('fetch', e=>{
   }
   if(url.origin !== self.location.origin) return;
 
+  /* the page and its three scripts always come from the same version: online, take them fresh (offline, the saved copy) */
+  if(/\/(platform|leaf-merge|leaf-engine)\.js$/.test(url.pathname)){
+    const clean = url.origin + url.pathname;
+    e.respondWith(fetch(clean, {cache:'no-cache'}).then(r=>{ if(r.ok){ const cp=r.clone(); caches.open(CACHE).then(c=>c.put(clean, cp)); } return r; })
+      .catch(()=>caches.open(CACHE).then(c=>c.match(clean)).then(hit=>hit || new Response('', {status:504}))));
+    return;
+  }
   if(req.mode === 'navigate' || url.pathname.endsWith('/index.html') || url.pathname.endsWith('/')){
     e.respondWith(fetch(req).then(r=>{ if(r.ok){ const cp=r.clone(); caches.open(CACHE).then(c=>c.put('index.html', cp)); } return r; })
       .catch(()=>caches.match('index.html')));
