@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '30a4fcdce7';
+const VERSION = 'db4bcd76c0';
 const CACHE = 'leaf-' + VERSION;
 const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
@@ -80,8 +80,6 @@ const FILES = [
  "ranks/susanoo.jpg",
  "media/comeback.jpg",
  "media/wp-akatsuki.jpg",
- "media/wp-arena.jpg",
- "media/wp-byakugan.jpg",
  "media/wp-funeral.jpg",
  "media/wp-ichiraku.jpg",
  "media/wp-myoboku.jpg",
@@ -90,7 +88,6 @@ const FILES = [
  "media/wp-valley.jpg",
  "ranks/eight-gates-face.jpg",
  "ranks/eight-gates.jpg",
- "media/wp-forest-death.jpg",
  "media/wp-iron.jpg",
  "media/wp-konoha-classic.jpg",
  "media/wp-konoha-dusk.jpg",
@@ -135,7 +132,12 @@ const FILES = [
  "ranks/sage-cut-v2.webp",
  "ranks/sage-aura.webp",
  "ranks/susanoo-cut-v2.webp",
- "ranks/susanoo-aura.webp"
+ "ranks/susanoo-aura.webp",
+ "media/wp-chunin-1.jpg",
+ "media/wp-chunin-2.jpg",
+ "media/wp-chunin-3.jpg",
+ "media/wp-chunin-4.jpg",
+ "media/wp-chunin-5.jpg"
 ];
 
 self.addEventListener('install', e=>{
