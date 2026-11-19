@@ -140,6 +140,20 @@ h2{font-family:var(--f-display); font-weight:400; font-size:19px; letter-spacing
 
 /* senseis */
 .summon{position:relative; margin-top:64px; min-width:0}
+/* the Ninja-tab roster: same Summon box, quieter (no smoke, no word-by-word) */
+.summon.roster{margin-top:62px; padding-top:0; border-top:0; gap:8px}
+.summon.roster .summon-fig{width:112px}
+.summon.roster .summon-fig img{height:calc(100% + 48px); min-height:176px; max-height:250px; max-width:128px; object-fit:contain; object-position:50% 100%; animation:none}
+.summon.roster .summon-text{display:flex; flex-direction:column; gap:7px}
+.roster-spec{font-size:12.5px; color:rgba(255,255,255,.75)}
+.summon.roster .chal{background:rgba(0,0,0,.28); border-left-color:var(--sc); color:#fff}
+.summon.roster .chal[style*="--sc"]{border-left-color:#5aa0e6}
+.summon.roster .chal-top span{color:#ffd77a}
+.summon.roster .chal.won .chal-top span{color:#8be39a}
+.summon.roster .chal-desc{color:rgba(255,255,255,.75)}
+.summon.roster .chal-bar{background:rgba(255,255,255,.16)}
+.summon.roster .chal-bar i{background:color-mix(in srgb, var(--sc) 70%, #fff)}
+.summon.roster .btnrow, .summon.roster .chips{padding-left:4px}
 .summon-box{position:relative; display:flex; align-items:stretch; min-height:122px; border-radius:16px; color:#fff;
   background:
     repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 2px, transparent 2px 9px),
@@ -1976,8 +1990,12 @@ function senseisCard(C){
     const sd=SENSEIS[id], ch=sd.challenge, st=challengeState(C,id), m=media().senseis[id], busy=ui.uploading['sen-'+id];
     const frame=(prefs.senseiFrame||{})[id]||'upper';
     const chip=(v,l)=>`<button type="button" class="chip" data-act="sensei-frame" data-id="${id}" data-v="${v}" aria-pressed="${frame===v}">${l}</button>`;
-    return `<div class="sensei-row" style="--sc:${sd.color}">
-      <div class="sensei-head">${senseiAvatar(id,56)}<div style="min-width:0"><b>${esc(sd.name)}</b><span>${esc(sd.role)} · ${esc(sd.spec)}</span></div></div>
+    return `<div class="sensei-row summon roster" style="--sc:${sd.color}">
+      <div class="summon-box">
+      <div class="summon-fig" aria-hidden="true"><img src="senseis/${id}-1.webp" alt="" loading="lazy"></div>
+      <div class="summon-text">
+      <div class="summon-name"><b>${esc(sd.name)}</b><span>${esc(sd.role)}</span></div>
+      <span class="roster-spec">${esc(sd.spec)}</span>
       <div class="chal${st.done?' won':''}">
         <div class="chal-top"><b>${esc(ch.title)}</b><span class="num">${st.done?`+${ch.xp} XP earned`:`+${ch.xp} XP`}</span></div>
         <span class="chal-desc">${esc(ch.desc)}</span>
@@ -1985,6 +2003,7 @@ function senseisCard(C){
         <span class="chal-desc num">${st.done?'Complete this week':`${st.prog} / ${ch.goal}`}${st.note&&!st.done?` · ${esc(st.note)}`:''}</span>
       </div>
       ${id==='hiruzen'?studyChalBlock(C):''}
+      </div></div>
       ${state.readOnly?'':`<div class="btnrow">
         <label class="btn small ghost" for="sen-file-${id}">${busy?'Saving…':m?'Change picture':'Add picture'}</label>
         <input class="vh" id="sen-file-${id}" type="file" accept="image/*" data-act="sensei-file" data-id="${id}"${busy?' disabled':''}>
@@ -1994,7 +2013,7 @@ function senseisCard(C){
     </div>`;
   }).join('');
   return `<section class="card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
-    <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday. Pictures you add are saved on this phone.</p>${rows}</section>`;
+    <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday. A picture you add is used in the small round portraits; the full-body art stays.</p>${rows}</section>`;
 }
 
 /* ---------- shadow clone rival ---------- */
