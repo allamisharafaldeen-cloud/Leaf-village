@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '546413eb65';
+const VERSION = '101602ec22';
 const CACHE = 'leaf-' + VERSION;
 const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
@@ -171,6 +171,18 @@ const FILES = [
  "guests/tobi-aura.webp",
  "guests/tobi-cut.webp",
  "guests/tobi-face.jpg",
+ "senseis/kakashi-1.webp",
+ "senseis/kakashi-2.webp",
+ "senseis/kakashi-face.jpg",
+ "senseis/guy-1.webp",
+ "senseis/guy-2.webp",
+ "senseis/guy-face.jpg",
+ "senseis/jiraiya-1.webp",
+ "senseis/jiraiya-2.webp",
+ "senseis/jiraiya-face.jpg",
+ "senseis/hiruzen-1.webp",
+ "senseis/hiruzen-2.webp",
+ "senseis/hiruzen-face.jpg",
 ];
 
 self.addEventListener('install', e=>{

@@ -139,6 +139,32 @@ h2{font-family:var(--f-display); font-weight:400; font-size:19px; letter-spacing
 @keyframes rollnudge{0%,100%{transform:translateY(0)}6%{transform:translateY(3px)}12%{transform:translateY(0)}}
 
 /* senseis */
+.summon{position:relative; margin-top:64px; min-width:0}
+.summon-box{position:relative; display:flex; align-items:stretch; min-height:122px; border-radius:16px; color:#fff;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.035) 0 2px, transparent 2px 9px),
+    radial-gradient(circle at 12% 100%, color-mix(in srgb, var(--sc) 90%, #fff 10%) 0%, transparent 55%),
+    linear-gradient(100deg, color-mix(in srgb, var(--sc) 78%, #000) 0%, color-mix(in srgb, var(--sc) 40%, #141217) 42%, #141217 100%);
+  border:2px solid color-mix(in srgb, var(--sc) 75%, #000); box-shadow:0 10px 26px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.14)}
+.summon-fig{all:unset; cursor:pointer; position:relative; flex:none; width:120px; -webkit-tap-highlight-color:transparent}
+.summon-fig:focus-visible{outline:3px solid var(--chakra); outline-offset:3px; border-radius:12px}
+.summon-fig img{position:absolute; bottom:-2px; left:50%; height:186px; width:auto; max-width:none; transform:translateX(-50%); filter:drop-shadow(0 8px 10px rgba(0,0,0,.5)) drop-shadow(0 0 1px rgba(255,255,255,.6)); animation:summonin .6s cubic-bezier(.2,1.35,.4,1) .12s both; transition:filter .15s}
+.summon-fig:active img{filter:drop-shadow(0 4px 6px rgba(0,0,0,.5)) brightness(1.15)}
+.summon-smoke{position:absolute; left:50%; bottom:6px; width:170px; height:120px; z-index:2; pointer-events:none; border-radius:50%;
+  background:radial-gradient(ellipse at 50% 60%, rgba(255,255,255,.98), rgba(236,236,242,.75) 38%, rgba(220,220,230,0) 70%); animation:smoke .95s ease-out both}
+.summon-text{flex:1; min-width:0; padding:13px 15px 14px 4px}
+.summon-name{display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 10px}
+.summon-name b{font-family:var(--f-display); font-size:19px; letter-spacing:.06em; text-transform:uppercase; padding:1px 16px 1px 9px; margin-left:-9px;
+  background:linear-gradient(90deg, var(--sc) 0%, color-mix(in srgb, var(--sc) 70%, transparent) 70%, transparent 100%); clip-path:polygon(0 0, 100% 0, 92% 100%, 0 100%); text-shadow:2px 2px 0 rgba(0,0,0,.35)}
+.summon-name span{font-family:var(--f-data); font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.72)}
+.summon-say{margin:7px 0 0; font-size:15px; line-height:1.46; color:#f5f0e6}
+.summon-say span{opacity:0; animation:sayin .28s ease-out forwards; animation-delay:calc(.55s + var(--i) * 42ms)}
+@keyframes summonin{from{opacity:0; transform:translate(-50%, 26px) scale(.88)} to{opacity:1; transform:translateX(-50%)}}
+@keyframes smoke{0%{opacity:0; transform:translateX(-50%) scale(.3)} 22%{opacity:1} 100%{opacity:0; transform:translateX(-50%) scale(1.7)}}
+@keyframes sayin{from{opacity:0; filter:blur(3px)} to{opacity:1; filter:none}}
+@media (prefers-reduced-motion: reduce){.summon-fig img,.summon-smoke{animation:none} .summon-smoke{display:none} .summon-say span{animation:none; opacity:1}}
+@media (min-width:700px){.summon{margin-top:76px} .summon-fig{width:140px} .summon-fig img{height:214px}}
+@media (max-width:420px){.summon-fig{width:100px} .summon-fig img{height:170px} .summon-say{font-size:14.5px}}
 .sensei-card{display:flex; align-items:flex-end; gap:12px; min-width:0}
 .sensei-talk{all:unset; flex:none; cursor:pointer; border-radius:50%}
 .sensei-talk:focus-visible{outline:3px solid var(--chakra); outline-offset:3px}
@@ -1903,15 +1929,24 @@ function senseiLine(C){
 }
 function senseiAvatar(id, size){
   const sd=SENSEIS[id], m=media().senseis[id], fr=SENSEI_FRAMES[(prefs.senseiFrame||{})[id]||'upper']||SENSEI_FRAMES.upper;
-  const style = m && m.id ? `background-image:url('${blobUrl(m.id)}');background-size:${fr[0]};background-position:${fr[1]};` : '';
-  return `<span class="sensei-av" style="--sc:${sd.color};width:${size}px;height:${size}px;${style}">${m&&m.id?'':esc(sd.name.replace('Third ','').slice(0,1))}</span>`;
+  /* a picture he added himself wins; otherwise the sensei's own portrait from the Summon art */
+  const style = m && m.id ? `background-image:url('${blobUrl(m.id)}');background-size:${fr[0]};background-position:${fr[1]};` : `background-image:url('senseis/${id}-face.jpg');background-size:cover;background-position:50% 30%;`;
+  return `<span class="sensei-av" style="--sc:${sd.color};width:${size}px;height:${size}px;${style}"></span>`;
 }
 function senseiCard(C){
   const L=senseiLine(C); if(!L) return '';
   const sd=SENSEIS[L.id];
-  return `<section class="sensei-card" style="--sc:${sd.color}" aria-label="Today's sensei">
-    <button type="button" class="sensei-talk" data-act="sensei-talk" aria-label="Another line from ${esc(sd.name)}">${senseiAvatar(L.id,64)}</button>
-    <div class="bubble" data-k="b${hashStr(L.id+L.text)}" aria-live="polite"><span class="bubble-name"><i></i>${esc(sd.name)} · ${esc(L.label||sd.role.split(',')[0])}</span><p>${esc(L.text)}</p></div>
+  /* the Summon: the sensei lands beside the card in full body; a warning gets the stern pose */
+  const pose = (L.key==='late' || L.key==='lost') ? 2 : 1;
+  const words = L.text.split(' ').map((w,i)=>`<span style="--i:${i}">${esc(w)} </span>`).join('');
+  return `<section class="summon" data-k="s${hashStr(L.id+L.text+pose)}" style="--sc:${sd.color}" aria-label="Today's sensei">
+    <div class="summon-box">
+      <button type="button" class="summon-fig" data-act="sensei-talk" aria-label="Another line from ${esc(sd.name)}"><span class="summon-smoke" aria-hidden="true"></span><img src="senseis/${L.id}-${pose}.webp" alt=""></button>
+      <div class="summon-text">
+        <div class="summon-name"><b>${esc(sd.name)}</b><span>${esc(L.label||sd.role.split(',')[0])}</span></div>
+        <p class="vh" aria-live="polite">${esc(L.text)}</p><p class="summon-say" aria-hidden="true">${words}</p>
+      </div>
+    </div>
   </section>`;
 }
 function challengeState(C, id){
