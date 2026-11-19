@@ -139,6 +139,11 @@ h2{font-family:var(--f-display); font-weight:400; font-size:19px; letter-spacing
 @keyframes rollnudge{0%,100%{transform:translateY(0)}6%{transform:translateY(3px)}12%{transform:translateY(0)}}
 
 /* senseis */
+.xp-toggle{all:unset; box-sizing:border-box; width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px; -webkit-tap-highlight-color:transparent}
+.xp-toggle h2{margin:0}
+.xp-toggle:focus-visible{outline:3px solid var(--chakra); outline-offset:4px; border-radius:8px}
+.xp-chev{width:12px; height:12px; border-right:2.5px solid currentColor; border-bottom:2.5px solid currentColor; transform:rotate(45deg) translate(-3px,-3px); transition:transform .2s; opacity:.75}
+.xp-toggle[aria-expanded="true"] .xp-chev{transform:rotate(-135deg) translate(-3px,-3px)}
 .summon{position:relative; margin-top:64px; min-width:0}
 /* the Ninja-tab roster: same Summon box, quieter (no smoke, no word-by-word) */
 .summon.roster{margin-top:62px; padding-top:0; border-top:0; gap:8px}
@@ -1942,9 +1947,9 @@ function senseiLine(C){
   return {id, text:fillLine(pick, v), key};
 }
 function senseiAvatar(id, size){
-  const sd=SENSEIS[id], m=media().senseis[id], fr=SENSEI_FRAMES[(prefs.senseiFrame||{})[id]||'upper']||SENSEI_FRAMES.upper;
+  const sd=SENSEIS[id];
   /* a picture he added himself wins; otherwise the sensei's own portrait from the Summon art */
-  const style = m && m.id ? `background-image:url('${blobUrl(m.id)}');background-size:${fr[0]};background-position:${fr[1]};` : `background-image:url('senseis/${id}-face.jpg');background-size:cover;background-position:50% 30%;`;
+  const style = `background-image:url('senseis/${id}-face.jpg');background-size:cover;background-position:50% 30%;`;
   return `<span class="sensei-av" style="--sc:${sd.color};width:${size}px;height:${size}px;${style}"></span>`;
 }
 function senseiCard(C){
@@ -1987,9 +1992,7 @@ function studyChalBlock(C){
 }
 function senseisCard(C){
   const rows=SENSEI_ORDER.map(id=>{
-    const sd=SENSEIS[id], ch=sd.challenge, st=challengeState(C,id), m=media().senseis[id], busy=ui.uploading['sen-'+id];
-    const frame=(prefs.senseiFrame||{})[id]||'upper';
-    const chip=(v,l)=>`<button type="button" class="chip" data-act="sensei-frame" data-id="${id}" data-v="${v}" aria-pressed="${frame===v}">${l}</button>`;
+    const sd=SENSEIS[id], ch=sd.challenge, st=challengeState(C,id);
     return `<div class="sensei-row summon roster" style="--sc:${sd.color}">
       <div class="summon-box">
       <div class="summon-fig" aria-hidden="true"><img src="senseis/${id}-1.webp" alt="" loading="lazy"></div>
@@ -2004,16 +2007,10 @@ function senseisCard(C){
       </div>
       ${id==='hiruzen'?studyChalBlock(C):''}
       </div></div>
-      ${state.readOnly?'':`<div class="btnrow">
-        <label class="btn small ghost" for="sen-file-${id}">${busy?'Saving…':m?'Change picture':'Add picture'}</label>
-        <input class="vh" id="sen-file-${id}" type="file" accept="image/*" data-act="sensei-file" data-id="${id}"${busy?' disabled':''}>
-        ${m?`<button type="button" class="btn small ghost" data-act="sensei-clear" data-id="${id}">Remove</button>`:''}
-      </div>
-      ${m?`<div class="chips">Frame ${chip('face','Face')}${chip('upper','Upper body')}${chip('whole','Whole')}</div>`:''}`}
     </div>`;
   }).join('');
   return `<section class="card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
-    <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday. A picture you add is used in the small round portraits; the full-body art stays.</p>${rows}</section>`;
+    <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday.</p>${rows}</section>`;
 }
 
 /* ---------- shadow clone rival ---------- */
@@ -2266,9 +2263,9 @@ function planView(C){
     </div>
     <button class="btn small ghost" data-act="add-ex" style="align-self:flex-start">Add exercise</button>
   </section>`}
-  <section class="card">
-    <h2>How XP works</h2>
-    <div class="rules">
+  <section class="card xp-card">
+    <button type="button" class="xp-toggle" data-act="xp-rules" aria-expanded="${!!ui.xpOpen}" aria-controls="xp-rules"><h2>How XP works</h2><span class="xp-chev" aria-hidden="true"></span></button>
+    ${ui.xpOpen?`<div class="rules" id="xp-rules">
       <span>Groove set at target reps</span><b>+${XP.gtgSet} + 1/rep</b>
       <span>Groove set under target</span><b>+1/rep</b>
       <span>Groove mission complete</span><b>+${XP.gtgComplete}</b>
@@ -2294,7 +2291,7 @@ function planView(C){
       <span>Missed test day</span><b class="neg">−${XP.missTest}, streak reset</b>
       ${SENSEI_ORDER.map(id=>`<span>${esc(SENSEIS[id].name)}: ${esc(SENSEIS[id].challenge.title.toLowerCase())}</span><b>+${SENSEIS[id].challenge.xp} weekly</b>`).join('')}
     </div>
-    <p class="muted" style="margin:0;font-size:13px">Your rank never drops once earned, but missed days push you back from the next one.</p>
+    <p class="muted" style="margin:0;font-size:13px">Your rank never drops once earned, but missed days push you back from the next one.</p>`:''}
   </section>`;
 }
 
@@ -3851,6 +3848,7 @@ document.addEventListener('click', e=>{
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
   if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen'){ tfAction(act, el); return; }
+  if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }

@@ -98,7 +98,8 @@ test('a second device types the key on the enrollment screen and the whole villa
   await B.page.fill('#sync-key', KEY);
   await B.page.click('[data-act="sync-on"]');
   await B.page.waitForSelector('nav a[aria-current="page"]');
-  const a = await A.docs(), b = await B.docs();
+  /* both devices settle on the same documents (a settings save from either side may still be travelling) */
+  const [a, b] = await until(async () => { const x = await A.docs(), y = await B.docs(); const same = Object.keys(x).filter(p => p !== 'leaf/summary').every(p => JSON.stringify(x[p]) === JSON.stringify(y[p])); return same ? [x, y] : null; }, 'both devices to hold the same documents');
   Object.keys(a).filter(p => p !== 'leaf/summary').forEach(p => assert.deepEqual(b[p], a[p], p));
   const [sa, sb] = await until(async () => { const x = (await A.docs())['leaf/summary'], y = (await B.docs())['leaf/summary']; return x && y && x.xp === y.xp ? [x, y] : null; }, 'both devices to show the same XP');
   assert.equal(sb.rank, sa.rank); assert.equal(sb.streak, sa.streak); assert.deepEqual(sb.maxes, sa.maxes);
