@@ -1336,7 +1336,7 @@ function weekdayOf(d){ return new Date(d+'T12:00:00').toLocaleDateString('en-US'
 function foldCards(html){
   ui.fold=ui.fold||{};
   return html.replace(/<section class="card([^"]*)"([^>]*)>((?:(?!<section|<h2)[\s\S]){0,400}?)<h2([^>]*)>([\s\S]*?)<\/h2>/g, (all, cls, rest, before, h2a, title) => {
-    if(/xp-card|foldable/.test(cls) || /id="rescue"/.test(rest) || /<button/.test(before)) return all;
+    if(/xp-card|foldable|nofold/.test(cls) || /id="rescue"/.test(rest) || /<button/.test(before)) return all;
     const id='f'+hashStr(title.replace(/<[^>]*>/g,'').trim()), open=!!ui.fold[id];
     return `<section class="card foldable${open?'':' folded'}${cls}"${rest}>${before}<button type="button" class="fold-head" data-act="fold" data-id="${id}" aria-expanded="${open}"><h2${h2a}>${title}</h2><span class="xp-chev" aria-hidden="true"></span></button>`;
   });
@@ -2068,7 +2068,7 @@ function senseisCard(C){
       </div></div>
     </div>`;
   }).join('');
-  return `<section class="card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
+  return `<section class="card nofold" id="sensei-card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
     <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday.</p>${rows}</section>`;
 }
 
@@ -3579,7 +3579,7 @@ function render(){
     fixRankRefs(C);
     applyTheme(themeIndex(C));
     html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
-    if(ui.tab==='plan' || ui.tab==='settings') html=foldCards(html);
+    if(ui.tab==='plan' || ui.tab==='settings' || ui.tab==='ninja') html=foldCards(html);
   }catch(err){
     try{ console.warn('render failed', err); }catch(e){}
     if(appliedTheme==null) applyTheme(0);
