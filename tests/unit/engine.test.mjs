@@ -622,3 +622,24 @@ test('transformations: Tatakae counts test days with a new max; Tanjiro and Tobi
   assert.equal(tf(C, 'tanjiro').date, E.addDays(START, 19), 'fourteen good nights after the short one');
   assert.equal(tf(C, 'tobi').date, E.addDays(START, 26), 'a broken streak rebuilt to 21');
 });
+
+/* ---------- one-time swap ---------- */
+test('a one-time swap trades two days for that week only, in the app and on the server', async () => {
+  const W = await import('../../worker/src/engine.js');
+  const V = cleanWeek();
+  V.settings.swaps = [{a:'2026-11-13', b:'2026-11-14', created:iso('2026-11-13', 7)}];
+  for(const P of [E.planFor, W.planFor]){
+    assert.equal(P(V.settings, '2026-11-13').type, 'rest', 'Friday rests');
+    assert.equal(P(V.settings, '2026-11-14').type, 'test', 'Saturday tests');
+    assert.equal(P(V.settings, '2026-11-20').type, 'test', 'next Friday is a normal test day');
+    assert.equal(P(V.settings, '2026-11-21').type, 'rest', 'next Saturday is a normal rest day');
+  }
+  assert.equal(E.swapOf(V.settings, '2026-11-14'), '2026-11-13');
+  let C = E.compute(V, at('2026-11-14', 9));
+  assert.equal(C.days.find(d => d.date === '2026-11-13').status, 'rest', 'Friday counted as a rest day');
+  assert.equal(C.todayRec.plan.type, 'test');
+  C = E.compute(V, at('2026-11-15', 9));
+  assert.equal(C.days.find(d => d.date === '2026-11-14').status, 'missed', 'skipping the moved test is still a missed test');
+  const bad = clone(V); bad.settings.swaps = [{a:'2026-11-13'}, 'x', {a:'2026-11-13', b:'2026-11-14'}];
+  assert.equal(E.planFor(bad.settings, '2026-11-13').type, 'rest', 'broken entries are ignored');
+});

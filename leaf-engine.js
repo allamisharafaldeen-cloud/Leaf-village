@@ -89,9 +89,12 @@ function normEntry(e){
   }
   return n;
 }
+/* a one-time swap: two days trade their workout missions for that week only (the weekly plan stays as it is) */
+const swapList = s => (s && Array.isArray(s.swaps)) ? s.swaps.filter(x => isObj(x) && isDate(x.a) && isDate(x.b) && x.a !== x.b) : [];
+const swapOf = (s, d) => { for(const x of swapList(s)){ if(x.a === d) return x.b; if(x.b === d) return x.a; } return null; };
 function planFor(s, date){
-  const e = normEntry(entryFor(s, date)), ex = (s && s.exercises) || {};
-  const p = e.plan[dowOf(date)], rest = () => ({type:'rest', gtg:e.gtg, test:e.test, combo:e.combo});
+  const e = normEntry(entryFor(s, date)), ex = (s && s.exercises) || {}, src = swapOf(s, date) || date;
+  const p = e.plan[dowOf(src)], rest = () => ({type:'rest', gtg:e.gtg, test:e.test, combo:e.combo});
   if(!isObj(p)) return rest();
   const plan = Object.assign({}, p, {gtg:e.gtg, test:e.test, combo:e.combo});
   if(plan.type === 'gtg') return ex[plan.ex] ? plan : rest();
@@ -405,6 +408,10 @@ function cleanBackup(d, nowMs){
   if(s.examWeeks !== undefined){
     const ex = (Array.isArray(s.examWeeks) ? s.examWeeks : []).filter(e => isObj(e) && isDate(e.start) && isDate(e.end) && e.start <= e.end);
     if(!Array.isArray(s.examWeeks) || ex.length !== s.examWeeks.length){ s.examWeeks = ex; fixed++; }
+  }
+  if(s.swaps !== undefined){
+    const sw = swapList(s);
+    if(!Array.isArray(s.swaps) || sw.length !== s.swaps.length){ s.swaps = sw; fixed++; }
   }
   if(s.celebrated !== undefined && !(typeof s.celebrated === 'number' && isFinite(s.celebrated) && s.celebrated >= 0)){ s.celebrated = 0; delete s.celebratedId; fixed++; }
   if(s.themeRank !== undefined && !(Number.isInteger(s.themeRank) && s.themeRank >= 0 && s.themeRank < RANKS.length)){ delete s.themeRank; delete s.themeRankId; fixed++; }
@@ -794,7 +801,7 @@ function transforms(C){
 }
 
 return {
-  TRANSFORMS, transforms,
+  TRANSFORMS, transforms, swapOf,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,

@@ -144,6 +144,9 @@ h2{font-family:var(--f-display); font-weight:400; font-size:19px; letter-spacing
 .xp-toggle:focus-visible{outline:3px solid var(--chakra); outline-offset:4px; border-radius:8px}
 .xp-chev{width:12px; height:12px; border-right:2.5px solid currentColor; border-bottom:2.5px solid currentColor; transform:rotate(45deg) translate(-3px,-3px); transition:transform .2s; opacity:.75}
 .xp-toggle[aria-expanded="true"] .xp-chev{transform:rotate(-135deg) translate(-3px,-3px)}
+.swap-line{display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:12px; font-size:13.5px}
+.swap-line.ask{padding:10px 12px; border-radius:12px; background:rgba(0,0,0,.06); border:1px dashed currentColor}
+.swap-line .btnrow{margin:0}
 .summon{position:relative; margin-top:64px; min-width:0}
 /* the Ninja-tab roster: same Summon box, quieter (no smoke, no word-by-word) */
 .summon.roster{margin-top:62px; padding-top:0; border-top:0; gap:8px}
@@ -1318,6 +1321,44 @@ function stepper(key, label){
   </div>`;
 }
 
+/* one-time swap: today trades its workout mission with tomorrow's, for this week only */
+const DAY_KIND = {rest:'rest day', test:'test day', gtg:'groove day', combo:'mixed day'};
+function weekdayOf(d){ return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'}); }
+function swapLine(C){
+  const t=C.todayRec, s=S(); if(!t || state.readOnly) return '';
+  const today=C.today, tom=E.addDays(today,1), partner=E.swapOf(s, today);
+  const noSets = !(t.sets && t.sets.length);
+  if(partner){
+    const canUndo = noSets && partner>today;
+    return `<div class="swap-line"><span>↔ Swapped with ${esc(weekdayOf(partner))} for this week only. Next week follows your normal plan.</span>${canUndo?`<button type="button" class="btn small ghost" data-act="swap-undo">Undo swap</button>`:''}</div>`;
+  }
+  if(!noSets || t.status==='exam' || E.isExam(s, tom) || E.swapOf(s, tom)) return '';
+  const tp=E.planFor(s, tom);
+  if(tp.type===t.plan.type) return '';
+  const tw=weekdayOf(tom), now=DAY_KIND[t.plan.type]||'mission', then=DAY_KIND[tp.type]||'mission';
+  if(ui.swapAsk) return `<div class="swap-line ask" role="group" aria-label="Swap today with tomorrow">
+    <span><b>Swap just this once?</b> Today becomes your ${esc(then)} and ${esc(tw)} becomes your ${esc(now)}. Next week goes back to your normal plan.</span>
+    <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="swap-yes">Swap today and ${esc(tw)}</button><button type="button" class="btn small ghost" data-act="swap-cancel">Cancel</button></div></div>`;
+  return `<div class="swap-line"><button type="button" class="btn small ghost" data-act="swap-ask">↔ Swap today with ${esc(tw)} (${esc(then)}) · this week only</button></div>`;
+}
+function swapAction(act){
+  if(state.readOnly || !lastC) return;
+  const today=lastC.today, tom=E.addDays(today,1), s=clone(S());
+  if(act==='swap-ask'){ ui.swapAsk=true; render(); return; }
+  if(act==='swap-cancel'){ ui.swapAsk=false; render(); return; }
+  if(act==='swap-yes'){
+    const t=lastC.todayRec; ui.swapAsk=false;
+    if(!t || (t.sets && t.sets.length) || E.swapOf(s, today) || E.swapOf(s, tom)){ render(); return; }
+    const keep=(Array.isArray(s.swaps)?s.swaps:[]).filter(x=>x && x.b>=E.addDays(today,-60));
+    s.swaps=keep.concat({a:today, b:tom, created:new Date().toISOString()}); save('settings', null, s);
+    SFX.play('tick'); toast(`Swapped: today and ${weekdayOf(tom)} traded missions, this week only`); return;
+  }
+  if(act==='swap-undo'){
+    const t=lastC.todayRec, partner=E.swapOf(s, today);
+    if(!partner || partner<=today || (t && t.sets && t.sets.length)) return;
+    s.swaps=(s.swaps||[]).filter(x=>!(x && (x.a===today || x.b===today))); save('settings', null, s); toast('Swap undone. Back to your normal plan.'); return;
+  }
+}
 function undoLine(C){
   const t=C.todayRec; if(!t || !t.sets.length || state.readOnly) return '';
   const last=t.sets[t.sets.length-1];
@@ -1410,6 +1451,7 @@ function missionCard(C){
         ${body}
         <div class="today-line">${xpLine}${undoLine(C)}</div>
         ${deadline}
+        ${swapLine(C)}
       </div>
       <div class="zig flip" aria-hidden="true"></div>
     </div></div></div>
@@ -3741,6 +3783,7 @@ document.addEventListener('click', e=>{
   if(act && act.startsWith('st-')){ studyAction(act, el); return; }
   if(act && act.startsWith('sl-')){ sleepAction(act, el); return; }
   if(act==='exam-start' || act==='exam-end' || act==='exam-cancel'){ examAction(act); return; }
+  if(act==='swap-ask' || act==='swap-cancel' || act==='swap-yes' || act==='swap-undo'){ swapAction(act); return; }
 
   if(act==='sensei-talk'){ ui.lineNonce=(ui.lineNonce||0)+1; SFX.play('tick'); render(); return; }
   if(act==='sensei-frame'){ prefs.senseiFrame=Object.assign({}, prefs.senseiFrame, {[el.dataset.id]:el.dataset.v}); savePrefs(); render(); return; }

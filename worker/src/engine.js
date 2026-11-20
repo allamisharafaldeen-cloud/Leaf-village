@@ -61,9 +61,12 @@ export function sortedHistory(s){
   return c.h;
 }
 export function entryFor(s, date){ const h = sortedHistory(s); let e = h[0]; for(const x of h){ if(x.from <= date) e = x; } return e; }
+/* a one-time swap: two days trade their workout missions for that week only (the weekly plan stays as it is) */
+const isYmd = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+export const swapOf = (s, d) => { for(const x of ((s && Array.isArray(s.swaps)) ? s.swaps : [])){ if(!x || !isYmd(x.a) || !isYmd(x.b) || x.a === x.b) continue; if(x.a === d) return x.b; if(x.b === d) return x.a; } return null; };
 export function planFor(s, date){
   const e = entryFor(s, date) || {plan:DEFAULT_PLAN, gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:['pullups','dips']}};
-  const p = (e.plan && e.plan[dow(date)]) || {type:'rest'};
+  const p = (e.plan && e.plan[dow(swapOf(s, date) || date)]) || {type:'rest'};
   const plan = Object.assign({}, p, {gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo || {})});
   if(plan.type === 'gtg' && !(s.exercises || {})[plan.ex]) return Object.assign(plan, {type:'rest'});
   if(plan.type === 'combo'){ const exs = (plan.exs || []).filter(id => (s.exercises || {})[id]); if(!exs.length) return Object.assign(plan, {type:'rest'}); plan.exs = exs; }
@@ -311,7 +314,7 @@ export function snapshotFromDocs(map){
 export function checkpointTarget(today, back){ const d = addDays(today, -(back || 15)); return addDays(d, -((dow(d) + 1) % 7)); }
 /* a fingerprint of the settings that shape history; if it changes, old checkpoints no longer apply */
 export function historyKey(s){
-  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null]);
+  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null]);
   let h = 2166136261; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${t.length}.${h >>> 0}`;
 }
