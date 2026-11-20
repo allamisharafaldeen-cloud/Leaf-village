@@ -52,7 +52,9 @@ export async function startRig(basePort){
       page.on('console', m => { if(m.type() === 'error' && !/Failed to load resource|net::ERR_/.test(m.text())) errors.push(`${name} console: ${m.text()}`); });
       const dev = {name, ctx, page,
         async open(hash){ await page.goto(rig.appUrl + (hash || ''), {waitUntil:'domcontentloaded'}); await page.waitForFunction(() => !document.querySelector('.loading')); return dev; },
-        async tab(t){ await page.evaluate(h => { location.hash = h; }, t); await page.waitForSelector(`nav a[data-tab="${t}"][aria-current="page"]`); await dev.laterReveals(); },
+        async tab(t){ await page.evaluate(h => { location.hash = h; }, t); await page.waitForSelector(`nav a[data-tab="${t}"][aria-current="page"]`); await dev.laterReveals(); await dev.unfold(); },
+        /* Plan and Settings cards open folded; a person taps each title bar to open it */
+        async unfold(){ for(let i = 0; i < 40; i++){ const h = page.locator('.card.folded .fold-head'); if(!(await h.count())) break; await h.first().click(); } },
         /* a Transformation Jutsu reveal (a form the fixture's logs already earned) is answered "Later", as a person would */
         async laterReveals(){ for(let i = 0; i < 12; i++){ const b = page.locator('#overlay [data-act="tf-seen"]'); if(!(await b.count())) break; await b.first().click(); await page.waitForTimeout(150); } },
         /* every saved document on this device */

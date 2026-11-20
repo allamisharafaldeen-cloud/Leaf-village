@@ -139,6 +139,14 @@ h2{font-family:var(--f-display); font-weight:400; font-size:19px; letter-spacing
 @keyframes rollnudge{0%,100%{transform:translateY(0)}6%{transform:translateY(3px)}12%{transform:translateY(0)}}
 
 /* senseis */
+.fold-head{all:unset; box-sizing:border-box; flex:1; width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px; -webkit-tap-highlight-color:transparent}
+.fold-head h2{margin:0}
+.fold-head:focus-visible{outline:3px solid var(--chakra); outline-offset:4px; border-radius:8px}
+.fold-head[aria-expanded="true"] .xp-chev{transform:rotate(-135deg) translate(-3px,-3px)}
+.card.folded > :not(.fold-head):not(:has(.fold-head)){display:none}
+.card.folded .section-head > :not(.fold-head){display:none}
+.card.folded{padding-top:14px; padding-bottom:14px}
+.section-head:has(.fold-head){margin-bottom:0}
 .xp-toggle{all:unset; box-sizing:border-box; width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; cursor:pointer; min-height:44px; -webkit-tap-highlight-color:transparent}
 .xp-toggle h2{margin:0}
 .xp-toggle:focus-visible{outline:3px solid var(--chakra); outline-offset:4px; border-radius:8px}
@@ -1324,6 +1332,15 @@ function stepper(key, label){
 /* one-time swap: today trades its workout mission with tomorrow's, for this week only */
 const DAY_KIND = {rest:'rest day', test:'test day', gtg:'groove day', combo:'mixed day'};
 function weekdayOf(d){ return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'}); }
+/* Plan and Settings: every card folds down to its title bar; tap the bar to open it (closed when the app opens) */
+function foldCards(html){
+  ui.fold=ui.fold||{};
+  return html.replace(/<section class="card([^"]*)"([^>]*)>((?:(?!<section|<h2)[\s\S]){0,400}?)<h2([^>]*)>([\s\S]*?)<\/h2>/g, (all, cls, rest, before, h2a, title) => {
+    if(/xp-card|foldable/.test(cls) || /id="rescue"/.test(rest) || /<button/.test(before)) return all;
+    const id='f'+hashStr(title.replace(/<[^>]*>/g,'').trim()), open=!!ui.fold[id];
+    return `<section class="card foldable${open?'':' folded'}${cls}"${rest}>${before}<button type="button" class="fold-head" data-act="fold" data-id="${id}" aria-expanded="${open}"><h2${h2a}>${title}</h2><span class="xp-chev" aria-hidden="true"></span></button>`;
+  });
+}
 function swapLine(C){
   const t=C.todayRec, s=S(); if(!t || state.readOnly) return '';
   const today=C.today, tom=E.addDays(today,1), partner=E.swapOf(s, today);
@@ -3562,6 +3579,7 @@ function render(){
     fixRankRefs(C);
     applyTheme(themeIndex(C));
     html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
+    if(ui.tab==='plan' || ui.tab==='settings') html=foldCards(html);
   }catch(err){
     try{ console.warn('render failed', err); }catch(e){}
     if(appliedTheme==null) applyTheme(0);
@@ -3892,6 +3910,7 @@ document.addEventListener('click', e=>{
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
   if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen'){ tfAction(act, el); return; }
   if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
+  if(act==='fold'){ ui.fold=ui.fold||{}; const id=el.dataset.id; ui.fold[id]=!ui.fold[id]; render(); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
