@@ -2169,7 +2169,7 @@ function progressionAction(act){
   } else { save('settings', null, s); SFX.play('tick'); toast(P.changed ? 'Keeping your own settings.' : 'Settings stay as they are.'); }
 }
 function missionView(C){
-  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + sleepCard(C) + rivalCard(C) + weekStrip(C) + upNext(C);
+  return topbar('', true) + examBanner(C) + ninjaHeader(C) + examCountCard(C) + senseiCard(C) + missionCard(C) + progressionCard(C) + studyCard(C) + sleepCard(C) + rivalCard(C) + weekStrip(C);
 }
 
 /* --- charts --- */
@@ -2235,7 +2235,7 @@ function statsView(C){
   const prevW = C.body.length>1 ? C.body[C.body.length-1].weight - C.body[0].weight : null;
   const tiles = `
     <div class="tiles">
-      <div class="tile power"><span class="eyebrow">Power level</span><span class="big num">${C.power!=null?fmt(C.power):'—'}</span><span class="sub">Your maxes weighted by bodyweight. It climbs when you get stronger, and faster if you get stronger while heavier.</span></div>
+      <div class="tile power"><span class="eyebrow">Power level</span><span class="big num">${C.power!=null?fmt(C.power):'—'}</span></div>
       <div class="tile"><span class="eyebrow">Pull-up max</span><span class="big num">${C.maxes.pullups??'—'}<small> reps</small></span><span class="sub">Best ever ${C.best.pullups??'—'}</span></div>
       <div class="tile"><span class="eyebrow">Dip max</span><span class="big num">${C.maxes.dips??'—'}<small> reps</small></span><span class="sub">Best ever ${C.best.dips??'—'}</span></div>
       <div class="tile"><span class="eyebrow">Bodyweight</span><span class="big num">${C.weight!=null?(+C.weight.toFixed(1)):'—'}<small> kg</small></span><span class="sub">${prevW!=null?`${prevW>=0?'+':'−'}${Math.abs(prevW).toFixed(1)} kg since first weigh-in`:'Log weekly on the Ninja tab'}</span></div>
@@ -2252,7 +2252,7 @@ function statsView(C){
   const wCard = `<section class="card"><div class="section-head"><h2>Bodyweight</h2><span class="eyebrow">kg</span></div>${C.body.length?lineChart([{name:'Weight',color:'var(--rest)',points:C.body.map(b=>({date:b.date,v:b.weight}))}],{tight:true,h:150,label:'Bodyweight over time'}):''}${C.body.length<2?'<p class="empty">One weigh-in so far. Weigh in once a week, same time of day, to see the trend.</p>':''}</section>`;
   const cal = `<section class="card"><div class="section-head"><h2>Training calendar</h2><span class="eyebrow">12 weeks</span></div>${heatmap(C)}<div class="legend"><span><i style="background:var(--leaf)"></i>Done</span><span><i style="background:var(--rest-soft);border:1px solid var(--rest)"></i>Rest</span><span><i style="background:var(--danger)"></i>Missed</span><span><i style="background:var(--exam)"></i>Exam week</span><span><i style="background:var(--chakra-soft);border:1px solid var(--chakra)"></i>Today</span></div></section>`;
   const totals = `<section class="card"><h2>Totals</h2><div class="statrow"><div><b>${fmt(C.totalReps.pullups||0)}</b><span>pull-ups</span></div><div><b>${fmt(C.totalReps.dips||0)}</b><span>dips</span></div><div><b>${C.doneCount}</b><span>missions done</span></div></div><div class="statrow"><div><b>${C.missedCount}</b><span>missed</span></div><div><b>${C.prs.length}</b><span>new maxes</span></div><div><b>${fmt(C.total)}</b><span>total XP</span></div></div>
-    ${C.prs.length?`<ul class="list">${C.prs.slice(-5).reverse().map(p=>`<li><span>${esc(exName(p.ex))} · ${esc(shortDate(p.date))}</span><b class="num">${p.v} reps</b></li>`).join('')}</ul>`:''}</section>`;
+</section>`;
   const toggle=`<div class="stats-mode" role="group" aria-label="Stats view"><button type="button" class="chip" data-act="stats-mode" data-v="workout" aria-pressed="${ui.statsMode!=='study' && ui.statsMode!=='sleep'}">Workout</button><button type="button" class="chip" data-act="stats-mode" data-v="study" aria-pressed="${ui.statsMode==='study'}">Study</button><button type="button" class="chip" data-act="stats-mode" data-v="sleep" aria-pressed="${ui.statsMode==='sleep'}">Sleep</button></div>`;
   if(ui.statsMode==='study') return topbar('Stats') + toggle + reportCard(C) + studyStatsView(C);
   if(ui.statsMode==='sleep') return topbar('Stats') + toggle + sleepStatsView(C);
@@ -3362,7 +3362,6 @@ function reportCard(C){
   const ch=E.chapters(C); if(!ch.length) return '';
   const last=ch.filter(c=>c.complete).slice(-1)[0], cur=ch[ch.length-1];
   return `<section class="card" id="report-card"><div class="section-head"><h2>Monthly mission report</h2><span class="eyebrow">${ch.length} ${ch.length===1?'month':'months'}</span></div>
-    <p class="muted small">One page for each month: study hours, reps, maxes, missions, streaks, XP and a few words from the Third Hokage. A new report arrives on the 1st.</p>
     <div class="btnrow">${last?`<button type="button" class="btn small chakra-btn" data-act="report-open" data-ym="${last.ym}">${esc(last.label)}</button>`:''}${cur && !cur.complete?`<button type="button" class="btn small ghost" data-act="report-open" data-ym="${cur.ym}">This month so far</button>`:''}</div></section>`;
 }
 const repLine = R => Object.keys(R.reps).filter(id=>R.reps[id]>0 || (S().exercises||{})[id]).map(id=>`${fmt(R.reps[id])} ${exName(id).toLowerCase()}`);
