@@ -280,6 +280,8 @@ body.has-bg .chal{background:var(--paper-glass)}
 .focus-row{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:13px; color:var(--muted)}
 .study-start{width:100%}
 .btnrow.quick .btn{flex:1}
+.btnrow.quick.quick-sm{margin-top:-4px; gap:6px}
+.btnrow.quick.quick-sm .btn{min-height:34px; padding:4px 8px; font-size:12.5px; opacity:.9}
 .shield-btn{display:inline-flex; align-items:center; gap:8px; align-self:flex-start}
 .shield-btn svg,.deadline svg,.sc-cell svg{width:14px; height:14px; vertical-align:-2px}
 .shield-btn.warn{border-color:var(--seal); color:var(--seal)}
@@ -1643,7 +1645,8 @@ function studyCard(C){
         <div class="chakra-note">${note}<span class="num">1 column = 1 hour</span></div>
         ${done ? `<div class="complete-badge">${ico.check} ${off?'Off-day study counted':'Study minimum done'}</div>` : ''}
         ${offBtn || timerBlock(C)}
-        ${state.readOnly||offBtn?'':`<div class="btnrow quick"><button class="btn small ghost" data-act="st-add" data-min="30">+30 min</button><button class="btn small ghost" data-act="st-add" data-min="60">+1 hour</button></div>`}
+        ${state.readOnly||offBtn?'':`<div class="btnrow quick"><button class="btn small ghost" data-act="st-add" data-min="30">+30 min</button><button class="btn small ghost" data-act="st-add" data-min="60">+1 hour</button></div>
+        <div class="btnrow quick quick-sm"><button class="btn small ghost" data-act="st-add" data-min="10">+10 min</button><button class="btn small ghost" data-act="st-add" data-min="15">+15 min</button><button class="btn small ghost" data-act="st-add" data-min="20">+20 min</button></div>`}
         ${shield}
         <div class="today-line"><span class="xp-chip pos">Study ${signed(rec.xp)} XP</span>${undo}</div>
         ${statusLine}
