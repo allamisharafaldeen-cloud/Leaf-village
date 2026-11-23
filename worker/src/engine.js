@@ -109,6 +109,13 @@ function hourTimes(segs){
   });
   return out;
 }
+/* ---------- protection scrolls ----------
+   From SCROLL_FROM on, a missed day in an area (workout, study, sleep) can be covered by a scroll. The app decides
+   which days are covered (it keeps the scroll inventory) and writes the decision into settings.scrolls.used as
+   'area|date' -> 'common' | 'rare' | 'forbidden'. A covered day keeps the streak, costs no XP and earns no bonus. */
+export const SCROLL_FROM = '2026-11-24';
+export const scrollUsed = (s, area, d) => !!(d >= SCROLL_FROM && s && s.scrolls && typeof s.scrolls === 'object' && s.scrolls.used && typeof s.scrolls.used === 'object' && s.scrolls.used[area + '|' + d]);
+
 export function computeStudy(data, today, nowMs, opts){
   const s = data.settings || {}, docs = data.study || {}, o = opts || {}, from = o.resume || null, until = o.until || today;
   const res = {days:{}, list:[], streak:from ? from.study.streak : 0, best:from ? from.study.best : 0, weeks:{}, awards:[], start:s.studyStart || null};
@@ -128,7 +135,8 @@ export function computeStudy(data, today, nowMs, opts){
     else if(tgt.off) status = mins > 0 ? 'done' : 'rest';
     else if(mins >= tgt.min) status = 'done';
     else if(exam) status = 'exam';
-    else if(doc.shield && W.shields < 1){ status = 'shield'; W.shields++; }
+    else if(d < SCROLL_FROM && doc.shield && W.shields < 1){ status = 'shield'; W.shields++; }
+    else if(d < today && scrollUsed(s, 'study', d)) status = 'scroll';
     else status = d < today ? 'missed' : 'open';
     const before = res.streak;
     if(status === 'done'){ res.streak++; res.best = Math.max(res.best, res.streak); }
@@ -172,6 +180,7 @@ export function computeSleep(data, today, opts){
     else if(exam) status = 'exam';
     else if(checks) status = 'short';
     else status = d < today ? 'missed' : 'open';
+    if((status === 'short' || status === 'missed') && d < today && scrollUsed(s, 'sleep', d)) status = 'scroll';
     let xp = status === 'good' ? SLEEP.goodXp : 0;
     if(checks && n.score != null && n.score >= SLEEP.scoreMin) xp += SLEEP.scoreXp;
     if(status === 'good'){ res.streak++; res.best = Math.max(res.best, res.streak); }
@@ -252,8 +261,10 @@ export function computeAll(data, nowMs, opts){
       else if(complete) status = 'done';
       else status = d < today ? 'missed' : 'open';
       if(isExam(s, d) && status !== 'done'){ status = 'exam'; if(plan.type === 'rest') base = 0; }
+      if(status === 'missed' && scrollUsed(s, 'workout', d)) status = 'scroll';
       let xp;
       if(status === 'done' || status === 'rest'){ streak++; bestStreak = Math.max(bestStreak, streak); xp = Math.round(base * mult(streak)); if(status === 'done'){ doneCount++; W.done++; } }
+      else if(status === 'scroll') xp = 0;
       else if(status === 'missed'){ streak = 0; xp = base - (plan.type === 'test' ? XP.missTest : XP.missGtg); missedCount++; W.missed++; }
       else xp = base;
       W.days++;
@@ -314,7 +325,7 @@ export function snapshotFromDocs(map){
 export function checkpointTarget(today, back){ const d = addDays(today, -(back || 15)); return addDays(d, -((dow(d) + 1) % 7)); }
 /* a fingerprint of the settings that shape history; if it changes, old checkpoints no longer apply */
 export function historyKey(s){
-  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null]);
+  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null, s.scrolls || null]);
   let h = 2166136261; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${t.length}.${h >>> 0}`;
 }

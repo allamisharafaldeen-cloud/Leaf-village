@@ -650,7 +650,8 @@ test('shop: Ryō from XP, forms earned before the shop stay owned, later mission
   sets(V, '2026-11-07', 'dips', 25, 4);
   let C = E.compute(V, at('2026-11-24', 9));
   let S = E.shop(C);
-  assert.equal(S.earned, Math.floor(C.total / E.RYO_PER_XP), 'every 5 XP is 1 Ryō, back-paid');
+  assert.equal(S.earned, Math.floor(C.days.reduce((m, d) => m + Math.max(0, d.gain), 0) / E.RYO_PER_XP), 'every 5 XP gained is 1 Ryō, back-paid; missed days never take coins back');
+  assert.ok(S.earned > Math.floor(C.total / E.RYO_PER_XP), 'the missed days after the clean week cost XP, not Ryō');
   const gon = S.forms.find(f => f.id === 'gon');
   assert.equal(gon.own.how, 'mission', 'Gon was earned before the shop opened, so he stays owned');
   assert.equal(gon.bountyPaid, null); assert.equal(S.bounty, 0);
@@ -670,6 +671,59 @@ test('shop: Ryō from XP, forms earned before the shop stay owned, later mission
   assert.ok(cleaned.ok, 'the backup still loads');
   const cs = (cleaned.data || cleaned.backup || cleaned).settings;
   assert.deepEqual(Object.keys(cs.shop.owned), ['kirito'], 'broken purchases are dropped');
+});
+
+/* ---------- protection scrolls ---------- */
+function scrollWeek(V, from){
+  /* Tue 24 Nov .. Mon 30 Nov: every workout day done */
+  const plan = {'2026-11-24':'pullups', '2026-11-25':'dips', '2026-11-29':'pullups', '2026-11-30':'dips'};
+  Object.keys(plan).forEach(d => sets(V, d, plan[d], plan[d] === 'pullups' ? 5 : 10, 5));
+  V.days['2026-11-27'] = {date:'2026-11-27', sets:[{ex:'pullups', reps:10, t:iso('2026-11-27', 17)}, {ex:'pullups', reps:9, t:iso('2026-11-27', 17, 10)}, {ex:'dips', reps:20, t:iso('2026-11-27', 17, 20)}, {ex:'dips', reps:18, t:iso('2026-11-27', 17, 30)}]};
+}
+test('scrolls: 7 days in a row earn an area scroll; a missed day uses it, keeps the streak, costs and earns nothing; server agrees', () => {
+  const V = village(); scrollWeek(V);
+  let C = E.compute(V, at('2026-11-30', 22)), B = E.scrollBook(C);
+  assert.equal(B.inv.workout, 1, 'seven good workout days earn a workout scroll');
+  assert.equal(B.inv.study, 0); assert.equal(B.pending.length, 0);
+  /* Tue 1 Dec is missed */
+  C = E.compute(V, at('2026-12-02', 9)); B = E.scrollBook(C);
+  assert.deepEqual(B.pending.map(p => [p.key, p.type]), [['workout|2026-12-01', 'common']]);
+  const missed = day(C, '2026-12-01'); assert.equal(missed.status, 'missed');
+  V.settings.scrolls = {used:{'workout|2026-12-01':'common'}};
+  C = E.compute(V, at('2026-12-02', 9)); B = E.scrollBook(C);
+  const cov = day(C, '2026-12-01');
+  assert.equal(cov.status, 'scroll'); assert.equal(cov.xp, 0); assert.equal(cov.streak, day(C, '2026-11-30').streak, 'the streak is kept');
+  assert.equal(B.inv.workout, 0, 'the scroll is used up'); assert.equal(B.count.workout, 0, 'and the count starts again');
+  assert.equal(B.pending.length, 0);
+  const W = computeAll(V, at('2026-12-02', 9));
+  assert.deepEqual(C.days.map(d => [d.date, d.status, d.xp, d.streak]), W.days.map(d => [d.date, d.status, d.xp, d.streak]), 'the server honours the scroll');
+  /* a second miss with nothing left stays missed */
+  C = E.compute(V, at('2026-12-03', 9)); B = E.scrollBook(C);
+  assert.equal(B.pending.length, 0); assert.equal(day(C, '2026-12-02').status, 'missed');
+  /* a mark before the scroll era is ignored */
+  const O = village(); O.settings.scrolls = {used:{'workout|2026-11-03':'common'}};
+  assert.equal(day(E.compute(O, at('2026-11-05', 9)), '2026-11-03').status, 'missed');
+});
+test('scrolls: Rare and Forbidden cover any area; a bought Forbidden Scroll arrives on its day; ramen doubles that day\'s Ryō', () => {
+  const V = village(); scrollWeek(V);
+  V.settings.shop = {buys:[{id:'forbidden', date:'2026-11-30', price:3000}]};
+  let C = E.compute(V, at('2026-11-30', 22)), B = E.scrollBook(C), S = E.shop(C);
+  assert.equal(B.inv.forbidden, 1); assert.equal(S.forbiddenMonth, true);
+  assert.equal(S.spent, 3000);
+  /* study starts and is missed on Dec 1: no study scroll, no rare, so the Forbidden Scroll covers it */
+  V.settings.studyStart = '2026-12-01';
+  C = E.compute(V, at('2026-12-02', 9)); B = E.scrollBook(C);
+  assert.ok(B.pending.some(p => p.key === 'study|2026-12-01' && p.type === 'forbidden'), JSON.stringify(B.pending));
+  assert.ok(B.pending.some(p => p.key === 'workout|2026-12-01' && p.type === 'common'));
+  const base = E.shop(E.compute(V, at('2026-11-30', 22))).earned;
+  V.settings.shop.buys.push({id:'ramen', date:'2026-11-30', price:100});
+  const C2 = E.compute(V, at('2026-11-30', 22)), S2 = E.shop(C2), g = day(C2, '2026-11-30').gain;
+  assert.ok(S2.ramenToday);
+  assert.ok(S2.earned >= base + Math.floor(g / E.RYO_PER_XP) - 1, 'ramen doubles the day');
+  const bad = clone(V); bad.settings.scrolls = {used:{'workout|2026-12-01':'common', 'gym|2026-12-01':'common', 'study|2026-12-01':'gold'}}; bad.settings.shop.buys.push({id:'nothing', date:'2026-12-01', price:5});
+  const cleaned = E.cleanBackup(Object.assign({app:'The Leaf Village'}, bad), at('2026-12-02', 9));
+  const cs = (cleaned.data || cleaned.backup || cleaned).settings;
+  assert.deepEqual(Object.keys(cs.scrolls.used), ['workout|2026-12-01']); assert.equal(cs.shop.buys.length, 2);
 });
 
 /* ---------- Hokage Book ---------- */

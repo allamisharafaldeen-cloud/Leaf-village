@@ -545,6 +545,36 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .shop-ask{display:flex; flex-direction:column; gap:6px; font-size:12.5px}
 .shop-ask .btnrow{margin:0; gap:6px}
 .shop-pickrib{position:absolute; top:8px; left:8px; z-index:1; padding:3px 8px; border-radius:999px; background:#e9b949; color:#3b2705; font-family:var(--f-data); font-weight:800; font-size:10px; letter-spacing:.06em; text-transform:uppercase}
+.item-list{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px}
+.item-row{display:grid; grid-template-columns:52px 1fr auto; gap:10px; align-items:center; padding:8px 10px; border-radius:14px; border:1.5px solid color-mix(in srgb, var(--rc) 55%, var(--line)); background:linear-gradient(100deg, color-mix(in srgb, var(--rc) 16%, transparent), transparent 70%)}
+.item-row.on{box-shadow:0 0 0 2.5px var(--chakra)}
+.item-sw{width:52px; height:52px; border-radius:12px; display:grid; place-items:center; overflow:hidden; background:#10131a}
+.item-sw svg{width:100%; height:100%}
+.item-meta{display:flex; flex-direction:column; min-width:0}
+.item-meta b{font-size:14.5px; line-height:1.2}
+.item-meta .shop-rar{color:color-mix(in srgb, var(--rc) 75%, var(--ink))}
+.item-meta small{font-size:12px; opacity:.75}
+.item-buy{display:flex; flex-direction:column; align-items:flex-end; gap:4px}
+.item-buy .btn.shop-price{background:#1d2130}
+.item-buy .shop-ask{align-items:flex-end}
+.scroll-inv{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(118px, 1fr)); gap:8px}
+.scroll-inv li{display:flex; flex-direction:column; gap:4px; padding:10px; border-radius:14px; border:1.5px solid color-mix(in srgb, var(--sc) 60%, var(--line)); background:color-mix(in srgb, var(--sc) 12%, transparent)}
+.scroll-inv .si-top{display:flex; align-items:center; gap:6px; font-weight:700; font-size:13px}
+.scroll-inv .si-top svg{width:22px; height:22px; flex:none}
+.scroll-inv .si-n{font-family:var(--f-display); font-size:22px; line-height:1}
+.scroll-inv .si-n small{font-size:12px; opacity:.6}
+.scroll-inv .tf-bar{height:5px}
+.scroll-inv .si-next{font-size:11px; opacity:.75}
+.ninja-title{display:block; margin:2px 0 4px; font-family:var(--f-data); font-weight:700; font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; color:#ffe7a3; text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.ninja .ninja-title, .hero .ninja-title{color:var(--chakra)}
+.hero .ninja-title{color:#ffe7a3}
+/* card styles bought from Tsunade */
+.item-sw .cs-prev{background-size:44px auto; background-position:center}
+.item-sw .cs-prev.cs-hokage{background-size:22px 10px; background-position:left bottom}
+body.cs-akatsuki .card, .cs-prev.cs-akatsuki{border-top:3px solid #b3242b; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60'><path d='M18 46a11 11 0 0 1 3-22a16 16 0 0 1 28-9a14 14 0 0 1 26 7a12 12 0 0 1 5 24z' fill='%23c0262d' fill-opacity='.16' stroke='%23c0262d' stroke-opacity='.4' stroke-width='2'/></svg>"); background-repeat:no-repeat; background-position:right 6px top 6px; background-size:86px auto}
+body.cs-anbu .card, .cs-prev.cs-anbu{border-top:3px solid #6b7682; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'><path d='M30 30m0-3a3 3 0 1 1-3 3a7 7 0 1 1 7 7a11 11 0 1 1-11-11a15 15 0 1 1 15 15a19 19 0 1 1-19-19' fill='none' stroke='%23b3242b' stroke-opacity='.35' stroke-width='2.4' stroke-linecap='round'/></svg>"); background-repeat:no-repeat; background-position:right 8px top 8px; background-size:58px}
+body.cs-uchiha .card, .cs-prev.cs-uchiha{border-top:3px solid #c0282d; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 80'><path d='M8 34a22 24 0 0 1 44 0z' fill='%23c0282d' fill-opacity='.3'/><path d='M8 34a22 24 0 0 0 44 0z' fill='%23ffffff' fill-opacity='.5' stroke='%23c0282d' stroke-opacity='.3' stroke-width='1.5'/><rect x='27' y='57' width='6' height='20' rx='2' fill='%23c0282d' fill-opacity='.3'/></svg>"); background-repeat:no-repeat; background-position:right 10px top 8px; background-size:40px auto}
+body.cs-hokage .card, .cs-prev.cs-hokage{border-top:3px solid #f4efe6; box-shadow:inset 0 3px 0 #d94a22; background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 20'><path d='M0 20Q4 9 9 14Q11 3 19 0Q17 10 23 12Q29 5 31 13Q35 9 40 20z' fill='%23d94a22' fill-opacity='.3'/></svg>"); background-repeat:repeat-x; background-position:left bottom; background-size:40px 18px}
 .shop-pickrib.own{background:rgba(0,0,0,.55); color:#fff}
 .bounty-pay{display:inline-flex; align-items:center; gap:2px; font-size:13px; white-space:nowrap}
 .bounty-pay.paid{opacity:.55}
@@ -575,8 +605,10 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .tf-reveal .tf-world{margin:-6px 0 0; color:#c9c3b8; font-size:13.5px}
 @keyframes tfrise{from{opacity:0; transform:scale(.85) translateY(14px)}to{opacity:1; transform:none}}
 .poof{position:absolute; left:50%; top:52%; width:0; height:0; z-index:6; pointer-events:none}
-.poof i{position:absolute; left:-55px; top:-55px; width:110px; height:110px; border-radius:50%; background:radial-gradient(circle at 40% 35%, #fff, rgba(235,235,240,.92) 45%, rgba(210,210,220,0) 72%); animation:poof 1.1s ease-out forwards; animation-delay:var(--d)}
-.poof b{position:absolute; left:-90px; top:-90px; width:180px; height:180px; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.95), rgba(255,255,255,0) 70%); animation:poofcore .9s ease-out forwards}
+.poof.swirl{animation:poofspin 1.2s ease-out forwards}
+@keyframes poofspin{to{transform:rotate(540deg)}}
+.poof i{position:absolute; left:-55px; top:-55px; width:110px; height:110px; border-radius:50%; background:radial-gradient(circle at 40% 35%, rgb(var(--poof-hi,255,255,255)), rgba(var(--poof-c,235,235,240),.92) 45%, rgba(var(--poof-c,210,210,220),0) 72%); animation:poof 1.1s ease-out forwards; animation-delay:var(--d)}
+.poof b{position:absolute; left:-90px; top:-90px; width:180px; height:180px; border-radius:50%; background:radial-gradient(circle, rgba(var(--poof-hi,255,255,255),.95), rgba(var(--poof-hi,255,255,255),0) 70%); animation:poofcore .9s ease-out forwards}
 @keyframes poof{0%{transform:rotate(var(--a)) translateX(0) scale(.3); opacity:1}55%{opacity:.95}100%{transform:rotate(var(--a)) translateX(95px) scale(1.5); opacity:0}}
 @keyframes poofcore{0%{transform:scale(.2); opacity:1}40%{transform:scale(1.25); opacity:1}100%{transform:scale(1.6); opacity:0}}
 .ladder{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:4px}
@@ -1045,7 +1077,7 @@ const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chak
 /* ---------- per-device preferences ---------- */
 /* iPhone: let sounds and music play even when the ring/silent switch is on silent (iOS 17+). */
 try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
-const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, cards:'solid', sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false, transform:null, tfSeen:{}};
+const PREF_DEFAULTS = {anim:'full', ambient:true, fxVol:.8, musicVol:.6, musicOnOpen:true, musicMode:'all', builtinHidden:false, bgAll:false, bgStrength:.5, bgFocus:{}, cards:'solid', sfxOn:true, soundLen:{}, senseiFrame:{}, focus:false, transform:null, tfSeen:{}, cardStyle:null, title:null, fx:null};
 const prefs = Object.assign({}, PREF_DEFAULTS, (()=>{ try{ return JSON.parse(localStorage.getItem('leaf-prefs')||'{}')||{}; }catch(e){ return {}; } })());
 try{ if(localStorage.getItem('leaf-sound')==='off') prefs.sfxOn=false; }catch(e){}
 let prefsTimer=null, appliedPrefs=null;
@@ -1308,6 +1340,21 @@ function activeTf(C){ const id=prefs.transform; if(!id || !C) return null; const
 /* a Ryō coin: gold, with the square hole of an old mon coin */
 const ryoIcon = (sz=18) => `<svg class="ryo-ic" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#e9b949" stroke="#9a6c12" stroke-width="1.6"/><circle cx="12" cy="12" r="7.6" fill="none" stroke="#c48d1e" stroke-width="1"/><rect x="9" y="9" width="6" height="6" rx=".8" fill="#5b3d07"/></svg>`;
 const ryo = n => `<span class="ryo">${ryoIcon()}<b class="num">${fmt(n)}</b></span>`;
+/* cosmetics bought from Tsunade: one card style, one title, one jutsu effect worn at a time */
+const FX_STYLES = {
+  'fx-chidori':  {leaf:['#9fd8ff','#4aa8ff','#e8f6ff','#2a6fd6'], poof:'170,215,255', hi:'235,247,255', sw:['#e8f6ff','#4aa8ff','#16367a']},
+  'fx-amaterasu':{leaf:['#14090f','#2b0f1d','#4a1430','#9e1538'], poof:'40,18,30', hi:'120,30,60', sw:['#9e1538','#2b0f1d','#050205']},
+  'fx-rasengan': {leaf:['#bfe6ff','#66b8ff','#ffffff','#3d8fe0'], poof:'150,205,255', hi:'255,255,255', sw:['#ffffff','#66b8ff','#1d4f9a']},
+  'fx-sage':     {leaf:['#f08a2c','#ffb347','#d95a1a','#ffe0a0'], poof:'255,190,120', hi:'255,236,200', sw:['#ffe0a0','#f08a2c','#7a2e08']}
+};
+const ownedItem = id => !!(lastC && E.shop(lastC).items.some(x=>x.id===id && x.owned));
+function titleTag(){ const id=prefs.title; if(!id || !ownedItem(id)) return ''; const it=E.SHOP_ITEMS.find(x=>x.id===id); return it?`<span class="ninja-title">${esc(it.name)}</span>`:''; }
+function applyLook(){
+  const cs=prefs.cardStyle && ownedItem(prefs.cardStyle) ? prefs.cardStyle.replace('card-','') : null;
+  ['akatsuki','anbu','uchiha','hokage'].forEach(k=>document.body.classList.toggle('cs-'+k, cs===k));
+  const fx=prefs.fx && ownedItem(prefs.fx) ? FX_STYLES[prefs.fx] : null, rs=document.documentElement.style;
+  if(fx){ rs.setProperty('--poof-c', fx.poof); rs.setProperty('--poof-hi', fx.hi); } else { rs.removeProperty('--poof-c'); rs.removeProperty('--poof-hi'); }
+}
 /* the picture on the stage: the rank's own form, or the transformation being worn */
 function stageLook(C, r){
   const g=activeTf(C);
@@ -1316,7 +1363,7 @@ function stageLook(C, r){
 }
 function tfPoof(){
   const st=document.querySelector('.stage .char-wrap') || document.querySelector('.tf-reveal .tf-art'); if(!st || prefs.anim==='off') return;
-  const p=document.createElement('div'); p.className='poof'; p.setAttribute('aria-hidden','true');
+  const p=document.createElement('div'); p.className='poof'+(prefs.fx==='fx-rasengan'?' swirl':''); p.setAttribute('aria-hidden','true');
   p.innerHTML=Array.from({length:9},(_,i)=>`<i style="--a:${i*40}deg;--d:${(i%3)*.05}s"></i>`).join('')+'<b></b>';
   st.appendChild(p); setTimeout(()=>p.remove(), 1300);
 }
@@ -1349,21 +1396,21 @@ function ninjaHeader(C){
     <div class="streak${C.streak?'':' cold'}" title="Workout streak">${flame}<b>${C.streak}</b><span>streak</span></div>
     ${C.study.start?`<div class="sstreak${C.study.streak?'':' cold'}" title="Study streak">${ico.scrollS}<b>${C.study.streak}</b><span>study</span></div>`:''}
     ${C.sleep && C.sleep.start?`<div class="sstreak${C.sleep.streak?'':' cold'}${C.study.start?' second':''}" title="Sleep streak">${ico.zzzS}<b>${C.sleep.streak}</b><span>sleep</span></div>`:''}
-    <div class="stage-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1><span class="rank-pill"><i></i>${esc(r.name)}</span>${L.tf?`<button type="button" class="tf-pill" data-act="tf-off" aria-label="Release the transformation">as ${esc(L.tf.name.split(' ')[0])} ✕</button>`:''}${pw>=1?'<span class="charged-pill">Fully charged</span>':''}</div>
+    <div class="stage-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1>${titleTag()}<span class="rank-pill"><i></i>${esc(r.name)}</span>${L.tf?`<button type="button" class="tf-pill" data-act="tf-off" aria-label="Release the transformation">as ${esc(L.tf.name.split(' ')[0])} ✕</button>`:''}${pw>=1?'<span class="charged-pill">Fully charged</span>':''}</div>
   </section>` + xpbar;
   }
   if(r.scene) return `
   <section class="hero" style="--rk:${r.color}" aria-label="Your rank">
     <img src="${r.scene}" alt="${name} as ${esc(r.name)}" style="object-position:${r.focus||'50% 25%'}">
     <div class="streak${C.streak?'':' cold'}" title="Current streak">${flame}<b>${C.streak}</b><span>streak</span></div>
-    <div class="hero-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1><span class="rank-pill"><i></i>${esc(r.name)}</span></div>
+    <div class="hero-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1>${titleTag()}<span class="rank-pill"><i></i>${esc(r.name)}</span></div>
   </section>` + xpbar;
   return `
   <section class="ninja" aria-label="Your rank">
     ${portrait(C.peak, 74)}
     <div style="min-width:0">
       <div class="eyebrow">${esc(eyebrow)}</div>
-      <h1 class="ninja-name">${esc(s.name||'Ninja')}</h1>
+      <h1 class="ninja-name">${esc(s.name||'Ninja')}</h1>${titleTag()}
       <div class="rankname" style="--rk:${r.color}">${esc(r.name)}</div>
     </div>
     <div class="streak${C.streak?'':' cold'}" title="Current streak">${flame}<b>${C.streak}</b><span>streak</span></div>
@@ -1552,7 +1599,7 @@ function weekStrip(C){
     const plan = d>=s.startDate ? planFor(s,d) : null;
     if(plan) lab = plan.type==='rest' ? 'REST' : plan.type==='test' ? 'TEST' : plan.type==='combo' ? (plan.exs||[]).map(id=>String(exName(id)).slice(0,1).toUpperCase()).join('+') : (exName(plan.ex).slice(0,4).toUpperCase());
     if(d<s.startDate){ cls='future'; lab='—'; }
-    else if(rec){ cls=rec.status; inner = rec.status==='done'?ico.check : rec.status==='missed'?ico.x : rec.status==='rest'?ico.rest : ''; }
+    else if(rec){ cls=rec.status; inner = rec.status==='done'?ico.check : rec.status==='missed'?ico.x : rec.status==='rest'?ico.rest : rec.status==='scroll'?ico.shield : ''; }
     return `<div class="wd${d===C.today?' is-today':''}"><span>${DOW[k].slice(0,3)}</span><b>${parse(d).getDate()}</b><span class="dot ${cls}">${inner}</span><small>${lab}</small></div>`;
   }).join('');
   return `<section class="card"><div class="section-head"><h2>This week</h2><span class="eyebrow">${esc(shortDate(ws))} – ${esc(shortDate(addDays(ws,6)))}</span></div><div class="week">${cells}</div></section>`;
@@ -1600,7 +1647,7 @@ function studyLine(C){
   if(rec.tgt && rec.tgt.off && rec.mins<=0) key='offday';
   else if(rec.status==='rest') key='rest';
   else if(rec.exam && rec.status!=='done') key='exam';
-  else if(rec.status==='shield') key='shield';
+  else if(rec.status==='shield' || rec.status==='scroll') key='shield';
   else if(rec.status==='done') key = rec.mins>=rec.tgt.full ? 'full' : 'done';
   else if(hour>=20) key='late';
   else if(rec.mins<=0) key = (y && y.status==='missed') ? 'lost' : 'fresh';
@@ -1617,7 +1664,7 @@ function studyLine(C){
 const shieldUsedThisWeek = C => { const st=C.study, ws=weekStart(C.today); return st.list.some(r=>r.date>=ws && r.status==='shield'); };
 function canShield(C){
   const rec=C.study.days[C.today];
-  return !!(rec && rec.tgt && !rec.exam && rec.status==='open' && !rec.shield && !shieldUsedThisWeek(C) && !state.readOnly);
+  return !!(C.today < E.SCROLL_FROM && rec && rec.tgt && !rec.exam && rec.status==='open' && !rec.shield && !shieldUsedThisWeek(C) && !state.readOnly);
 }
 function studyCols(rec){
   const n = rec.tgt ? Math.max(1, Math.ceil(rec.tgt.full/60)) : Math.max(2, Math.ceil(rec.mins/60));
@@ -1845,7 +1892,7 @@ function studyWeekChart(C){
   for(let h=0; h<=top; h+=step){ const y=Y(h).toFixed(1); g+=`<line class="gridline" x1="${L}" x2="${W-R}" y1="${y}" y2="${y}"/><text class="ax" x="${L-6}" y="${(+y+3.5).toFixed(1)}" text-anchor="end">${h}h</text>`; }
   days.forEach((d,k)=>{
     const rec=C.study.days[d], tgt=studyTarget(d), x=L+slot*k+(slot-bw)/2, h=((rec&&rec.mins)||0)/60, y=Y(h);
-    const col = !rec ? 'var(--line)' : rec.status==='done' ? 'var(--study)' : rec.status==='missed' ? 'var(--danger)' : rec.status==='shield' ? 'var(--study-soft-ink)' : rec.status==='exam' ? 'var(--exam)' : 'var(--study-soft-ink)';
+    const col = !rec ? 'var(--line)' : rec.status==='done' ? 'var(--study)' : rec.status==='missed' ? 'var(--danger)' : (rec.status==='shield' || rec.status==='scroll') ? 'var(--study-soft-ink)' : rec.status==='exam' ? 'var(--exam)' : 'var(--study-soft-ink)';
     g+=`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,Y(0)-y).toFixed(1)}" rx="3" style="fill:${col}"><title>${esc(shortDate(d))}: ${fmtH((rec&&rec.mins)||0)}</title></rect>`;
     if(tgt){ const ym=Y(tgt.min/60).toFixed(1); g+=`<line x1="${(x-3).toFixed(1)}" x2="${(x+bw+3).toFixed(1)}" y1="${ym}" y2="${ym}" style="stroke:var(--ink)" stroke-width="1.6" stroke-dasharray="3 2"/>`; }
     if(!tgt) g=`<rect x="${(L+slot*k+2).toFixed(1)}" y="${T}" width="${(slot-4).toFixed(1)}" height="${(Y(0)-T).toFixed(1)}" rx="4" style="fill:var(--rest-soft)" opacity=".7"/>`+g;
@@ -1862,7 +1909,7 @@ function studyMonth(C, ym){
     let cls='future', label='', extra='';
     if(rec){
       cls=rec.status; label = rec.mins ? (Math.round(rec.mins/6)/10).toString().replace(/\.0$/,'')+'h' : '';
-      if(rec.status==='shield') extra=ico.shield; else if(rec.broke) extra='<em>×</em>';
+      if(rec.status==='shield' || rec.status==='scroll') extra=ico.shield; else if(rec.broke) extra='<em>×</em>';
     } else if(d<=C.today) cls='before';
     if(!rec && d>C.today && isExam(d)) cls='exam future';
     else if(!tgt && cls!=='before' && !rec) cls='rest future';
@@ -1890,7 +1937,7 @@ function studyStatsView(C){
   const goalDays=st.list.filter(r=>r.tgt && r.date<today);
   const avg = st.list.length ? st.list.reduce((m,r)=>m+r.mins,0)/st.list.length : 0;
   const best = st.list.reduce((b,r)=>r.mins>(b?b.mins:-1)?r:b,null);
-  const doneN=st.list.filter(r=>r.status==='done').length, missN=st.list.filter(r=>r.status==='missed').length, shN=st.list.filter(r=>r.status==='shield').length;
+  const doneN=st.list.filter(r=>r.status==='done').length, missN=st.list.filter(r=>r.status==='missed').length, shN=st.list.filter(r=>r.status==='shield' || r.status==='scroll').length;
   const totalM=st.list.reduce((m,r)=>m+r.mins,0);
   if(!ui.studyMonth) ui.studyMonth=today.slice(0,7);
   const ym=ui.studyMonth, [yy,mm]=ym.split('-').map(Number), title=new Date(yy,mm-1,1).toLocaleDateString('en-GB',{month:'long', year:'numeric'});
@@ -2271,7 +2318,7 @@ function heatmap(C){
   for(let w=0; w<12; w++) for(let k=0; k<7; k++){
     const d=addDays(start, w*7+k), rec=byDate[d];
     let fill='var(--paper)', stroke='var(--line)', op=1;
-    if(rec){ if(rec.status==='done'){fill='var(--leaf)';stroke='var(--leaf)';} else if(rec.status==='missed'){fill='var(--danger)';stroke='var(--danger)';} else if(rec.status==='rest'){fill='var(--rest-soft)';stroke='var(--rest)';} else if(rec.status==='exam'){fill='var(--exam)';stroke='var(--exam)';} else {fill='var(--chakra-soft)';stroke='var(--chakra)';} }
+    if(rec){ if(rec.status==='done'){fill='var(--leaf)';stroke='var(--leaf)';} else if(rec.status==='missed'){fill='var(--danger)';stroke='var(--danger)';} else if(rec.status==='rest'){fill='var(--rest-soft)';stroke='var(--rest)';} else if(rec.status==='exam'){fill='var(--exam)';stroke='var(--exam)';} else if(rec.status==='scroll'){fill='#f3dc9b';stroke='#c48d1e';} else {fill='var(--chakra-soft)';stroke='var(--chakra)';} }
     else if(d<s.startDate || d>C.today){ op=.45; }
     cells+=`<rect x="${L+w*(cs+gap)}" y="${k*(cs+gap)}" width="${cs}" height="${cs}" rx="5" style="fill:${fill};stroke:${stroke}" stroke-width="1.2" opacity="${op}"><title>${esc(shortDate(d))}${rec?': '+rec.status:''}</title></rect>`;
   }
@@ -2441,8 +2488,101 @@ function shopCard(C){
         <p class="shop-line">“${esc(line)}”</p></div></div></div>
     <h3 class="shop-h">Skins</h3>
     <ul class="shop-grid">${forms.map(tile).join('')}</ul>
+    ${shopExtras(C)}
     <h3 class="shop-h">Bounties</h3>
     <ul class="tf-list">${list.map(bounty).join('')}</ul></section>`;
+}
+/* ---------- protection scrolls and the rest of Tsunade's shelves ---------- */
+const SCROLL_SW = (c1, c2) => `<svg viewBox="0 0 52 52" aria-hidden="true"><rect x="11" y="13" width="30" height="26" rx="2" fill="#f3e6c4"/><path d="M15 20h22M15 26h22M15 32h14" stroke="${c2}" stroke-width="2" stroke-linecap="round" opacity=".7"/><rect x="7" y="9" width="38" height="7" rx="3.5" fill="${c1}"/><rect x="7" y="36" width="38" height="7" rx="3.5" fill="${c1}"/><circle cx="7" cy="12.5" r="3.5" fill="${c2}"/><circle cx="45" cy="12.5" r="3.5" fill="${c2}"/><circle cx="7" cy="39.5" r="3.5" fill="${c2}"/><circle cx="45" cy="39.5" r="3.5" fill="${c2}"/></svg>`;
+const SCROLL_KINDS = [
+  {k:'workout', label:'Workout', c1:'#2f8a3e', c2:'#164a20', cap:2, every:7},
+  {k:'study',   label:'Study',   c1:'#3f6fd1', c2:'#1d3a78', cap:2, every:7},
+  {k:'sleep',   label:'Sleep',   c1:'#6a5acd', c2:'#352a78', cap:2, every:7},
+  {k:'rare',    label:'Rare',    c1:'#3f8ce6', c2:'#e9b949', cap:2, every:30},
+  {k:'forbidden', label:'Forbidden', c1:'#5b2a86', c2:'#e9b949', cap:1, every:60}
+];
+function itemSwatch(it){
+  if(it.kind==='scroll') return SCROLL_SW('#5b2a86', '#e9b949');
+  if(it.kind==='treat') return `<svg viewBox="0 0 52 52" aria-hidden="true"><rect width="52" height="52" fill="#b3242b"/><path d="M17 8c-2 4 2 6 0 10M26 6c-2 4 2 6 0 10M35 8c-2 4 2 6 0 10" stroke="#fff" stroke-opacity=".7" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M8 24h36a18 16 0 0 1-36 0z" fill="#f4efe6"/><path d="M8 24h36" stroke="#2b2b2b" stroke-width="2.5"/><path d="M14 30h24" stroke="#b3242b" stroke-width="2" stroke-dasharray="3 3"/><path d="M30 12l14-6M33 14l13-4" stroke="#c48d1e" stroke-width="2" stroke-linecap="round"/></svg>`;
+  if(it.kind==='card'){ const k=it.id.replace('card-',''); return `<span class="cs-prev cs-${k}" style="width:52px;height:52px;display:block;border-radius:12px;background-color:#f6f1e7" aria-hidden="true"></span>`; }
+  if(it.kind==='fx'){ const f=FX_STYLES[it.id]; return `<svg viewBox="0 0 52 52" aria-hidden="true"><defs><radialGradient id="g-${it.id}"><stop offset="0" stop-color="${f.sw[0]}"/><stop offset=".55" stop-color="${f.sw[1]}"/><stop offset="1" stop-color="${f.sw[2]}"/></radialGradient></defs><rect width="52" height="52" fill="#10131a"/><circle cx="26" cy="26" r="18" fill="url(#g-${it.id})"/>${it.id==='fx-rasengan'?'<path d="M26 26m0-4a4 4 0 1 1-4 4a9 9 0 1 1 9 9a14 14 0 1 1-14-14" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.6"/>':''}</svg>`; }
+  return `<svg viewBox="0 0 52 52" aria-hidden="true"><rect width="52" height="52" fill="#10131a"/><path d="M8 18h36l-4 8 4 8H8l4-8z" fill="${it.rar.color}"/><text x="26" y="30" text-anchor="middle" font-size="11" font-weight="800" fill="#10131a">称</text></svg>`;
+}
+function shopExtras(C){
+  const sh=E.shop(C), B=E.scrollBook(C);
+  const best=Math.max(B.count.workout, B.count.study, B.count.sleep);
+  const inv=SCROLL_KINDS.map(k=>{
+    const n=B.inv[k.k], c=k.k==='rare'||k.k==='forbidden' ? best : B.count[k.k], toGo=k.every - (c % k.every);
+    const full=n>=k.cap;
+    return `<li style="--sc:${k.c1}"><span class="si-top">${SCROLL_SW(k.c1, k.c2)}${esc(k.label)}</span><span class="si-n num">${n}<small> / ${k.cap}</small></span>
+      ${full?'<span class="si-next">Full</span>':`<span class="tf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${k.every}" aria-valuenow="${c % k.every}" aria-label="${esc(k.label)} scroll progress"><i style="width:${Math.round((c % k.every)/k.every*100)}%"></i></span><span class="si-next">${toGo} ${toGo===1?'day':'days'} to the next</span>`}</li>`;
+  }).join('');
+  const row=it=>{
+    const kind=it.kind, worn = kind==='card'?prefs.cardStyle===it.id : kind==='title'?prefs.title===it.id : kind==='fx'?prefs.fx===it.id : false;
+    const short=Math.max(0, it.price-sh.balance);
+    let block = kind==='treat' && sh.ramenToday ? 'Eaten today' : kind==='scroll' && B.inv.forbidden>=1 ? 'You hold one' : kind==='scroll' && sh.forbiddenMonth ? 'One a month' : '';
+    let buy;
+    if(state.readOnly) buy = it.owned?'<span class="shop-owned">Owned</span>':ryo(it.price);
+    else if(it.owned) buy = worn?`<button type="button" class="btn small ghost" data-act="item-off" data-id="${it.id}">Take off</button>`:`<button type="button" class="btn small chakra-btn" data-act="item-use" data-id="${it.id}">Wear</button>`;
+    else if(block) buy = `<span class="shop-owned">${block}</span>`;
+    else if(ui.itemAsk===it.id) buy = `<div class="shop-ask"><span>Buy for ${ryo(it.price)}?</span><div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="item-buy" data-id="${it.id}">Buy</button><button type="button" class="btn small ghost" data-act="item-cancel">Cancel</button></div></div>`;
+    else buy = `<button type="button" class="btn small shop-price" data-act="item-ask" data-id="${it.id}"${short?' aria-disabled="true"':''} aria-label="Buy ${esc(it.name)} for ${fmt(it.price)} Ryō">${ryo(it.price)}</button>${short?`<span class="shop-need">${fmt(short)} more</span>`:''}`;
+    return `<li class="item-row${worn?' on':''}" data-item="${it.id}" style="--rc:${it.rar.color}"><span class="item-sw">${itemSwatch(it)}</span>
+      <span class="item-meta"><span class="shop-rar">${esc(it.rar.label)}</span><b>${esc(it.name)}</b>${it.note?`<small>${esc(it.note)}</small>`:''}</span>
+      <span class="item-buy">${buy}</span></li>`;
+  };
+  const of=k=>sh.items.filter(x=>x.kind===k).map(row).join('');
+  return `<h3 class="shop-h">Scrolls</h3>
+    <ul class="scroll-inv">${inv}</ul>
+    <ul class="item-list">${of('scroll')}${of('treat')}</ul>
+    <h3 class="shop-h">Card styles</h3><ul class="item-list">${of('card')}</ul>
+    <h3 class="shop-h">Titles</h3><ul class="item-list">${of('title')}</ul>
+    <h3 class="shop-h">Jutsu effects</h3><ul class="item-list">${of('fx')}</ul>`;
+}
+function itemAction(act, el){
+  if(state.readOnly || !lastC) return;
+  if(act==='item-cancel'){ ui.itemAsk=null; render(); return; }
+  const sh=E.shop(lastC), it=sh.items.find(x=>x.id===el.dataset.id); if(!it) return;
+  const slot = it.kind==='card'?'cardStyle' : it.kind==='title'?'title' : it.kind==='fx'?'fx' : null;
+  if(act==='item-use' || act==='item-off'){
+    if(!slot || !it.owned) return;
+    prefs[slot] = act==='item-use' ? it.id : null; savePrefs(); SFX.play('tick'); render();
+    if(act==='item-use' && it.kind==='fx'){ tfPoof(); FX.leafBurst(); }
+    return;
+  }
+  if(act==='item-ask'){
+    if(it.owned) return;
+    const short=it.price-sh.balance;
+    if(short>0){ SFX.play('tick'); toast(`${fmt(short)} more Ryō for ${it.name}.`); return; }
+    ui.itemAsk=it.id; render(); return;
+  }
+  if(act==='item-buy'){
+    ui.itemAsk=null;
+    const B=E.scrollBook(lastC);
+    if(it.owned || it.price>sh.balance || (it.kind==='treat' && sh.ramenToday) || (it.kind==='scroll' && (sh.forbiddenMonth || B.inv.forbidden>=1))){ render(); return; }
+    const s=clone(S()); s.shop=(s.shop && typeof s.shop==='object')?s.shop:{owned:{}};
+    s.shop.buys=(Array.isArray(s.shop.buys)?s.shop.buys:[]).concat({id:it.id, date:lastC.today, price:it.price});
+    if(slot) prefs[slot]=it.id;
+    save('settings', null, s); SFX.play('complete');
+    if(slot) savePrefs();
+    toast(it.kind==='treat' ? 'Ichiraku Ramen: double Ryō for today' : it.kind==='scroll' ? 'Forbidden Scroll: Reanimation is yours' : `${it.name}: yours, and on`);
+    setTimeout(()=>{ if(it.kind==='fx'){ tfPoof(); } FX.leafBurst(); }, 200);
+  }
+}
+/* write the scrolls the inventory says were used, so the server and other devices see the same protected days */
+let scrollWriteKey='';
+function writeScrollMarks(C){
+  if(state.readOnly || !settled() || !S()) return;
+  const B=E.scrollBook(C); if(!B.pending.length) return;
+  const key=B.pending.map(p=>p.key+p.type).join(','); if(key===scrollWriteKey) return; scrollWriteKey=key;
+  const s=clone(S()), used=Object.assign({}, s.scrolls && s.scrolls.used);
+  B.pending.forEach(p=>{ used[p.key]=p.type; });
+  s.scrolls={used};
+  setTimeout(()=>{
+    save('settings', null, s);
+    const AREA={workout:'Workout', study:'Study', sleep:'Sleep'}, KIND={common:'scroll', rare:'Rare scroll', forbidden:'Forbidden Scroll'};
+    B.pending.forEach((p,i)=>setTimeout(()=>{ toast(`${p.type==='common'?AREA[p.area]+' scroll':KIND[p.type]} used: ${shortDate(p.date)} is protected, your ${AREA[p.area].toLowerCase()} streak lives`); SFX.play('scroll'); }, 600+i*2200));
+  }, 0);
 }
 /* what the overlay should show next: a form bought just now, a form earned before the shop opened, or a bounty */
 function tfDue(C){
@@ -2787,7 +2927,7 @@ const FX = (()=>{
     leafBurst(){
       if(fxSubtle()) return;
       const cs=getComputedStyle(document.documentElement);
-      const palette=['--primary','--leaf','--chakra-2','--chakra'].map(v=>cs.getPropertyValue(v).trim()).filter(Boolean);
+      const fx=ownedItem(prefs.fx) && FX_STYLES[prefs.fx], palette=fx ? fx.leaf : ['--primary','--leaf','--chakra-2','--chakra'].map(v=>cs.getPropertyValue(v).trim()).filter(Boolean);
       for(let i=0;i<54;i++) B.push({k:'leaf', x:W/2+R(-40,40), y:H*.62+R(-20,20), vx:R(-300,300), vy:R(-640,-280), r:R(0,6.3), vr:R(-9,9), s:R(6,12), c:pick(palette), al:1, life:R(1.6,2.6)});
       kick();
     },
@@ -3743,6 +3883,8 @@ function render(){
     if(state.mode==='db' && !migrationDone) setTimeout(migrateDeviceFiles, 2500);
     fixRankRefs(C);
     applyTheme(themeIndex(C));
+    applyLook();
+    writeScrollMarks(C);
     html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
     if(ui.tab==='plan' || ui.tab==='settings' || ui.tab==='ninja') html=foldCards(html);
   }catch(err){
@@ -4082,6 +4224,7 @@ document.addEventListener('click', e=>{
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
   if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen' || act==='shop-ask' || act==='shop-cancel' || act==='shop-buy' || act==='bounty-ok'){ tfAction(act, el); return; }
+  if(act==='item-ask' || act==='item-buy' || act==='item-cancel' || act==='item-use' || act==='item-off'){ itemAction(act, el); return; }
   if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
   if(act==='fold'){ ui.fold=ui.fold||{}; const id=el.dataset.id; ui.fold[id]=!ui.fold[id]; render(); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }

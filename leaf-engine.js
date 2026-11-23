@@ -165,7 +165,8 @@ function computeStudy(data, today, now){
     else if(tgt.off) status = mins > 0 ? 'done' : 'rest';
     else if(mins >= tgt.min) status = 'done';
     else if(exam) status = 'exam';
-    else if(doc.shield && W.shields < 1){ status = 'shield'; W.shields++; }
+    else if(d < SCROLL_FROM && doc.shield && W.shields < 1){ status = 'shield'; W.shields++; }
+    else if(d < today && scrollUsed(s, 'study', d)) status = 'scroll';
     else status = d < today ? 'missed' : 'open';
     const before = res.streak;
     if(status === 'done'){ res.streak++; res.best = Math.max(res.best, res.streak); }
@@ -191,6 +192,13 @@ const inRange = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 const sleepPlanOf = e => { const p = (e && isObj(e.sleep)) ? e.sleep : {};
   return {mins:inRange(p.mins, 240, 720) ? p.mins : SLEEP_DEFAULT.mins, bedBy:inRange(p.bedBy, 0, 1439) ? p.bedBy : SLEEP_DEFAULT.bedBy, wakeBy:inRange(p.wakeBy, 0, 1439) ? p.wakeBy : SLEEP_DEFAULT.wakeBy}; };
 const sleepGoal = (s, d) => sleepPlanOf(entryFor(s || {}, d));
+/* ---------- protection scrolls ----------
+   From SCROLL_FROM on, a missed day in an area (workout, study, sleep) can be covered by a scroll. The app decides
+   which days are covered (it keeps the scroll inventory) and writes the decision into settings.scrolls.used as
+   'area|date' -> 'common' | 'rare' | 'forbidden'. A covered day keeps the streak, costs no XP and earns no bonus. */
+const SCROLL_FROM = '2026-11-24';
+const scrollUsed = (s, area, d) => !!(d >= SCROLL_FROM && s && s.scrolls && typeof s.scrolls === 'object' && s.scrolls.used && typeof s.scrolls.used === 'object' && s.scrolls.used[area + '|' + d]);
+
 /* bedtimes compare on a noon-to-noon clock (so 00:30 is later than 20:00), wake times on a 6 pm-to-6 pm clock */
 const eveClock = m => m < 720 ? m + 1440 : m, mornClock = m => m >= 1080 ? m - 1440 : m;
 const bedOk = (bed, by) => bed != null && eveClock(bed) <= eveClock(by);
@@ -216,6 +224,7 @@ function computeSleep(data, today){
     else if(exam) status = 'exam';
     else if(checks) status = 'short';
     else status = d < today ? 'missed' : 'open';
+    if((status === 'short' || status === 'missed') && d < today && scrollUsed(s, 'sleep', d)) status = 'scroll';
     let xp = status === 'good' ? SLEEP.goodXp : 0;
     if(checks && n.score != null && n.score >= SLEEP.scoreMin) xp += SLEEP.scoreXp;
     const before = res.streak;
@@ -298,8 +307,10 @@ function compute(data, nowMs){
       else if(complete) status = 'done';
       else status = d < today ? 'missed' : 'open';
       if(isExam(s, d) && status !== 'done'){ status = 'exam'; if(plan.type === 'rest') base = 0; }
+      if(status === 'missed' && scrollUsed(s, 'workout', d)) status = 'scroll';
       let xp;
       if(status === 'done' || status === 'rest'){ streak++; bestStreak = Math.max(bestStreak, streak); xp = Math.round(base*mult(streak)); if(status === 'done'){ doneCount++; W.done++; } }
+      else if(status === 'scroll') xp = 0;
       else if(status === 'missed'){ streak = 0; xp = base - (plan.type === 'test' ? XP.missTest : XP.missGtg); missedCount++; W.missed++; }
       else xp = base;
       W.days++;
@@ -414,8 +425,17 @@ function cleanBackup(d, nowMs){
     if(!ok){
       const owned = {};
       if(isObj(s.shop) && isObj(s.shop.owned)) Object.keys(s.shop.owned).forEach(id => { const o = s.shop.owned[id]; if(SHOP_IDS[id] && isObj(o) && isDate(o.date) && Number.isFinite(o.price) && o.price >= 0) owned[id] = {date:o.date, price:Math.round(o.price)}; });
-      s.shop = {owned}; fixed++;
+      s.shop = Object.assign({}, isObj(s.shop) && Array.isArray(s.shop.buys) ? {buys:s.shop.buys} : {}, {owned}); fixed++;
     }
+  }
+  if(isObj(s.shop) && s.shop.buys !== undefined){
+    const ok = buysOf(s);
+    if(!Array.isArray(s.shop.buys) || ok.length !== s.shop.buys.length){ s.shop.buys = ok.map(b => ({id:b.id, date:b.date, price:Math.round(b.price)})); fixed++; }
+  }
+  if(s.scrolls !== undefined){
+    const u = (isObj(s.scrolls) && isObj(s.scrolls.used)) ? s.scrolls.used : null, keep = {};
+    if(u) Object.keys(u).forEach(k => { const m = /^(workout|study|sleep)\|(\d{4}-\d{2}-\d{2})$/.exec(k); if(m && isDate(m[2]) && ['common','rare','forbidden'].includes(u[k])) keep[k] = u[k]; });
+    if(!u || Object.keys(keep).length !== Object.keys(u).length){ s.scrolls = {used:keep}; fixed++; }
   }
   if(s.swaps !== undefined){
     const sw = swapList(s);
@@ -759,9 +779,9 @@ function transforms(C){
   const wd = {}; C.days.forEach(d => { wd[d.date] = d; });
   const sd = C.study.days || {}, ld = (C.sleep && C.sleep.days) || {};
   /* one scroll on one day: ok, neutral (exam pass, shield, on-call: skipped), bad (breaks a run) or open (today, not decided) */
-  const W = d => { const r = wd[d]; if(!r) return 'bad'; return (r.status === 'done' || r.status === 'rest') ? 'ok' : r.status === 'exam' ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
-  const Sx = d => { const r = sd[d]; if(!r) return 'bad'; return (r.status === 'done' || r.status === 'rest') ? 'ok' : (r.status === 'exam' || r.status === 'shield') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
-  const L = d => { const r = ld[d]; if(!r) return d === C.today ? 'open' : 'bad'; return r.status === 'good' ? 'ok' : (r.status === 'oncall' || r.status === 'exam') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
+  const W = d => { const r = wd[d]; if(!r) return 'bad'; return (r.status === 'done' || r.status === 'rest') ? 'ok' : (r.status === 'exam' || r.status === 'scroll') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
+  const Sx = d => { const r = sd[d]; if(!r) return 'bad'; return (r.status === 'done' || r.status === 'rest') ? 'ok' : (r.status === 'exam' || r.status === 'shield' || r.status === 'scroll') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
+  const L = d => { const r = ld[d]; if(!r) return d === C.today ? 'open' : 'bad'; return r.status === 'good' ? 'ok' : (r.status === 'oncall' || r.status === 'exam' || r.status === 'scroll') ? 'neutral' : r.status === 'open' ? 'open' : 'bad'; };
   const join = list => list.includes('bad') ? 'bad' : list.includes('open') ? 'open' : list.includes('neutral') ? 'neutral' : 'ok';
   const starts = [C.settings.startDate, C.study.start, C.sleep && C.sleep.start].filter(isDate).sort();
   const runs = {kirito:0, jinwoo:0}; prog.kirito = 0; prog.jinwoo = 0;
@@ -829,11 +849,37 @@ function shopPick(C, owned){
   const wk = Math.floor((parse(weekStart(C.today)) - parse('2026-11-22')) / (7*86400000));
   return left[((wk % left.length) + left.length) % left.length].id;
 }
+/* everything else on Tsunade's shelves; cosmetics are bought once and worn from prefs, the ramen and the
+   Forbidden Scroll are used up */
+const SHOP_ITEMS = [
+  {id:'forbidden', kind:'scroll', name:'Forbidden Scroll: Reanimation', price:3000, rarity:'legendary', note:'Covers one missed day in any area. One a month.'},
+  {id:'ramen', kind:'treat', name:'Ichiraku Ramen', price:100, rarity:'common', note:'Double Ryō for everything you earn today. One bowl a day.'},
+  {id:'card-akatsuki', kind:'card', name:'Akatsuki clouds', price:300, rarity:'epic'},
+  {id:'card-anbu', kind:'card', name:'ANBU', price:300, rarity:'rare'},
+  {id:'card-uchiha', kind:'card', name:'Uchiha crest', price:300, rarity:'rare'},
+  {id:'card-hokage', kind:'card', name:'Hokage robe', price:300, rarity:'legendary'},
+  {id:'title-copy', kind:'title', name:'The Copy Ninja', price:150, rarity:'uncommon'},
+  {id:'title-beast', kind:'title', name:'Beast of the Hidden Leaf', price:150, rarity:'uncommon'},
+  {id:'title-toad', kind:'title', name:"The Toad Sage's Student", price:150, rarity:'uncommon'},
+  {id:'title-healer', kind:'title', name:'Healer of the Leaf', price:150, rarity:'uncommon'},
+  {id:'title-flash', kind:'title', name:'The Yellow Flash', price:150, rarity:'rare'},
+  {id:'title-shadow', kind:'title', name:'Shadow of the Leaf', price:150, rarity:'uncommon'},
+  {id:'title-will', kind:'title', name:'Will of Fire', price:150, rarity:'common'},
+  {id:'title-sage', kind:'title', name:'Sage of the Six Paths', price:150, rarity:'epic'},
+  {id:'fx-chidori', kind:'fx', name:'Chidori blue', price:300, rarity:'rare'},
+  {id:'fx-amaterasu', kind:'fx', name:'Amaterasu black flame', price:300, rarity:'epic'},
+  {id:'fx-rasengan', kind:'fx', name:'Rasengan swirl', price:300, rarity:'rare'},
+  {id:'fx-sage', kind:'fx', name:'Sage orange', price:300, rarity:'uncommon'}
+];
+const ITEM_OF = Object.assign({}, ...SHOP_ITEMS.map(x => ({[x.id]:x})));
+const buysOf = s => (isObj(s.shop) && Array.isArray(s.shop.buys)) ? s.shop.buys.filter(b => isObj(b) && ITEM_OF[b.id] && isDate(b.date) && Number.isFinite(b.price) && b.price >= 0) : [];
 function shop(C){
   if(C._shop) return C._shop;
-  const s = C.settings || {}, bought = (isObj(s.shop) && isObj(s.shop.owned)) ? s.shop.owned : {};
-  const earned = Math.floor((C.total || 0) / RYO_PER_XP);
-  let bounty = 0, spent = 0;
+  const s = C.settings || {}, bought = (isObj(s.shop) && isObj(s.shop.owned)) ? s.shop.owned : {}, buys = buysOf(s);
+  /* Ryō come only from XP gained: a missed day costs XP, never coins already earned. A bowl of ramen doubles a day. */
+  const ramen = new Set(buys.filter(b => b.id === 'ramen').map(b => b.date));
+  const earned = Math.floor(C.days.reduce((m, d) => m + Math.max(0, d.gain || 0) * (ramen.has(d.date) ? 2 : 1), 0) / RYO_PER_XP);
+  let bounty = 0, spent = buys.reduce((m, b) => m + Math.round(b.price), 0);
   const owned = {};
   const forms = transforms(C).map(t => {
     const r = RARITY[RARITY_OF[t.id] || 'common'], o = bought[t.id];
@@ -846,8 +892,60 @@ function shop(C){
   });
   const pick = shopPick(C, owned);
   forms.forEach(f => { f.pick = f.id === pick; f.cost = f.pick ? Math.round(f.price * 0.8 / 10) * 10 : f.price; });
-  const out = {earned, bounty, spent, balance:earned + bounty - spent, forms, owned, pick};
+  const has = {}; buys.forEach(b => { if(ITEM_OF[b.id].kind !== 'treat' && ITEM_OF[b.id].kind !== 'scroll') has[b.id] = b.date; });
+  const items = SHOP_ITEMS.map(it => Object.assign({}, it, {rar:RARITY[it.rarity], owned:has[it.id] || null}));
+  const ramenToday = ramen.has(C.today), forbiddenMonth = buys.some(b => b.id === 'forbidden' && monthOf(b.date) === monthOf(C.today));
+  const out = {earned, bounty, spent, balance:earned + bounty - spent, forms, owned, pick, items, buys, ramenToday, forbiddenMonth};
   Object.defineProperty(C, '_shop', {value:out, enumerable:false});
+  return out;
+}
+
+/* ---------- protection scrolls: the inventory ----------
+   Counted from SCROLL_FROM. In each area, 7 days in a row without a break earns a Common scroll for that area,
+   30 a Rare scroll (any area), 60 a Forbidden Scroll (any area); a bought Forbidden Scroll arrives on its day.
+   A missed day takes the area's scroll first, then a Rare, then a Forbidden; using one restarts that area's count.
+   'pending' lists the covers the app still has to write into settings.scrolls.used. */
+const SCROLL = {common:7, rare:30, forbidden:60, capCommon:2, capRare:2, capForbidden:1};
+const SCROLL_AREAS = ['workout', 'study', 'sleep'];
+function scrollBook(C){
+  if(C._scrolls) return C._scrolls;
+  const s = C.settings || {}, used = (isObj(s.scrolls) && isObj(s.scrolls.used)) ? s.scrolls.used : {};
+  const wd = {}; C.days.forEach(d => { wd[d.date] = d; });
+  const cls = (area, d) => {
+    const r = area === 'workout' ? wd[d] : area === 'study' ? C.study.days[d] : (C.sleep && C.sleep.days[d]);
+    if(!r) return 'skip';
+    const st = r.status;
+    if(st === 'scroll') return 'used';
+    if(st === 'open') return 'skip';
+    if(area === 'sleep') return st === 'good' ? 'good' : (st === 'short' || st === 'missed') ? 'bad' : 'neutral';
+    return (st === 'done' || st === 'rest') ? 'good' : st === 'missed' ? 'bad' : 'neutral';
+  };
+  const inv = {workout:0, study:0, sleep:0, rare:0, forbidden:0}, count = {workout:0, study:0, sleep:0}, pending = [], log = [];
+  const boughtOn = {}; buysOf(s).filter(b => b.id === 'forbidden').forEach(b => { boughtOn[b.date] = (boughtOn[b.date] || 0) + 1; });
+  const take = area => { if(inv[area] > 0){ inv[area]--; return 'common'; } if(inv.rare > 0){ inv.rare--; return 'rare'; } if(inv.forbidden > 0){ inv.forbidden--; return 'forbidden'; } return null; };
+  Object.keys(boughtOn).filter(d => d < SCROLL_FROM && d <= C.today).forEach(d => { inv.forbidden = Math.min(SCROLL.capForbidden, inv.forbidden + boughtOn[d]); });
+  if(C.today >= SCROLL_FROM) for(let d = SCROLL_FROM, g = 0; d <= C.today && g < 4000; d = addDays(d, 1), g++){
+    if(boughtOn[d]) inv.forbidden = Math.min(SCROLL.capForbidden, inv.forbidden + boughtOn[d]);
+    SCROLL_AREAS.forEach(area => {
+      const c = cls(area, d);
+      if(c === 'used'){
+        const want = used[area + '|' + d];
+        if(want === 'rare' && inv.rare > 0) inv.rare--; else if(want === 'forbidden' && inv.forbidden > 0) inv.forbidden--; else if(inv[area] > 0) inv[area]--;
+        count[area] = 0; log.push({date:d, area, kind:'used', type:want});
+      } else if(c === 'bad' && d < C.today){
+        const t = take(area);
+        if(t){ pending.push({key:area + '|' + d, area, date:d, type:t}); log.push({date:d, area, kind:'used', type:t}); }
+        count[area] = 0;
+      } else if(c === 'good'){
+        const n = ++count[area];
+        if(n % SCROLL.common === 0 && inv[area] < SCROLL.capCommon){ inv[area]++; log.push({date:d, area, kind:'earned', type:'common'}); }
+        if(n % SCROLL.rare === 0 && inv.rare < SCROLL.capRare){ inv.rare++; log.push({date:d, area, kind:'earned', type:'rare'}); }
+        if(n % SCROLL.forbidden === 0 && inv.forbidden < SCROLL.capForbidden){ inv.forbidden++; log.push({date:d, area, kind:'earned', type:'forbidden'}); }
+      }
+    });
+  }
+  const out = {inv, count, pending, log, from:SCROLL_FROM};
+  Object.defineProperty(C, '_scrolls', {value:out, enumerable:false});
   return out;
 }
 
@@ -895,7 +993,7 @@ function hokageBook(C){
 }
 
 return {
-  hokageBook,
+  hokageBook, SCROLL_FROM, scrollUsed, SCROLL, scrollBook, SHOP_ITEMS,
   TRANSFORMS, transforms, swapOf, RARITY, SHOP_FROM, RYO_PER_XP, shop,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
