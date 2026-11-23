@@ -671,3 +671,19 @@ test('shop: Ryō from XP, forms earned before the shop stay owned, later mission
   const cs = (cleaned.data || cleaned.backup || cleaned).settings;
   assert.deepEqual(Object.keys(cs.shop.owned), ['kirito'], 'broken purchases are dropped');
 });
+
+/* ---------- Hokage Book ---------- */
+test('Hokage Book: one chapter per reached rank, written from the logs; the rest sealed; no finale before Hokage', () => {
+  const V = cleanWeek();
+  const C = E.compute(V, at('2026-11-07', 21));
+  const B = E.hokageBook(C);
+  assert.equal(B.chapters.length, E.RANKS.length);
+  assert.equal(B.reached, B.chapters.filter(c => !c.sealed).length);
+  const first = B.chapters[0];
+  assert.equal(first.from, '2026-11-01'); assert.equal(first.sealed, false);
+  const opened = B.chapters.filter(c => !c.sealed);
+  assert.equal(opened.reduce((m, c) => m + c.xp, 0), C.total, 'the chapters add up to the total XP');
+  assert.equal(opened.reduce((m, c) => m + c.repsAll, 0), C.days.reduce((m, d) => m + d.sets.reduce((k, x) => k + x.reps, 0), 0), 'every rep is in exactly one chapter');
+  assert.ok(opened[opened.length - 1].open, 'the last reached chapter is still being written');
+  assert.ok(B.chapters[E.RANKS.length - 1].sealed); assert.equal(B.finale, null);
+});

@@ -851,7 +851,51 @@ function shop(C){
   return out;
 }
 
+/* ---------- the Hokage Book: one chapter per rank, written from the logs ----------
+   A chapter runs from the day a rank was reached to the day before the next one (or today). Ranks not reached
+   yet are sealed. The finale opens on the day Hokage is reached and covers the whole journey. */
+function hokageBook(C){
+  if(C._book) return C._book;
+  const s = C.settings || {}, days = C.days, reachedOn = [];
+  RANKS.forEach((r, i) => { if(i === 0){ reachedOn.push(days.length ? days[0].date : (s.startDate || C.today)); return; } const d = days.find(x => x.peak >= i); reachedOn.push(d ? d.date : null); });
+  const ach = achievements(C), sh = shop(C);
+  const baseMax = id => { const b = (s.baseline || {})[id]; return posNum(b && b.max, 0); };
+  const maxAt = (id, upto) => C.prs.filter(p => p.ex === id && p.date <= upto).reduce((m, p) => Math.max(m, p.v), baseMax(id));
+  const range = (from, to) => {
+    const ds = days.filter(x => x.date >= from && x.date <= to), reps = {};
+    ds.forEach(x => x.sets.forEach(z => { reps[z.ex] = (reps[z.ex] || 0) + z.reps; }));
+    const st = C.study.list.filter(r => r.date >= from && r.date <= to), sl = (C.sleep ? C.sleep.list : []).filter(r => r.date >= from && r.date <= to);
+    return {
+      days:Math.max(1, daysBetween(from, to) + 1),
+      reps, repsAll:Object.keys(reps).reduce((m, k) => m + reps[k], 0),
+      done:ds.filter(x => x.status === 'done').length, missed:ds.filter(x => x.status === 'missed').length,
+      bestStreak:ds.reduce((m, x) => Math.max(m, x.streak || 0), 0),
+      studyMins:st.reduce((m, r) => m + (r.mins || 0), 0), studyDays:st.filter(r => r.status === 'done').length,
+      goodNights:sl.filter(r => r.status === 'good').length,
+      prs:C.prs.filter(p => p.date >= from && p.date <= to),
+      maxes:Object.assign({}, ...C.exIds.map(id => ({[id]:maxAt(id, to)}))),
+      ach:ach.filter(a => a.date && a.date >= from && a.date <= to).map(a => a.name),
+      forms:sh.forms.filter(f => f.own && f.own.date >= from && f.own.date <= to).map(f => f.name),
+      xp:ds.length ? ds[ds.length - 1].total - (ds[0].total - ds[0].gain) : 0
+    };
+  };
+  const chapters = RANKS.map((r, i) => {
+    const from = reachedOn[i];
+    if(!from || from > C.today) return {i, id:r.id, name:r.name, sealed:true, xpNeeded:r.xp};
+    const nextOn = reachedOn[i + 1], to = nextOn && nextOn <= C.today ? addDays(nextOn, -1) : C.today;
+    const tookFrom = i === 0 ? from : reachedOn[i - 1];
+    return Object.assign({i, id:r.id, name:r.name, sealed:false, from, to, open:!(nextOn && nextOn <= C.today), took:i === 0 ? 0 : daysBetween(tookFrom, from)}, range(from, to));
+  });
+  const top = RANKS.length - 1, start = reachedOn[0];
+  const finale = chapters[top].sealed ? null : Object.assign({from:start, to:C.today, journey:daysBetween(start, reachedOn[top]),
+    firstMaxes:Object.assign({}, ...C.exIds.map(id => ({[id]:baseMax(id)}))), owned:sh.forms.filter(f => f.own).length, achCount:ach.filter(a => a.date).length}, range(start, C.today));
+  const out = {chapters, finale, reached:chapters.filter(c => !c.sealed).length};
+  Object.defineProperty(C, '_book', {value:out, enumerable:false});
+  return out;
+}
+
 return {
+  hokageBook,
   TRANSFORMS, transforms, swapOf, RARITY, SHOP_FROM, RYO_PER_XP, shop,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,

@@ -816,6 +816,10 @@ body.has-bg .jutsu li{background:var(--paper-glass)}
 .race-bars .them b{font-weight:500; color:var(--muted)}
 /* monthly mission report */
 .report{position:relative; width:min(640px,100%); max-height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; background:var(--card); border-radius:18px; border:3px solid var(--rk); display:flex; flex-direction:column; animation:pop .4s cubic-bezier(.2,1.3,.4,1)}
+.report.book .report-head{padding-right:112px}
+.book-art{width:100%; max-height:260px; object-fit:cover; object-position:50% 20%; border-radius:12px}
+.book-row{display:flex; align-items:center; gap:12px; padding:8px 4px; opacity:.6}
+.book-seal{width:46px; height:46px; flex:none; display:grid; place-items:center; border-radius:50%; background:#5a1f1a; color:#f3d9a4; font-size:22px; font-weight:800; box-shadow:inset 0 0 0 2px #c79b4a}
 .report-head{padding:18px 20px 14px; background:var(--rk); color:#fff}
 .report-head .eyebrow{color:rgba(255,255,255,.82)}
 .report-head h2{font-size:27px; color:#fff; margin-top:2px}
@@ -2506,6 +2510,77 @@ function jutsuAction(act, el){
 
 /* --- story arcs: each month is a chapter --- */
 const wallOf = i => { const r=RANKS[i]; return (r.walls && r.walls.length) ? `media/${r.walls[0]}.jpg` : r.scene; };
+/* ---------- the Hokage Book ---------- */
+const BOOK_WORDS = {
+  'academy':['hiruzen','Every Hokage was once a student at a desk, with a pull-up bar he could barely hang from. You chose to start. Most never do.'],
+  'genin':['kakashi','A Genin follows the plan even when nobody is watching. You did. The forehead protector suits you.'],
+  'chunin':['guy','The green vest! Your youth is burning, my friend. A Chunin carries others, so keep your own fire well fed.'],
+  'special-jonin':['hiruzen','A specialist. Medicine is your jutsu now: the ward rounds, the long nights at the books. The village needs healers more than fighters.'],
+  'jonin':['kakashi','Jonin. The missions get harder and the praise gets quieter. Keep the routine. That is the whole secret.'],
+  'anbu':['kakashi','The mask hides the face, not the work. Nobody sees the reps at dawn. You do them anyway. That is ANBU.'],
+  'akatsuki':['jiraiya','The Akatsuki cloak? Bold choice. Strength without a reason turns sour, so remember why you started.'],
+  'sannin':['jiraiya','Sannin! Now we are equals, kid. Well, almost. I still have the better hair.'],
+  'sage':['jiraiya','Sage Mode means being perfectly still while everything moves. Like studying for six hours without touching your phone.'],
+  'susanoo':['kakashi','Susanoo: a guardian built from everything you have trained. It only appears for those who never stopped.'],
+  'tailed-beast':['jiraiya','The Tailed Beast is raw power held by discipline. Months of sleep logs, study hours and sets made that possible.'],
+  'eight-gates':['guy','THE EIGHT GATES! You opened every one with sweat. Lee would cry. I am crying. This is the springtime of youth!'],
+  'kage':['hiruzen','Kage: the one who protects the village. You have protected your own routine through exams, hospital days and long nights.'],
+  'hokage':['hiruzen','Hokage. The hat is yours.']
+};
+function bookCard(C){
+  const B=E.hokageBook(C);
+  const rows=B.chapters.map(c=>c.sealed
+    ? `<li class="book-row sealed"><span class="book-seal" aria-hidden="true">封</span><span><span class="rn">Chapter ${c.i+1} · Sealed</span><span class="rx">Opens at ${fmt(c.xpNeeded)} XP</span></span></li>`
+    : `<li><button type="button" class="rank-btn" data-act="book-open" data-i="${c.i}">${portrait(c.i,46)}<span><span class="rn">Chapter ${c.i+1} · ${esc(c.name)}</span><span class="rx">${esc(shortDate(c.from))}${c.open?' · being written now':` – ${esc(shortDate(c.to))}`}</span></span><span class="rx">${c.i===0?'Day 1':`${c.took} ${c.took===1?'day':'days'}`}</span></button></li>`).join('');
+  const fin = B.finale ? `<li><button type="button" class="rank-btn" data-act="book-open" data-i="finale">${portrait(RANKS.length-1,46)}<span><span class="rn">Finale · The Hokage</span><span class="rx">The whole journey</span></span></button></li>`
+    : `<li class="book-row sealed"><span class="book-seal" aria-hidden="true">火</span><span><span class="rn">Finale · Sealed</span><span class="rx">Opens when you become Hokage</span></span></li>`;
+  return `<section class="card" id="book-card"><div class="section-head"><h2>Hokage Book</h2><span class="eyebrow">${B.reached} / ${RANKS.length} chapters</span></div>
+    <ul class="ladder">${rows}${fin}</ul></section>`;
+}
+function bookHtml(C, key){
+  const B=E.hokageBook(C), open=B.chapters.filter(c=>!c.sealed).map(c=>c.i).concat(B.finale?['finale']:[]);
+  const at=open.indexOf(key==='finale'?'finale':Number(key)); if(at<0) return null;
+  const box=(title, big, lines, wide)=>`<div class="rbox${wide?' wide':''}"><span class="eyebrow">${title}</span>${big?`<span class="big num">${big}</span>`:''}${lines.filter(Boolean).map(l=>`<span>${l}</span>`).join('')}</div>`;
+  const repLines=c=>C.exIds.filter(id=>c.reps[id]).map(id=>`${fmt(c.reps[id])} ${esc(exName(id).toLowerCase())}`);
+  const maxLines=(m, from)=>C.exIds.map(id=>`${esc(exName(id))}: ${from?`${from[id]} → `:''}<b>${m[id]}</b>`);
+  const nav=`<span class="month-nav"><button type="button" class="chip" data-act="book-nav" data-d="-1"${at>0?'':' disabled'} aria-label="Previous chapter">‹</button><button type="button" class="chip" data-act="book-nav" data-d="1"${at<open.length-1?'':' disabled'} aria-label="Next chapter">›</button></span>`;
+  const words=(id, paras)=>`<div class="hokage-words">${senseiAvatar(id,44)}<div><span class="bubble-name" style="--sc:${SENSEIS[id].color}"><i></i>${esc(SENSEIS[id].name)}</span>${paras.map(t=>`<p>${esc(t)}</p>`).join('')}</div></div>`;
+  const close=`<div class="btnrow"><button type="button" class="btn ghost" data-act="book-close" style="flex:1">Close the book</button></div>`;
+  if(key==='finale'){
+    const F=B.finale, r=RANKS[RANKS.length-1], name=S().name||'ninja';
+    const letter=[`${name}. ${F.journey} days ago you walked into the Academy with ${C.exIds.map(id=>`${F.firstMaxes[id]} ${exName(id).toLowerCase()}`).join(' and ')}. Today you are Hokage.`,
+      `In between: ${fmt(F.repsAll)} reps, ${fmtH(F.studyMins)} at the desk, ${F.goodNights} good nights of sleep and ${F.done} missions completed. Nobody handed you any of it. Every number in this book was logged by your own hand, on the day it happened, and none of it can be rewritten.`,
+      `A Hokage is not the strongest ninja in the village. A Hokage is the one who keeps showing up for it. You already know how. Keep going, doctor.`];
+    return `<div class="report book" role="dialog" aria-modal="true" aria-labelledby="book-title" style="--rk:${r.color}">
+      <div class="report-head"><div class="eyebrow">Hokage Book · Finale</div><h2 id="book-title">The Hokage</h2><p>${esc(shortDate(F.from))} – ${esc(shortDate(F.to))} · ${F.journey} days to the hat</p>${nav}</div>
+      <div class="report-body"><img class="book-art" src="${r.scene}" alt="${esc(name)} as Hokage">
+        <div class="rgrid">
+          ${box('Strength', '', maxLines(B.chapters[RANKS.length-1].maxes, F.firstMaxes))}
+          ${box('Reps', fmt(F.repsAll), repLines(F).concat([`${F.prs.length} new maxes on the way`]))}
+          ${box('Study', fmtH(F.studyMins), [`${F.studyDays} days at the goal`])}
+          ${box('Sleep', `${F.goodNights}`, ['good nights'])}
+          ${box('Missions', `${F.done} done`, [`${F.missed} missed · best streak ${F.bestStreak} days`])}
+          ${box('Collection', '', [`${F.achCount} achievements`, `${F.owned} forms from Tsunade's shop`])}
+        </div>
+        ${words('hiruzen', letter)}${close}</div></div>`;
+  }
+  const c=B.chapters[Number(key)], r=RANKS[c.i], w=BOOK_WORDS[c.id]||['hiruzen',''];
+  const sub = c.i===0 ? `Day 1 · ${esc(shortDate(c.from))}` : `Reached ${esc(shortDate(c.from))} · after ${c.took} ${c.took===1?'day':'days'} as ${esc(RANKS[c.i-1].name)}`;
+  return `<div class="report book" role="dialog" aria-modal="true" aria-labelledby="book-title" style="--rk:${r.color}">
+    <div class="report-head"><div class="eyebrow">Hokage Book · Chapter ${c.i+1}${c.open?' · being written now':''}</div><h2 id="book-title">${esc(r.name)}</h2><p>${sub}</p>${nav}</div>
+    <div class="report-body"><img class="book-art" src="${r.scene}" alt="${esc(S().name||'Ninja')} as ${esc(r.name)}">
+      <div class="rgrid">
+        ${box('Training', c.repsAll?fmt(c.repsAll):'', repLines(c).concat([`${c.done} missions done · ${c.missed} missed`, `Best streak ${c.bestStreak} ${c.bestStreak===1?'day':'days'}`]))}
+        ${box('Maxes', '', maxLines(c.maxes).concat(c.prs.length?[`${c.prs.length} new ${c.prs.length===1?'max':'maxes'}`]:[]))}
+        ${c.studyMins?box('Study', fmtH(c.studyMins), [`${c.studyDays} ${c.studyDays===1?'day':'days'} at the goal`]):''}
+        ${c.goodNights?box('Sleep', `${c.goodNights}`, [c.goodNights===1?'good night':'good nights']):''}
+        ${box('XP', `+${fmt(c.xp)}`, [`${c.days} ${c.days===1?'day':'days'} in this chapter`])}
+        ${c.ach.length||c.forms.length?`<div class="rbox wide"><span class="eyebrow">Earned in this chapter</span><ul>${c.ach.map(a=>`<li>${esc(a)}</li>`).join('')}${c.forms.map(f=>`<li>${esc(f)} (Tsunade's shop)</li>`).join('')}</ul></div>`:''}
+      </div>
+      ${words(w[0], [w[1]])}
+      ${CINE[r.id]?`<button type="button" class="btn chakra-btn" data-act="cine-replay" data-i="${c.i}" style="width:100%">Watch the ${esc(r.name)} scene</button>`:''}
+      ${close}</div></div>`;
+}
 function storyCard(C){
   const ch=E.chapters(C); if(!ch.length) return '';
   const rows=ch.slice().reverse().map(c=>`<li${c.complete?'':' class="current"'}><button type="button" class="rank-btn" data-act="report-open" data-ym="${c.ym}">${portrait(c.report.rankTo,46)}<span><span class="rn">Chapter ${c.n} · ${esc(c.title)}</span><span class="rx">${esc(c.label)}${c.complete?'':' · still being written'}</span></span><span class="rx">${signed(c.report.xp)} XP</span></button></li>`).join('');
@@ -2604,6 +2679,7 @@ function ninjaView(C){
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
   ${shopCard(C)}
   ${jutsuCard(C)}
+  ${bookCard(C)}
   ${storyCard(C)}
   ${achievementsCard(C)}`;
 }
@@ -3806,6 +3882,11 @@ function renderOverlay(C){
     const fresh=!(ui.overlayKey||'').startsWith('report-'), top=fresh?0:((ov.querySelector('.report')||{}).scrollTop||0);
     ui.overlayKey=key; ov.innerHTML=html; ov.hidden=false;
     const card=ov.querySelector('.report'); if(card){ if(fresh){ card.style.animation=''; const b=ov.querySelector('[data-act="report-close"]'); if(b) b.focus({preventScroll:true}); } else { card.style.animation='none'; card.scrollTop=top; } }
+  } else if(ui.book!=null){
+    const key='book-'+ui.book+'-'+dataRev; if(ui.overlayKey===key) return;
+    const html=bookHtml(C, ui.book); if(!html){ ui.book=null; ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null; return; }
+    const fresh=!(ui.overlayKey||'').startsWith('book-'); ui.overlayKey=key; ov.innerHTML=html; ov.hidden=false;
+    const card=ov.querySelector('.report'); if(card){ if(!fresh){ card.style.animation='none'; } card.scrollTop=0; const b=ov.querySelector('[data-act="book-close"]'); if(b && fresh) b.focus({preventScroll:true}); }
   } else if(ui.viewRank!=null){
     const i=ui.viewRank, key='view-'+i+'-'+C.peak; if(ui.overlayKey===key) return;
     ui.overlayKey=key;
@@ -3864,6 +3945,7 @@ function announceAwards(A, prevCount){
 document.addEventListener('click', e=>{ if(document.body.classList.contains('peek')){ document.body.classList.remove('peek'); e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('click', e=>{
   if(e.target && e.target.id==='overlay' && ui.viewRank!=null){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
+  if(e.target && e.target.id==='overlay' && ui.book!=null){ ui.book=null; if(lastC) renderOverlay(lastC); return; }
   if(e.target && e.target.id==='overlay' && ui.report){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
   const el=e.target.closest('[data-act]'); if(!el) return;
   const act=el.dataset.act;
@@ -4003,6 +4085,9 @@ document.addEventListener('click', e=>{
   if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
   if(act==='fold'){ ui.fold=ui.fold||{}; const id=el.dataset.id; ui.fold[id]=!ui.fold[id]; render(); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }
+  if(act==='book-open'){ ui.book=el.dataset.i==='finale'?'finale':Number(el.dataset.i); SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
+  if(act==='book-close'){ ui.book=null; if(lastC) renderOverlay(lastC); return; }
+  if(act==='book-nav' && lastC){ const B=E.hokageBook(lastC), open=B.chapters.filter(c=>!c.sealed).map(c=>c.i).concat(B.finale?['finale']:[]); const at=open.indexOf(ui.book); const nx=open[at+Number(el.dataset.d)]; if(nx!==undefined){ ui.book=nx; SFX.play('tick'); renderOverlay(lastC); } return; }
   if(act==='report-open'){ ui.report=el.dataset.ym; SFX.play('scroll'); if(lastC) renderOverlay(lastC); return; }
   if(act==='report-close'){ ui.report=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='report-nav'){ const ch=E.chapters(lastC), i=ch.findIndex(c=>c.ym===ui.report)+Number(el.dataset.d); if(ch[i]){ ui.report=ch[i].ym; SFX.play('tick'); renderOverlay(lastC); } return; }
