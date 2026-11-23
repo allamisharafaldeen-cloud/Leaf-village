@@ -409,6 +409,14 @@ function cleanBackup(d, nowMs){
     const ex = (Array.isArray(s.examWeeks) ? s.examWeeks : []).filter(e => isObj(e) && isDate(e.start) && isDate(e.end) && e.start <= e.end);
     if(!Array.isArray(s.examWeeks) || ex.length !== s.examWeeks.length){ s.examWeeks = ex; fixed++; }
   }
+  if(s.shop !== undefined){
+    const ok = isObj(s.shop) && isObj(s.shop.owned) && Object.keys(s.shop.owned).every(id => SHOP_IDS[id] && isObj(s.shop.owned[id]) && isDate(s.shop.owned[id].date) && Number.isFinite(s.shop.owned[id].price) && s.shop.owned[id].price >= 0);
+    if(!ok){
+      const owned = {};
+      if(isObj(s.shop) && isObj(s.shop.owned)) Object.keys(s.shop.owned).forEach(id => { const o = s.shop.owned[id]; if(SHOP_IDS[id] && isObj(o) && isDate(o.date) && Number.isFinite(o.price) && o.price >= 0) owned[id] = {date:o.date, price:Math.round(o.price)}; });
+      s.shop = {owned}; fixed++;
+    }
+  }
   if(s.swaps !== undefined){
     const sw = swapList(s);
     if(!Array.isArray(s.swaps) || sw.length !== s.swaps.length){ s.swaps = sw; fixed++; }
@@ -800,8 +808,51 @@ function transforms(C){
   return out;
 }
 
+/* ---------- Tsunade's shop: Ryō ----------
+   Every 5 XP earns 1 Ryō (back-paid from the first day). Hidden missions that are completed from the shop's
+   opening day on pay a Ryō bounty; forms already earned through a mission before the shop opened stay owned.
+   The balance is worked out from the logs every time, so it can never drift: earned + bounties - spent. */
+const SHOP_FROM = '2026-11-23';
+const RYO_PER_XP = 5;
+const RARITY = {
+  common:   {label:'Common',    price:400,  bounty:150,  color:'#9aa3ad'},
+  uncommon: {label:'Uncommon',  price:800,  bounty:300,  color:'#4fb35a'},
+  rare:     {label:'Rare',      price:1500, bounty:500,  color:'#3f8ce6'},
+  epic:     {label:'Epic',      price:2500, bounty:800,  color:'#a35ee8'},
+  legendary:{label:'Legendary', price:4000, bounty:1200, color:'#f08a2c'}
+};
+const RARITY_OF = {ayanokoji:'common', isagi:'common', gon:'uncommon', tanjiro:'uncommon', kirito:'rare', eren:'rare', kaneki:'rare', lelouch:'epic', gojo:'epic', tobi:'legendary', jinwoo:'legendary'};
+const SHOP_IDS = Object.assign({}, ...Object.keys(RARITY_OF).map(id => ({[id]:1})));
+/* one form a week is 20% off: "Tsunade's pick", chosen in turn from the forms not owned yet */
+function shopPick(C, owned){
+  const left = TRANSFORMS.filter(t => !owned[t.id]); if(!left.length) return null;
+  const wk = Math.floor((parse(weekStart(C.today)) - parse('2026-11-22')) / (7*86400000));
+  return left[((wk % left.length) + left.length) % left.length].id;
+}
+function shop(C){
+  if(C._shop) return C._shop;
+  const s = C.settings || {}, bought = (isObj(s.shop) && isObj(s.shop.owned)) ? s.shop.owned : {};
+  const earned = Math.floor((C.total || 0) / RYO_PER_XP);
+  let bounty = 0, spent = 0;
+  const owned = {};
+  const forms = transforms(C).map(t => {
+    const r = RARITY[RARITY_OF[t.id] || 'common'], o = bought[t.id];
+    let own = null, paid = null;
+    if(t.date && t.date < SHOP_FROM) own = {how:'mission', date:t.date};
+    else if(t.date){ paid = t.date; bounty += r.bounty; }
+    if(!own && isObj(o) && isDate(o.date)){ own = {how:'bought', date:o.date, price:o.price}; spent += Math.max(0, Math.round(o.price) || 0); }
+    if(own) owned[t.id] = own;
+    return Object.assign({}, t, {rarity:RARITY_OF[t.id] || 'common', rar:r, price:r.price, bountyRyo:r.bounty, bountyPaid:paid, own});
+  });
+  const pick = shopPick(C, owned);
+  forms.forEach(f => { f.pick = f.id === pick; f.cost = f.pick ? Math.round(f.price * 0.8 / 10) * 10 : f.price; });
+  const out = {earned, bounty, spent, balance:earned + bounty - spent, forms, owned, pick};
+  Object.defineProperty(C, '_shop', {value:out, enumerable:false});
+  return out;
+}
+
 return {
-  TRANSFORMS, transforms, swapOf,
+  TRANSFORMS, transforms, swapOf, RARITY, SHOP_FROM, RYO_PER_XP, shop,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,

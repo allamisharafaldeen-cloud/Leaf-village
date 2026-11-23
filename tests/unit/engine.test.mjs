@@ -643,3 +643,31 @@ test('a one-time swap trades two days for that week only, in the app and on the 
   const bad = clone(V); bad.settings.swaps = [{a:'2026-11-13'}, 'x', {a:'2026-11-13', b:'2026-11-14'}];
   assert.equal(E.planFor(bad.settings, '2026-11-13').type, 'rest', 'broken entries are ignored');
 });
+
+/* ---------- Tsunade's shop ---------- */
+test('shop: Ryō from XP, forms earned before the shop stay owned, later missions pay bounties, purchases spend', () => {
+  const V = cleanWeek();
+  sets(V, '2026-11-07', 'dips', 25, 4);
+  let C = E.compute(V, at('2026-11-24', 9));
+  let S = E.shop(C);
+  assert.equal(S.earned, Math.floor(C.total / E.RYO_PER_XP), 'every 5 XP is 1 Ryō, back-paid');
+  const gon = S.forms.find(f => f.id === 'gon');
+  assert.equal(gon.own.how, 'mission', 'Gon was earned before the shop opened, so he stays owned');
+  assert.equal(gon.bountyPaid, null); assert.equal(S.bounty, 0);
+  const W = clone(V); sets(W, '2026-11-24', 'pullups', 50, 20);
+  C = E.compute(W, at('2026-11-24', 22)); S = E.shop(C);
+  assert.equal(S.forms.find(f => f.id === 'kaneki').bountyPaid, '2026-11-24', '993 lifetime reps after opening day pays the bounty');
+  assert.equal(S.forms.find(f => f.id === 'kaneki').own, null, 'a bounty does not give the form');
+  assert.equal(S.bounty, E.RARITY.rare.bounty);
+  W.settings.shop = {owned:{kirito:{date:'2026-11-24', price:1500}}};
+  C = E.compute(W, at('2026-11-24', 22)); S = E.shop(C);
+  assert.equal(S.forms.find(f => f.id === 'kirito').own.how, 'bought');
+  assert.equal(S.balance, S.earned + S.bounty - 1500);
+  assert.ok(S.pick && !S.owned[S.pick], 'Tsunade picks a form not owned yet');
+  const pick = S.forms.find(f => f.pick); assert.equal(pick.cost, Math.round(pick.price * 0.8 / 10) * 10);
+  const bad = clone(W); bad.settings.shop = {owned:{kirito:{date:'2026-11-24', price:1500}, nobody:{date:'2026-11-24', price:1}, gojo:{date:'x', price:2}}};
+  const cleaned = E.cleanBackup(Object.assign({app:'The Leaf Village'}, bad), at('2026-11-24', 22));
+  assert.ok(cleaned.ok, 'the backup still loads');
+  const cs = (cleaned.data || cleaned.backup || cleaned).settings;
+  assert.deepEqual(Object.keys(cs.shop.owned), ['kirito'], 'broken purchases are dropped');
+});

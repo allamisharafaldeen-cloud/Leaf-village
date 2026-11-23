@@ -513,9 +513,45 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .notice{font-size:13px; padding:9px 12px; border-radius:10px; background:var(--rest-soft)}
 
 /* ninja tab */
+.ryo{display:inline-flex; align-items:center; gap:4px; font-weight:800}
+.ryo-ic{flex:none; filter:drop-shadow(0 1px 1px rgba(0,0,0,.25))}
+.shop-purse{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:12px 14px; border-radius:14px; background:linear-gradient(110deg, rgba(233,185,73,.22), rgba(233,185,73,.06)); border:1.5px solid rgba(196,141,30,.45)}
+.shop-purse > div{display:flex; align-items:center; gap:8px}
+.shop-purse > div b{font-family:var(--f-display); font-size:30px; line-height:1}
+.shop-purse > div span{font-family:var(--f-data); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; opacity:.75}
+.shop-purse p{margin:0; flex:1 1 220px; font-size:13.5px; font-style:italic}
+.shop-purse p i{font-style:normal; opacity:.7}
+.shop-h{margin:6px 0 0; font-family:var(--f-display); font-size:16px; letter-spacing:.04em}
+.shop-grid{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px}
+.shop-tile{position:relative; display:flex; flex-direction:column; border-radius:14px; overflow:hidden; color:#fff;
+  background:linear-gradient(180deg, color-mix(in srgb, var(--rc) 85%, #fff 0%) 0%, color-mix(in srgb, var(--rc) 55%, #10131a) 62%, #10131a 100%);
+  border:2px solid color-mix(in srgb, var(--rc) 80%, #fff); box-shadow:0 6px 16px rgba(0,0,0,.22), inset 0 0 0 1px rgba(255,255,255,.12)}
+.shop-tile.on{box-shadow:0 0 0 3px var(--chakra), 0 6px 16px rgba(0,0,0,.22)}
+.shop-art{height:170px; display:flex; align-items:flex-end; justify-content:center; padding-top:22px; background:radial-gradient(circle at 50% 70%, rgba(255,255,255,.35), transparent 62%)}
+.shop-art img{height:100%; width:auto; max-width:100%; object-fit:contain; filter:drop-shadow(0 6px 8px rgba(0,0,0,.45))}
+.shop-meta{display:flex; flex-direction:column; gap:1px; padding:8px 10px 4px}
+.shop-meta b{font-size:15px; line-height:1.2}
+.shop-rar{font-family:var(--f-data); font-weight:800; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:color-mix(in srgb, var(--rc) 40%, #fff)}
+.shop-world{font-size:11.5px; opacity:.75}
+.shop-buy{display:flex; align-items:center; flex-wrap:wrap; gap:6px; padding:6px 10px 10px; margin-top:auto}
+.shop-buy .btn{color:#fff}
+.btn.shop-price{background:rgba(0,0,0,.35); border:1.5px solid rgba(233,185,73,.8); color:#ffe7a3; gap:6px}
+.btn.shop-price[aria-disabled="true"]{opacity:.6}
+.btn.shop-price s{font-size:11px; opacity:.7}
+.shop-need{font-size:11px; opacity:.75}
+.shop-owned{font-size:12px; font-weight:700}
+.shop-ask{display:flex; flex-direction:column; gap:6px; font-size:12.5px}
+.shop-ask .btnrow{margin:0; gap:6px}
+.shop-pickrib{position:absolute; top:8px; left:8px; z-index:1; padding:3px 8px; border-radius:999px; background:#e9b949; color:#3b2705; font-family:var(--f-data); font-weight:800; font-size:10px; letter-spacing:.06em; text-transform:uppercase}
+.shop-pickrib.own{background:rgba(0,0,0,.55); color:#fff}
+.bounty-pay{display:inline-flex; align-items:center; gap:2px; font-size:13px; white-space:nowrap}
+.bounty-pay.paid{opacity:.55}
+.bounty-big{font-family:var(--f-display); font-size:30px; margin:4px 0; color:#e9b949}
+.bounty-coins{height:100%; display:grid; place-items:center; animation:tfrise .9s cubic-bezier(.2,1.3,.4,1) both .2s}
 .tf-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
 .tf-row{display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:center; padding:8px 6px; border-radius:12px}
 .tf-row.on{background:var(--chakra-soft)}
+.tf-list .tf-row:not(:has(.tf-thumb)){grid-template-columns:1fr auto}
 .tf-thumb{position:relative; width:54px; height:78px; border-radius:10px; overflow:hidden; background:radial-gradient(circle at 50% 60%, color-mix(in srgb, var(--c) 45%, transparent), transparent 70%), var(--ink); display:flex; align-items:flex-end; justify-content:center}
 .tf-thumb img{height:94%; width:auto; max-width:120%; object-fit:contain}
 .tf-row.locked .tf-thumb{background:var(--ink)}
@@ -1020,7 +1056,10 @@ function flushPrefs(){
 function syncPrefsFromStore(){
   if(state.mode!=='db' || !allLoaded() || prefsTimer) return;
   const sp=prefsDoc();
-  if(!sp){ if(!state.readOnly && appliedPrefs==null){ appliedPrefs='pending'; savePrefs(); } return; }
+  /* a device that has a sync key but has not finished its first sync waits: writing its blank defaults now
+     would overwrite the real settings the other device already saved online */
+  const firstSync = window.LeafSync && window.LeafSync.hasKey && window.LeafSync.hasKey() && !window.LeafSync.status().everSynced;
+  if(!sp){ if(!state.readOnly && appliedPrefs==null && !firstSync && state.settings){ appliedPrefs='pending'; savePrefs(); } return; }
   const j=JSON.stringify(sp); if(j===appliedPrefs) return; appliedPrefs=j;
   Object.keys(PREF_DEFAULTS).forEach(k=>{ prefs[k] = sp[k]!==undefined ? clone(sp[k]) : clone(PREF_DEFAULTS[k]); });
   try{ localStorage.setItem('leaf-prefs', JSON.stringify(prefs)); }catch(e){}
@@ -1257,8 +1296,11 @@ function stagePowerUp(gained){
   const r=st.getBoundingClientRect(); FX.sparkBurst(r.left+r.width/2, r.top+r.height*.55, getComputedStyle(st).getPropertyValue('--aura').trim()||'#ffd27a');
 }
 /* ---------- transformation jutsu ---------- */
-const tfList = C => C._tfl || (C._tfl = E.transforms(C).map(t=>Object.assign(t, GUEST_ART[t.id]||{ar:.5, box:null}, {cut:`guests/${t.id}-cut.webp`, auraImg:`guests/${t.id}-aura.webp`, face:`guests/${t.id}-face.jpg`})));
-function activeTf(C){ const id=prefs.transform; if(!id || !C) return null; const t=tfList(C).find(x=>x.id===id); return t && t.date ? t : null; }
+const tfList = C => C._tfl || (C._tfl = E.shop(C).forms.map(t=>Object.assign(t, GUEST_ART[t.id]||{ar:.5, box:null}, {cut:`guests/${t.id}-cut.webp`, auraImg:`guests/${t.id}-aura.webp`, face:`guests/${t.id}-face.jpg`})));
+function activeTf(C){ const id=prefs.transform; if(!id || !C) return null; const t=tfList(C).find(x=>x.id===id); return t && t.own ? t : null; }
+/* a Ryō coin: gold, with the square hole of an old mon coin */
+const ryoIcon = (sz=18) => `<svg class="ryo-ic" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#e9b949" stroke="#9a6c12" stroke-width="1.6"/><circle cx="12" cy="12" r="7.6" fill="none" stroke="#c48d1e" stroke-width="1"/><rect x="9" y="9" width="6" height="6" rx=".8" fill="#5b3d07"/></svg>`;
+const ryo = n => `<span class="ryo">${ryoIcon()}<b class="num">${fmt(n)}</b></span>`;
 /* the picture on the stage: the rank's own form, or the transformation being worn */
 function stageLook(C, r){
   const g=activeTf(C);
@@ -2358,31 +2400,71 @@ function planView(C){
 }
 
 /* --- jutsu unlocks --- */
-function transformCard(C){
-  const list=tfList(C), open=list.filter(t=>t.date).length, on=activeTf(C);
-  const rows=list.map(t=>{
-    const pct=Math.round(clamp(t.n/t.goal,0,1)*100);
-    const thumb=`<span class="tf-thumb" style="--c:${t.color}"><img src="${t.cut}" alt="" loading="lazy"></span>`;
-    if(!t.date) return `<li class="tf-row locked" data-tf="${t.id}">${thumb}<span class="tf-info"><b>${esc(t.mission)}</b><span class="tf-world">A guest from ${esc(t.world)}</span><span class="tf-hint">“${esc(t.hint)}”</span>
-      <span class="tf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${t.goal}" aria-valuenow="${t.n}" aria-label="${esc(t.mission)} progress"><i style="width:${pct}%"></i></span><span class="tf-n num">${fmt(t.n)} / ${fmt(t.goal)} ${esc(t.unit)}</span></span></li>`;
-    const wearing=on && on.id===t.id;
-    return `<li class="tf-row open${wearing?' on':''}" data-tf="${t.id}">${thumb}<span class="tf-info"><b>${esc(t.name)}</b><span class="tf-world">${esc(t.world)} · ${esc(t.mission)}</span><span class="tf-hint">Earned ${esc(shortDate(t.date))}</span></span>
-      ${state.readOnly?'':wearing?`<button type="button" class="btn small ghost" data-act="tf-off">Release</button>`:`<button type="button" class="btn small chakra-btn" data-act="tf-on" data-id="${t.id}">Transform</button>`}</li>`;
-  }).join('');
-  return `<section class="card" id="tf-card"><div class="section-head"><h2>Transformation Jutsu</h2><span class="eyebrow">${open} / ${list.length} unlocked</span></div>
-    <p class="muted" style="margin:0;font-size:13px">Every ninja learns the Transformation Jutsu. Each hidden form unlocks through its own secret mission. Wearing one only changes your look: your rank, XP and theme stay your own, and you can release it any time.</p>
-    <ul class="tf-list">${rows}</ul></section>`;
+/* ---------- Tsunade's shop: Transformation Jutsu forms bought with Ryō; the old hidden missions pay bounties ---------- */
+const RAR_ORDER = ['common','uncommon','rare','epic','legendary'];
+const TSUNADE_LINES = ['Ryō are earned with sweat, kid. Spend them on something worth wearing.', 'Buy what you like. Just do not gamble it away. Trust me on that one.', 'Every rep, every study hour, every good night pays. Come back when your pockets are heavier.', 'A legendary form for a legendary effort. No discounts on discipline.'];
+function shopCard(C){
+  const sh=E.shop(C), list=tfList(C), on=activeTf(C), mine=list.filter(t=>t.own).length;
+  const forms=list.slice().sort((a,b)=>(RAR_ORDER.indexOf(a.rarity)-RAR_ORDER.indexOf(b.rarity)) || a.price-b.price || a.name.localeCompare(b.name));
+  const tile=t=>{
+    const wearing=on && on.id===t.id, short=Math.max(0, t.cost-sh.balance);
+    let buy='';
+    if(state.readOnly) buy = t.own?'<span class="shop-owned">Owned</span>':ryo(t.cost);
+    else if(t.own) buy = wearing?`<button type="button" class="btn small ghost" data-act="tf-off">Release</button>`:`<button type="button" class="btn small chakra-btn" data-act="tf-on" data-id="${t.id}">Transform</button>`;
+    else if(ui.buyAsk===t.id) buy = `<div class="shop-ask"><span>Buy for ${ryo(t.cost)}?</span><div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="shop-buy" data-id="${t.id}">Buy</button><button type="button" class="btn small ghost" data-act="shop-cancel">Cancel</button></div></div>`;
+    else buy = `<button type="button" class="btn small shop-price" data-act="shop-ask" data-id="${t.id}"${short?' aria-disabled="true"':''} aria-label="Buy ${esc(t.name)} for ${fmt(t.cost)} Ryō">${ryo(t.cost)}${t.pick?`<s class="num">${fmt(t.price)}</s>`:''}</button>${short?`<span class="shop-need">${fmt(short)} more</span>`:''}`;
+    return `<li class="shop-tile${t.own?' owned':''}${wearing?' on':''}" data-shop="${t.id}" style="--rc:${t.rar.color}">
+      ${t.pick && !t.own?`<span class="shop-pickrib">Tsunade's pick · 20% off</span>`:''}${t.own?`<span class="shop-pickrib own">${t.own.how==='mission'?'Earned':'Owned'}</span>`:''}
+      <div class="shop-art"><img src="${t.cut}" alt="" loading="lazy"></div>
+      <div class="shop-meta"><span class="shop-rar">${esc(t.rar.label)}</span><b>${esc(t.name)}</b><span class="shop-world">${esc(t.world)}</span></div>
+      <div class="shop-buy">${buy}</div></li>`;
+  };
+  const bounty=t=>{
+    const pct=Math.round(clamp(t.n/t.goal,0,1)*100), done=!!t.bountyPaid, old=t.own && t.own.how==='mission';
+    return `<li class="tf-row${done||old?' open':' locked'}"><span class="tf-info"><b>${esc(t.mission)}</b><span class="tf-hint">“${esc(t.hint)}”</span>
+      ${done?`<span class="tf-world">Bounty paid ${esc(shortDate(t.bountyPaid))}</span>`:old?`<span class="tf-world">Completed before the shop opened: ${esc(t.name)} was your reward</span>`:`<span class="tf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${t.goal}" aria-valuenow="${t.n}" aria-label="${esc(t.mission)} progress"><i style="width:${pct}%"></i></span><span class="tf-n num">${fmt(t.n)} / ${fmt(t.goal)} ${esc(t.unit)}</span>`}</span>
+      <span class="bounty-pay${done?' paid':''}">${old?'—':`+${ryo(t.bountyRyo)}`}</span></li>`;
+  };
+  const line=TSUNADE_LINES[parse(C.today).getDate()%TSUNADE_LINES.length];
+  return `<section class="card" id="tf-card"><div class="section-head"><h2>Tsunade's Shop</h2><span class="eyebrow">${mine} / ${list.length} owned</span></div>
+    <div class="shop-purse"><div>${ryoIcon(34)}<b class="num">${fmt(sh.balance)}</b><span>Ryō</span></div><p>“${esc(line)}” <i>— Tsunade</i></p></div>
+    <p class="muted small" style="margin:0">Every 5 XP earns 1 Ryō. A form only changes your look: your rank, XP and theme stay your own.</p>
+    <h3 class="shop-h">Skins</h3>
+    <ul class="shop-grid">${forms.map(tile).join('')}</ul>
+    <h3 class="shop-h">Bounties</h3>
+    <p class="muted small" style="margin:0">The old hidden missions now pay Ryō.</p>
+    <ul class="tf-list">${list.map(bounty).join('')}</ul></section>`;
 }
+/* what the overlay should show next: a form bought just now, a form earned before the shop opened, or a bounty */
 function tfDue(C){
   if(state.readOnly || !settled() || !state.loaded.prefs || (ui.tfHold && Date.now()<ui.tfHold)) return null;
-  const seen=prefs.tfSeen||{}; return tfList(C).find(t=>t.date && !seen[t.id]) || null;
+  const seen=prefs.tfSeen||{}, list=tfList(C);
+  if(ui.bought){ const t=list.find(x=>x.id===ui.bought && x.own); if(t) return {kind:'bought', t}; ui.bought=null; }
+  const m=list.find(t=>t.own && t.own.how==='mission' && !seen[t.id]); if(m) return {kind:'mission', t:m};
+  const b=list.find(t=>t.bountyPaid && !seen['b-'+t.id]); if(b) return {kind:'bounty', t:b};
+  return null;
 }
 function tfAction(act, el){
   if(state.readOnly || !lastC) return;
   const ov=document.getElementById('overlay');
   if(act==='tf-off'){ if(!prefs.transform) return; prefs.transform=null; savePrefs(); SFX.play('tick'); render(); tfPoof(); toast('Transformation released'); return; }
-  const id=el.dataset.id, t=tfList(lastC).find(x=>x.id===id); if(!t || !t.date) return;
-  if(act==='tf-seen' || act==='tf-wear'){ prefs.tfSeen=Object.assign({}, prefs.tfSeen, {[id]:t.date}); }
+  if(act==='shop-cancel'){ ui.buyAsk=null; render(); return; }
+  const id=el.dataset.id, t=tfList(lastC).find(x=>x.id===id); if(!t) return;
+  if(act==='shop-ask'){
+    if(t.own) return;
+    const short=t.cost-E.shop(lastC).balance;
+    if(short>0){ SFX.play('tick'); toast(`${fmt(short)} more Ryō for ${t.name}. Every 5 XP earns 1.`); return; }
+    ui.buyAsk=id; render(); return;
+  }
+  if(act==='shop-buy'){
+    ui.buyAsk=null;
+    if(t.own || t.cost>E.shop(lastC).balance){ render(); return; }
+    const s=clone(S()); s.shop=(s.shop && typeof s.shop==='object')?s.shop:{owned:{}}; s.shop.owned=Object.assign({}, s.shop.owned, {[id]:{date:lastC.today, price:t.cost}});
+    ui.bought=id; save('settings', null, s); SFX.play('complete'); return;
+  }
+  if(act==='bounty-ok'){ prefs.tfSeen=Object.assign({}, prefs.tfSeen, {['b-'+id]:t.bountyPaid||lastC.today}); savePrefs(); ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null; render(); return; }
+  if(!t.own) return;
+  if(act==='tf-seen' || act==='tf-wear'){ prefs.tfSeen=Object.assign({}, prefs.tfSeen, {[id]:t.own.date}); if(ui.bought===id) ui.bought=null; }
   if(act==='tf-on' || act==='tf-wear'){ prefs.transform=id; }
   savePrefs(); ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null;
   if(act==='tf-on' || act==='tf-wear'){ SFX.play('promo'); ui.tfHold=Date.now()+2500; setTimeout(()=>{ if(lastC) renderOverlay(lastC); }, 2600); toast(`Transformation Jutsu: ${t.name}`);
@@ -2515,7 +2597,7 @@ function ninjaView(C){
   </section>`}
   ${senseisCard(C)}
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
-  ${transformCard(C)}
+  ${shopCard(C)}
   ${jutsuCard(C)}
   ${storyCard(C)}
   ${achievementsCard(C)}`;
@@ -3691,17 +3773,19 @@ function renderOverlay(C){
     FX.flash(); SFX.play('promo'); setTimeout(()=>FX.leafBurst(),350);
     ov.hidden=false; const btn=ov.querySelector('button'); if(btn) btn.focus();
   } else if(tfDue(C)){
-    const t=tfDue(C), key='tf-'+t.id; if(ui.overlayKey===key) return; ui.overlayKey=key;
-    ov.innerHTML=`<div class="scene tf-reveal" role="dialog" aria-modal="true" aria-labelledby="tf-title" style="--c:${t.color}">
-      <div class="tf-art"><img src="${t.cut}" alt="${esc(s.name||'Ninja')} as ${esc(t.name)}"></div>
-      <div class="scene-body">
-        <div class="eyebrow">Transformation Jutsu unlocked</div>
-        <h2 id="tf-title">${esc(t.name)}</h2>
-        <p class="tf-world">A guest from ${esc(t.world)}</p>
-        <p><b>Hidden mission complete: ${esc(t.mission)}.</b> ${esc(t.need)}.</p>
-        <button class="btn chakra-btn" data-act="tf-wear" data-id="${t.id}" style="width:100%">Transform now</button>
-        <button class="btn ghost" data-act="tf-seen" data-id="${t.id}" style="width:100%">Later</button>
-      </div>
+    const due=tfDue(C), t=due.t, key='tf-'+due.kind+'-'+t.id; if(ui.overlayKey===key) return; ui.overlayKey=key;
+    const body = due.kind==='bounty'
+      ? `<div class="eyebrow">Bounty complete</div><h2 id="tf-title">${esc(t.mission)}</h2><p class="tf-world">${esc(t.need)}.</p>
+         <p class="bounty-big">+${ryo(t.bountyRyo)} Ryō</p><p>Tsunade pays in full. Spend it in her shop in the Ninja tab.</p>
+         <button class="btn chakra-btn" data-act="bounty-ok" data-id="${t.id}" style="width:100%">Collect</button>`
+      : `<div class="eyebrow">${due.kind==='bought'?`Bought from Tsunade's shop · ${esc(t.rar.label)}`:'Transformation Jutsu unlocked'}</div>
+         <h2 id="tf-title">${esc(t.name)}</h2><p class="tf-world">A guest from ${esc(t.world)}</p>
+         ${due.kind==='bought'?`<p>Yours for good. Wear it whenever you like; release it any time.</p>`:`<p><b>Hidden mission complete: ${esc(t.mission)}.</b> ${esc(t.need)}.</p>`}
+         <button class="btn chakra-btn" data-act="tf-wear" data-id="${t.id}" style="width:100%">Transform now</button>
+         <button class="btn ghost" data-act="tf-seen" data-id="${t.id}" style="width:100%">Later</button>`;
+    ov.innerHTML=`<div class="scene tf-reveal${due.kind==='bounty'?' bounty':''}" role="dialog" aria-modal="true" aria-labelledby="tf-title" style="--c:${due.kind==='bounty'?'#e9b949':t.color}">
+      <div class="tf-art">${due.kind==='bounty'?`<div class="bounty-coins">${ryoIcon(120)}</div>`:`<img src="${t.cut}" alt="${esc(s.name||'Ninja')} as ${esc(t.name)}">`}</div>
+      <div class="scene-body">${body}</div>
     </div>`;
     FX.flash(); SFX.play('promo'); ov.hidden=false; setTimeout(tfPoof, 60); const btn=ov.querySelector('button'); if(btn) btn.focus();
   } else if(ui.recap){
@@ -3910,7 +3994,7 @@ document.addEventListener('click', e=>{
   if(act==='prog-accept' || act==='prog-keep'){ progressionAction(act); return; }
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
-  if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen'){ tfAction(act, el); return; }
+  if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen' || act==='shop-ask' || act==='shop-cancel' || act==='shop-buy' || act==='bounty-ok'){ tfAction(act, el); return; }
   if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
   if(act==='fold'){ ui.fold=ui.fold||{}; const id=el.dataset.id; ui.fold[id]=!ui.fold[id]; render(); return; }
   if(act==='recap-report' || act==='recap-ok'){ markScene('month-'+el.dataset.ym); ui.recap=null; if(act==='recap-report'){ ui.report=el.dataset.ym; SFX.play('scroll'); } if(lastC) renderOverlay(lastC); return; }

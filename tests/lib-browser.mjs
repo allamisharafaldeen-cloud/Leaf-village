@@ -56,7 +56,7 @@ export async function startRig(basePort){
         /* Plan and Settings cards open folded; a person taps each title bar to open it */
         async unfold(){ for(let i = 0; i < 40; i++){ const h = page.locator('.card.folded .fold-head'); if(!(await h.count())) break; await h.first().click(); } },
         /* a Transformation Jutsu reveal (a form the fixture's logs already earned) is answered "Later", as a person would */
-        async laterReveals(){ for(let i = 0; i < 12; i++){ const b = page.locator('#overlay [data-act="tf-seen"]'); if(!(await b.count())) break; await b.first().click(); await page.waitForTimeout(150); } },
+        async laterReveals(){ for(let i = 0; i < 12; i++){ const b = page.locator('#overlay [data-act="tf-seen"], #overlay [data-act="bounty-ok"]'); if(!(await b.count())) break; await b.first().click(); await page.waitForTimeout(150); } },
         /* every saved document on this device */
         docs(){ return page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.open('leaf-village-local'); r.onerror = () => rej(r.error); r.onsuccess = () => { const out = {}; const t = r.result.transaction('docs', 'readonly'); const c = t.objectStore('docs').openCursor(); c.onsuccess = () => { const cur = c.result; if(cur){ out[cur.key] = cur.value; cur.continue(); } }; t.oncomplete = () => { r.result.close(); res(out); }; }; })); },
         sync(){ return page.evaluate(() => window.LeafSync.syncNow()); },
