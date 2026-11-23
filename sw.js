@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '2e50a27376';
+const VERSION = '7c29ed4682';
 const CACHE = 'leaf-' + VERSION;
 const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
@@ -183,6 +183,7 @@ const FILES = [
  "senseis/hiruzen-1.webp",
  "senseis/hiruzen-2.webp",
  "senseis/hiruzen-face.jpg",
+ "senseis/tsunade-1.webp",
 ];
 
 self.addEventListener('install', e=>{

@@ -521,6 +521,8 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .shop-purse > div span{font-family:var(--f-data); font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-size:12px; opacity:.75}
 .shop-purse p{margin:0; flex:1 1 220px; font-size:13.5px; font-style:italic}
 .shop-purse p i{font-style:normal; opacity:.7}
+.shop-keeper .shop-purse{background:rgba(0,0,0,.25); border-color:rgba(233,185,73,.6); color:#fff; padding:8px 12px}
+.shop-line{margin:0; font-size:13.5px; font-style:italic; color:rgba(255,255,255,.85)}
 .shop-h{margin:6px 0 0; font-family:var(--f-display); font-size:16px; letter-spacing:.04em}
 .shop-grid{list-style:none; margin:0; padding:0; display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px}
 .shop-tile{position:relative; display:flex; flex-direction:column; border-radius:14px; overflow:hidden; color:#fff;
@@ -1250,7 +1252,8 @@ let lastTap=null, lastTouch=null;
 document.addEventListener('pointerdown', e=>{ const c=e.target.closest && e.target.closest('[data-act],button,.btn,label,select,input,a'); if(c) lastTouch={el:c, at:performance.now()}; const b=e.target.closest && e.target.closest('button,.btn'); if(!b) return; const r=b.getBoundingClientRect(); lastTap={x:r.left+r.width/2, y:r.top+r.height/2, t:Date.now()}; }, {capture:true, passive:true});
 function stageVisible(){ const st=document.querySelector('.stage'); if(!st) return false; const r=st.getBoundingClientRect(); return r.bottom>120 && r.top<innerHeight-80; }
 function updateMinibar(C){
-  const mb=document.getElementById('minibar'); if(!mb) return;
+  /* switched off: he did not want the character and XP bar following him down the page */
+  const mb=document.getElementById('minibar'); if(mb){ mb.classList.remove('show'); mb.innerHTML=''; } return;
   if(!C || ui.tab!=='mission' || !S()){ mb.classList.remove('show'); return; }
   const r=RANKS[C.peak], nx=RANKS[C.peak+1], L=stageLook(C, r);
   const pct = nx ? clamp((C.total-r.xp)/(nx.xp-r.xp)*100,0,100) : 100;
@@ -2113,7 +2116,7 @@ function senseisCard(C){
       </div></div>
     </div>`;
   }).join('');
-  return `<section class="card nofold" id="sensei-card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
+  return `<section class="card" id="sensei-card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
     <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday.</p>${rows}</section>`;
 }
 
@@ -2427,12 +2430,14 @@ function shopCard(C){
   };
   const line=TSUNADE_LINES[parse(C.today).getDate()%TSUNADE_LINES.length];
   return `<section class="card" id="tf-card"><div class="section-head"><h2>Tsunade's Shop</h2><span class="eyebrow">${mine} / ${list.length} owned</span></div>
-    <div class="shop-purse"><div>${ryoIcon(34)}<b class="num">${fmt(sh.balance)}</b><span>Ryō</span></div><p>“${esc(line)}” <i>— Tsunade</i></p></div>
-    <p class="muted small" style="margin:0">Every 5 XP earns 1 Ryō. A form only changes your look: your rank, XP and theme stay your own.</p>
+    <div class="summon roster shop-keeper" style="--sc:#3f7a4c"><div class="summon-box">
+      <div class="summon-fig" aria-hidden="true"><img src="senseis/tsunade-1.webp" alt="" loading="lazy"></div>
+      <div class="summon-text"><div class="summon-name"><b>Tsunade</b><span>Shopkeeper</span></div>
+        <div class="shop-purse"><div>${ryoIcon(34)}<b class="num">${fmt(sh.balance)}</b><span>Ryō</span></div></div>
+        <p class="shop-line">“${esc(line)}”</p></div></div></div>
     <h3 class="shop-h">Skins</h3>
     <ul class="shop-grid">${forms.map(tile).join('')}</ul>
     <h3 class="shop-h">Bounties</h3>
-    <p class="muted small" style="margin:0">The old hidden missions now pay Ryō.</p>
     <ul class="tf-list">${list.map(bounty).join('')}</ul></section>`;
 }
 /* what the overlay should show next: a form bought just now, a form earned before the shop opened, or a bounty */
