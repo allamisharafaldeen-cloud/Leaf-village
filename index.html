@@ -1058,10 +1058,10 @@ function flushPrefs(){
 function syncPrefsFromStore(){
   if(state.mode!=='db' || !allLoaded() || prefsTimer) return;
   const sp=prefsDoc();
-  /* a device that has a sync key but has not finished its first sync waits: writing its blank defaults now
-     would overwrite the real settings the other device already saved online */
-  const firstSync = window.LeafSync && window.LeafSync.hasKey && window.LeafSync.hasKey() && !window.LeafSync.status().everSynced;
-  if(!sp){ if(!state.readOnly && appliedPrefs==null && !firstSync && state.settings){ appliedPrefs='pending'; savePrefs(); } return; }
+  /* with sync on, blank defaults are never written by themselves: the other device's real settings may still be
+     on their way down (they can arrive a moment after the village itself), and a fresh default copy would win */
+  const synced = window.LeafSync && window.LeafSync.hasKey && window.LeafSync.hasKey();
+  if(!sp){ if(!state.readOnly && appliedPrefs==null && !synced && state.settings){ appliedPrefs='pending'; savePrefs(); } return; }
   const j=JSON.stringify(sp); if(j===appliedPrefs) return; appliedPrefs=j;
   Object.keys(PREF_DEFAULTS).forEach(k=>{ prefs[k] = sp[k]!==undefined ? clone(sp[k]) : clone(PREF_DEFAULTS[k]); });
   try{ localStorage.setItem('leaf-prefs', JSON.stringify(prefs)); }catch(e){}
@@ -3251,7 +3251,7 @@ function notifyCard(){
   return `<section class="card">
     <div class="section-head"><h2>Reminders</h2><span class="eyebrow">${P.on?'On':'Off'}</span></div>
     <p class="muted small">Your senseis send one short notification at each of these times, written from what you have really logged that day. When nothing needs saying, they stay quiet.</p>
-    <ul class="alarm-list">${row('5:40 am','Morning briefing · today\'s mission and study target')}${row('11:40 am','Midday check · sets and study hours so far')}${row('2:40 pm','Afternoon check · finish the mission')}${row('5:00 pm','Last call · two hours before bed, protect both streaks')}${row('6:00 pm','Bedtime · Jiraiya, an hour before your sleep window')}</ul>
+    <ul class="alarm-list">${row('5:40 am','Morning briefing · today\'s mission and study target')}${row('11:40 am','Midday check · sets and study hours so far')}${row('2:40 pm','Afternoon check · finish the mission')}${(()=>{ const g=E.sleepGoal(S()||{}, E.addDays(lastC?lastC.today:E.dateAt(Date.now()),1)), bt=Math.max(930, g.bedBy-120), lc=Math.max(900, bt-60), h12=m=>{ const H=Math.floor(m/60)%24, M=m%60; return `${(H%12)||12}:${String(M).padStart(2,'0')} ${H<12?'am':'pm'}`; }; return row(h12(lc),'Last call · protect both streaks before the evening winds down')+row(h12(bt),'Bedtime · Jiraiya, an hour before your sleep window (moves with your sleep goal)'); })()}</ul>
     ${body}
     ${sw('enabled','All reminders')}
     ${NOTIFY_ROWS.map(([k,l])=>sw(k,l,!n.enabled)).join('')}

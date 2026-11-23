@@ -1,12 +1,27 @@
 /* The Leaf Village · what the senseis say, and when.
    decide() is a pure function: give it the synced documents, the time and the slot, and it returns
    the one notification to send (or nothing). The rules are the ones from docs/fable-session-1.md. */
-import { computeAll, planFor, examFor, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, sleepGoal } from './engine.js';
+import { computeAll, planFor, examFor, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, dateAt, sleepGoal } from './engine.js';
 import { LINES, SENSEI_NAMES, fill } from './lines.js';
 
-/* 5:40, 11:40, 14:40, then the last call two hours before the 19:00 sleep window and Jiraiya's bedtime reminder an hour before it */
-export const SLOT_BY_HOUR = {5:'MORNING', 11:'MIDDAY', 14:'EVENING', 17:'LASTCALL', 18:'BEDTIME'};
+/* 5:40, 11:40 and 14:40 on the clock; the evening two follow tonight's sleep goal (see eveningSlotAt) */
+export const SLOT_BY_HOUR = {5:'MORNING', 11:'MIDDAY', 14:'EVENING'};
 export const slotAt = nowMs => SLOT_BY_HOUR[hourAt(nowMs)] || null;
+/* The sleep window opens an hour before tonight's "asleep by" time. Jiraiya's bedtime reminder comes an hour before
+   the window opens and the last call an hour before that (with the default 20:00 goal: 17:00 and 18:00). Checked
+   every minute; a slot is due during the 10 minutes after its time, and runSlot sends it only once a day. */
+export const EVENING_WINDOW_MIN = 10;
+export function eveningTimes(s, nowMs){
+  const g = sleepGoal(s || {}, addDays(dateAt(nowMs), 1));
+  const bedtime = Math.max(15 * 60 + 30, g.bedBy - 120), lastcall = Math.max(15 * 60, bedtime - 60);
+  return {LASTCALL:lastcall, BEDTIME:bedtime};
+}
+export function eveningSlotAt(s, nowMs){
+  if(!s || !s.startDate) return null;
+  const now = hourAt(nowMs) * 60 + new Date(nowMs).getUTCMinutes(), t = eveningTimes(s, nowMs);
+  for(const slot of ['BEDTIME', 'LASTCALL']) if(now >= t[slot] && now < t[slot] + EVENING_WINDOW_MIN) return slot;
+  return null;
+}
 export const TITLES = {MORNING:'Morning briefing', MIDDAY:'Midday check', EVENING:'Afternoon check', LASTCALL:'Last call', BEDTIME:'Bedtime'};
 export const NOTIFY_DEFAULT = {enabled:true, briefing:true, streak:true, test:true, promotion:true, weekly:true, study:true, sleep:true, timer:true};
 export const MAX_CHARS = 320;

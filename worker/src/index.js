@@ -7,12 +7,12 @@
    POST /push/test         send a test notification
    GET  /reminders/preview what a slot would say right now (nothing is sent)
    GET  /health            is the Worker up (no data)
-   cron 02:40, 08:40, 11:40, 14:00, 15:00 UTC = 5:40, 11:40, 14:40, 17:00 (last call), 18:00 (bedtime) in Baghdad
+   cron 02:40, 08:40, 11:40 UTC = 5:40, 11:40, 14:40 in Baghdad; the last call and bedtime come from the every-minute run, timed by the sleep goal
 
    Everything except /health needs the sync key. */
 import LeafMerge from '../../leaf-merge.js';
 import { snapshotFromDocs, dateAt, addDays, checkpointTarget, historyKey, advanceCheckpoint } from './engine.js';
-import { decide, slotAt, TITLES, NOTIFY_DEFAULT } from './reminders.js';
+import { decide, slotAt, eveningSlotAt, TITLES, NOTIFY_DEFAULT } from './reminders.js';
 import { generateVapid, sendPush, validEndpoint } from './webpush.js';
 
 const { kindOf, mergeEntries, unionKeys, same } = LeafMerge;
@@ -283,6 +283,14 @@ export function timerAlert(T, nowMs){
   const due = events.filter(e => nowMs - e.at <= ALERT_WINDOW).sort((a, b) => b.at - a.at)[0];
   return due ? Object.assign(due, {key:`${T.segStart}|${due.kind}|${due.at}`}) : null;
 }
+/* the last call and the bedtime reminder move with tonight's sleep goal, so they are checked every minute */
+async function runEveningWatch(env, nowMs){
+  const row = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/main'`).first(), s = row && parseObj(row.data);
+  const slot = eveningSlotAt(s, nowMs);
+  if(!slot) return null;
+  if(await metaGet(env, 'last_sent') === `${dateAt(nowMs)}|${slot}`) return null;
+  return runSlot(env, nowMs, slot);
+}
 async function runTimerWatch(env, nowMs){
   const row = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/timer'`).first(), T = row && parseObj(row.data);
   const a = timerAlert(T, nowMs);
@@ -309,7 +317,7 @@ async function handleTest(req, env){
   const subs = await allSubs(env);
   if(!subs.length) return reply(req, env, 200, {ok:true, sent:0, devices:0});
   const srow = await env.DB.prepare(`SELECT data FROM docs WHERE path = 'leaf/main'`).first(), s = (srow && parseObj(srow.data)) || {};
-  const body = `Third Hokage: Notifications are working, ${s.name || 'ninja'}. The village will find you at 5:40, 11:40, 14:40 and 17:00, and Jiraiya at 18:00 before bed.`;
+  const body = `Third Hokage: Notifications are working, ${s.name || 'ninja'}. The village will find you at 5:40, 11:40 and 14:40, with a last call in the evening and Jiraiya before bed.`;
   const status = await deliver(env, subs, payloadFor(env, 'The Leaf Village', body, 'leaf-test'), {ttl:600});
   return reply(req, env, 200, {ok:true, devices:subs.length, sent:status.filter(x => x >= 200 && x < 300).length, status});
 }
@@ -341,8 +349,14 @@ export default {
     }
   },
   async scheduled(event, env, ctx){
-    if(event.cron === '* * * * *'){ ctx.waitUntil(runTimerWatch(env, event.scheduledTime).catch(e => console.error('timer alert failed', e && e.message))); return; }
+    if(event.cron === '* * * * *'){
+      ctx.waitUntil(Promise.all([
+        runTimerWatch(env, event.scheduledTime).catch(e => console.error('timer alert failed', e && e.message)),
+        runEveningWatch(env, event.scheduledTime).then(r => r && console.log('reminder', r.slot, r.note || `sent to ${r.sent} of ${r.status.length}`)).catch(e => console.error('evening reminder failed', e && e.message))
+      ]));
+      return;
+    }
     ctx.waitUntil(runSlot(env, event.scheduledTime, slotAt(event.scheduledTime)).then(r => console.log('reminder', r.slot, r.note || `sent to ${r.sent} of ${r.status.length}`)).catch(e => console.error('reminder failed', e && e.message)));
   }
 };
-export { runSlot, stepCheckpoint, runTimerWatch };
+export { runSlot, stepCheckpoint, runTimerWatch, runEveningWatch };

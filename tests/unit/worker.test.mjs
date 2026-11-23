@@ -226,3 +226,20 @@ test('study timer alerts: focus breaks, back to work, and the 3-hour check, each
     await tick(start + 4 * 3600000 + 50 * M + 1000); assert.equal(sent.length, 3, 'the switch turns them off');
   } finally { globalThis.fetch = realFetch; }
 });
+
+test('evening: Jiraiya\'s bedtime reminder is sent once, from the every-minute run, at the time the sleep goal sets', async () => {
+  const env = makeEnv();
+  await sync(env, 0, [{path:'leaf/main', data:{name:'Sharaf', startDate:'2026-11-01'}, mtime:0}]);
+  const e = nodeCrypto.createECDH('prime256v1'); e.generateKeys();
+  await call(env, 'POST', '/push/subscribe', {subscription:{endpoint:'https://web.push.apple.com/ipad', keys:{p256dh:b64u(e.getPublicKey()), auth:b64u(nodeCrypto.randomBytes(16))}}, device:'iPad'});
+  const sent = [], realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => { sent.push({url, init}); return {status:201}; };
+  const tick = async at => { let p = null; await worker.scheduled({cron:'* * * * *', scheduledTime:at}, env, {waitUntil:x => { p = x; }}); await p; };
+  const local = (h, m) => Date.parse(`2026-11-20T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+03:00`);
+  try{
+    await tick(local(17, 55)); assert.equal(sent.length, 0, 'not before the time');
+    await tick(local(18, 0)); assert.equal(sent.length, 1, 'bedtime at 18:00 with the default goal');
+    await tick(local(18, 1)); assert.equal(sent.length, 1, 'only once');
+    await tick(local(18, 30)); assert.equal(sent.length, 1);
+  } finally { globalThis.fetch = realFetch; }
+});

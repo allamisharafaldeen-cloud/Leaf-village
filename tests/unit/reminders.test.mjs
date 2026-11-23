@@ -307,3 +307,19 @@ test('morning: Jiraiya asks for last night only once the sleep log has started, 
   const logged = data => { started(data); data.sleep['2026-11-10'] = {date:'2026-11-10', mins:460, score:80, bed:'19:40', wake:'03:55'}; };
   assert.ok(!keys(run('2026-11-10', 'MORNING', logged)).includes('jiraiya.sleep.log'));
 });
+
+test('the last call and bedtime reminders follow tonight\'s sleep goal', async () => {
+  const { eveningSlotAt, eveningTimes } = await import('../../worker/src/reminders.js');
+  const s = clone(BASE.settings);
+  const local = (d, h, m) => Date.parse(`${d}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+03:00`);
+  assert.deepEqual(eveningTimes(s, local('2026-11-10', 12, 0)), {LASTCALL:17*60, BEDTIME:18*60}, 'default asleep-by 20:00');
+  assert.equal(eveningSlotAt(s, local('2026-11-10', 17, 0)), 'LASTCALL');
+  assert.equal(eveningSlotAt(s, local('2026-11-10', 17, 9)), 'LASTCALL');
+  assert.equal(eveningSlotAt(s, local('2026-11-10', 17, 10)), null);
+  assert.equal(eveningSlotAt(s, local('2026-11-10', 18, 3)), 'BEDTIME');
+  const late = clone(s); late.scheduleHistory = late.scheduleHistory.concat({from:'2026-11-01', plan:late.scheduleHistory[0].plan, gtg:{sets:6, minSets:5, pct:50}, test:{sets:2, ex:['pullups','dips']}, sleep:{mins:450, bedBy:22*60+30, wakeBy:6*60}});
+  assert.deepEqual(eveningTimes(late, local('2026-11-10', 12, 0)), {LASTCALL:19*60+30, BEDTIME:20*60+30}, 'asleep by 22:30 moves both');
+  assert.equal(eveningSlotAt(late, local('2026-11-10', 18, 0)), null, 'nothing at the old fixed time');
+  assert.equal(eveningSlotAt(late, local('2026-11-10', 20, 31)), 'BEDTIME');
+  assert.equal(eveningSlotAt(null, local('2026-11-10', 18, 0)), null);
+});

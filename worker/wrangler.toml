@@ -19,8 +19,8 @@ migrations_dir = "migrations"
 
 [triggers]
 # 5:40, 11:40 and 14:40 in Baghdad (UTC+3), then 17:00 (last call) and 18:00 (bedtime)
-crons = ["40 2,8,11 * * *", "0 14,15 * * *", "* * * * *"]
-# the every-minute run only reads the study timer and sends focus-cycle and 3-hour alerts
+crons = ["40 2,8,11 * * *", "* * * * *"]
+# the every-minute run reads the study timer (focus-cycle and 3-hour alerts) and sends the last call and bedtime reminders at the times set by the sleep goal
 
 [observability]
 enabled = true
