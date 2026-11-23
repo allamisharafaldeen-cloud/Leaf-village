@@ -568,6 +568,19 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .ninja-title{display:block; margin:2px 0 4px; font-family:var(--f-data); font-weight:700; font-size:12.5px; letter-spacing:.12em; text-transform:uppercase; color:#ffe7a3; text-shadow:0 1px 6px rgba(0,0,0,.6)}
 .ninja .ninja-title, .hero .ninja-title{color:var(--chakra)}
 .hero .ninja-title{color:#ffe7a3}
+.rm-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.rm-row{border:1.5px solid color-mix(in srgb, var(--rk) 45%, var(--line)); border-radius:14px; overflow:hidden}
+.rm-head{all:unset; box-sizing:border-box; width:100%; display:grid; grid-template-columns:40px 1fr auto; gap:10px; align-items:center; padding:7px 10px; cursor:pointer}
+.rm-head img{width:40px; height:40px; border-radius:50%; object-fit:cover; border:2px solid var(--rk)}
+.rm-head span{display:flex; flex-direction:column; min-width:0}
+.rm-head small{font-size:12px; opacity:.7}
+.rm-chev{font-size:16px; opacity:.6}
+.rm-body{display:flex; flex-direction:column; gap:10px; padding:4px 10px 12px}
+.rm-walls{display:grid; grid-template-columns:repeat(5, 1fr); gap:6px}
+.rm-thumb{position:relative; aspect-ratio:9/16; border-radius:10px; background:var(--paper-2, #eee) center/cover; border:1.5px solid var(--line); display:grid; place-items:center; font-size:22px; color:var(--ink); overflow:hidden}
+.rm-thumb.add{cursor:pointer; border-style:dashed}
+.rm-thumb i{position:absolute; left:0; right:0; bottom:0; font-style:normal; font-size:9.5px; text-align:center; padding:2px 0; background:rgba(0,0,0,.55); color:#fff}
+.rm-x{position:absolute; top:3px; right:3px; width:22px; height:22px; border-radius:50%; border:0; background:rgba(0,0,0,.6); color:#fff; font-size:11px; display:grid; place-items:center; padding:0}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto; background-position:center}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px; background-position:left bottom}
@@ -981,6 +994,13 @@ const RANK_LOOK = {
    They live in their own cache so app updates don't download them again. */
 const CINE = {'chunin':'media/cine-chunin-v2.mp4','special-jonin':'media/cine-special-jonin.mp4'};
 const CINE_CACHE = 'leaf-cine';
+/* each rank's own wallpapers (up to 5) and scene, and a scene for each bought form; the files stay on this device */
+const RM_KEY='leaf-rank-media';
+function rankMedia(){ try{ const v=JSON.parse(localStorage.getItem(RM_KEY)||'{}')||{}; return {walls:v.walls||{}, cine:v.cine||{}}; }catch(e){ return {walls:{}, cine:{}}; } }
+function setRankMedia(fn){ const m=rankMedia(); fn(m); try{ localStorage.setItem(RM_KEY, JSON.stringify(m)); }catch(e){} }
+const devUrl = r => { if(!r || !r.id) return null; const u=blobUrl(r.id); return u && u!=='media/missing' ? u : null; };
+const cineUrl = id => devUrl(rankMedia().cine[id]) || CINE[id] || null;
+const deviceWalls = id => (rankMedia().walls[id]||[]).map(w=>({id:w.id, name:w.name, url:devUrl(w)})).filter(w=>w.url);
 const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
 const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
 const DOW = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
@@ -2464,7 +2484,7 @@ function shopCard(C){
     const wearing=on && on.id===t.id, short=Math.max(0, t.cost-sh.balance);
     let buy='';
     if(state.readOnly) buy = t.own?'<span class="shop-owned">Owned</span>':ryo(t.cost);
-    else if(t.own) buy = wearing?`<button type="button" class="btn small ghost" data-act="tf-off">Release</button>`:`<button type="button" class="btn small chakra-btn" data-act="tf-on" data-id="${t.id}">Transform</button>`;
+    else if(t.own) buy = (cineUrl('tf-'+t.id)?`<button type="button" class="btn small ghost" data-act="tf-scene" data-id="${t.id}" aria-label="Play the ${esc(t.name)} scene">▶</button>`:'') + (wearing?`<button type="button" class="btn small ghost" data-act="tf-off">Release</button>`:`<button type="button" class="btn small chakra-btn" data-act="tf-on" data-id="${t.id}">Transform</button>`);
     else if(ui.buyAsk===t.id) buy = `<div class="shop-ask"><span>Buy for ${ryo(t.cost)}?</span><div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="shop-buy" data-id="${t.id}">Buy</button><button type="button" class="btn small ghost" data-act="shop-cancel">Cancel</button></div></div>`;
     else buy = `<button type="button" class="btn small shop-price" data-act="shop-ask" data-id="${t.id}"${short?' aria-disabled="true"':''} aria-label="Buy ${esc(t.name)} for ${fmt(t.cost)} Ryō">${ryo(t.cost)}${t.pick?`<s class="num">${fmt(t.price)}</s>`:''}</button>${short?`<span class="shop-need">${fmt(short)} more</span>`:''}`;
     return `<li class="shop-tile${t.own?' owned':''}${wearing?' on':''}" data-shop="${t.id}" style="--rc:${t.rar.color}">
@@ -2609,7 +2629,9 @@ function tfAction(act, el){
     ui.buyAsk=null;
     if(t.own || t.cost>E.shop(lastC).balance){ render(); return; }
     const s=clone(S()); s.shop=(s.shop && typeof s.shop==='object')?s.shop:{owned:{}}; s.shop.owned=Object.assign({}, s.shop.owned, {[id]:{date:lastC.today, price:t.cost}});
-    ui.bought=id; save('settings', null, s); SFX.play('complete'); return;
+    ui.bought=id; save('settings', null, s); SFX.play('complete');
+    const sc=cineUrl('tf-'+id); if(sc) playCine(sc, ()=>{ if(lastC) renderOverlay(lastC); });
+    return;
   }
   if(act==='bounty-ok'){ prefs.tfSeen=Object.assign({}, prefs.tfSeen, {['b-'+id]:t.bountyPaid||lastC.today}); savePrefs(); ov.hidden=true; ov.innerHTML=''; ui.overlayKey=null; render(); return; }
   if(!t.own) return;
@@ -2718,7 +2740,7 @@ function bookHtml(C, key){
         ${c.ach.length||c.forms.length?`<div class="rbox wide"><span class="eyebrow">Earned in this chapter</span><ul>${c.ach.map(a=>`<li>${esc(a)}</li>`).join('')}${c.forms.map(f=>`<li>${esc(f)} (Tsunade's shop)</li>`).join('')}</ul></div>`:''}
       </div>
       ${words(w[0], [w[1]])}
-      ${CINE[r.id]?`<button type="button" class="btn chakra-btn" data-act="cine-replay" data-i="${c.i}" style="width:100%">Watch the ${esc(r.name)} scene</button>`:''}
+      ${cineUrl(r.id)?`<button type="button" class="btn chakra-btn" data-act="cine-replay" data-i="${c.i}" style="width:100%">Watch the ${esc(r.name)} scene</button>`:''}
       ${close}</div></div>`;
 }
 function storyCard(C){
@@ -3297,12 +3319,14 @@ function bgSlotNow(){ return prefs.bgAll ? 'all' : ui.tab; }
 /* the wallpaper for the active rank theme: each tab gets a different picture from the rank's set, and they rotate daily */
 function rankWall(){
   if(prefs.rankWalls===false || !lastC) return null;
-  const i = appliedTheme==null ? lastC.peak : appliedTheme, r=RANKS[i]; if(!r || !r.walls || !r.walls.length) return null;
+  const i = appliedTheme==null ? lastC.peak : appliedTheme, r=RANKS[i]; if(!r) return null;
+  const own=deviceWalls(r.id), set = own.length ? own : (r.walls||[]).map(f=>({id:'rank-'+f, url:'media/'+f+'.jpg'}));
+  if(!set.length) return null;
   const tabIdx = Math.max(0, ['mission','stats','plan','ninja','settings'].indexOf(ui.tab));
   /* a full set of five = one fixed picture per tab; a smaller set rotates daily until the rest arrive */
-  const n = r.walls.length>=5 ? tabIdx : Math.abs(daysBetween('2026-01-01', lastC.today)) + tabIdx;
-  const f = r.walls[n % r.walls.length];
-  return {id:'rank-'+f, name:r.name+' wallpaper', url:'media/'+f+'.jpg', rank:true};
+  const n = set.length>=5 ? tabIdx : Math.abs(daysBetween('2026-01-01', lastC.today)) + tabIdx;
+  const f = set[n % set.length];
+  return {id:f.id, name:r.name+' wallpaper', url:f.url, rank:true};
 }
 function bgShow(slot){ return rankWall() || bgRec(slot); }
 function applyBg(){
@@ -3333,6 +3357,33 @@ function shrinkPhoto(file, max){
     fr.onload=()=>{ const img=new Image(); img.onload=()=>{ canvasBlob(img,max||2800,.88).then(res,rej); }; img.onerror=()=>rej(new Error('decode')); img.src=fr.result; };
     fr.readAsDataURL(file);
   });
+}
+function rankMediaCard(C){
+  const rm=rankMedia(), busy=ui.uploading||{};
+  const row=(key, name, face, color, withWalls)=>{
+    const walls=withWalls?deviceWalls(key):[], cine=devUrl(rm.cine[key]), open=ui.rmOpen===key, built=CINE[key];
+    const bw=withWalls?((RANKS.find(x=>x.id===key)||{}).walls||[]).length:0;
+    const sum=[withWalls?(walls.length?`${walls.length}/5 your wallpapers`:bw?'built-in wallpapers':'no wallpapers'):'', cine?'your scene':built?'built-in scene':'no scene'].filter(Boolean).join(' · ');
+    return `<li class="rm-row${open?' open':''}" style="--rk:${color}">
+      <button type="button" class="rm-head" data-act="rm-open" data-rk="${key}" aria-expanded="${open}"><img src="${face}" alt="" loading="lazy"><span><b>${esc(name)}</b><small>${sum}</small></span><span class="rm-chev" aria-hidden="true">${open?'▴':'▾'}</span></button>
+      ${open?`<div class="rm-body">
+        ${withWalls?`<div class="rm-walls">${walls.map((w,k)=>`<div class="rm-thumb" style="background-image:url('${w.url}')"><button type="button" class="rm-x" data-act="rm-wall-del" data-rk="${key}" data-i="${k}" aria-label="Remove wallpaper ${k+1}">✕</button><i>${['Mission','Stats','Plan','Ninja','Settings'][k]}</i></div>`).join('')}${walls.length<5?`<label class="rm-thumb add" for="rm-w-${key}">${busy['rmw-'+key]?'…':'+'}</label>`:''}</div>
+        <input class="vh" id="rm-w-${key}" type="file" accept="image/*" multiple data-act="rm-walls" data-rk="${key}"${busy['rmw-'+key]||walls.length>=5?' disabled':''}>`:''}
+        <div class="btnrow">
+          <label class="btn small ghost" for="rm-c-${key}">${busy['rmc-'+key]?'Saving…':cine?'Change scene':'Choose scene video'}</label>
+          <input class="vh" id="rm-c-${key}" type="file" accept="video/*,.mp4,.mov,.m4v" data-act="rm-cine" data-rk="${key}"${busy['rmc-'+key]?' disabled':''}>
+          ${cine||built?`<button type="button" class="btn small ghost" data-act="rm-play" data-rk="${key}">Play</button>`:''}
+          ${cine?`<button type="button" class="btn small ghost" data-act="rm-cine-del" data-rk="${key}">${built?'Use built-in':'Remove'}</button>`:''}
+        </div></div>`:''}
+    </li>`;
+  };
+  const ranks=RANKS.map(r=>row(r.id, r.name, r.photo, r.color, true)).join('');
+  const forms=tfList(C).filter(t=>t.own).map(t=>row('tf-'+t.id, t.name, t.face, t.color, false)).join('');
+  return `<section class="card" id="rank-media-card"><h2>Rank wallpapers and scenes</h2>
+    <p class="muted small">Pictures and videos stay on this device, so add them on each one.</p>
+    <ul class="rm-list">${ranks}</ul>
+    ${forms?`<h3 class="shop-h">Bought forms</h3><ul class="rm-list">${forms}</ul>`:''}
+  </section>`;
 }
 function bgCard(){
   const slots = prefs.bgAll ? [BG_ALL] : BG_SLOTS;
@@ -3502,6 +3553,7 @@ function settingsView(C){
       <button type="button" class="linkbtn" data-act="${t.builtin?'mp-hide-builtin':'mp-remove'}" data-id="${esc(t.id)}">Remove</button></li>`; }).join('');
   return topbar('Settings') + `
   ${themeCard(C)}
+  ${rankMediaCard(C)}
   ${bgCard()}
   <section class="card">
     <h2>Animations</h2>
@@ -3969,7 +4021,7 @@ function renderOverlay(C){
   if(!(C.peak>seen) && ui.viewRank==null && !ui.report && !ui.recap){ const due=monthlyDue(C); if(due) ui.recap=due.ym; }
   if(C.peak>seen && !state.readOnly){
     const r=RANKS[C.peak], nx=RANKS[C.peak+1];
-    if(CINE[r.id] && ui.cineFor!==C.peak){
+    if(cineUrl(r.id) && ui.cineFor!==C.peak){
       const gk='cine-gate-'+C.peak; if(ui.overlayKey===gk) return;
       ui.overlayKey=gk; ui.viewRank=null;
       ov.innerHTML=`<div class="cine-gate" role="dialog" aria-modal="true" aria-labelledby="cg-title" style="--rk:${r.color}">
@@ -4041,7 +4093,7 @@ function renderOverlay(C){
         <h2 id="view-title" style="color:${r.color}">${esc(r.name)}</h2>
         <p class="muted" style="margin:0">${status}</p>
         ${earned?'':'<p class="muted" style="margin:0;font-size:13px">Its village theme is revealed when you earn it.</p>'}
-        ${earned && CINE[r.id] ? `<button type="button" class="btn chakra-btn" data-act="cine-replay" data-i="${i}" style="width:100%">Watch the ${esc(r.name)} scene</button>` : ''}
+        ${earned && cineUrl(r.id) ? `<button type="button" class="btn chakra-btn" data-act="cine-replay" data-i="${i}" style="width:100%">Watch the ${esc(r.name)} scene</button>` : ''}
         <button class="btn ghost" data-act="close-view" style="width:100%">Close</button>
       </div>
     </div>`;
@@ -4224,6 +4276,10 @@ document.addEventListener('click', e=>{
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
   if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen' || act==='shop-ask' || act==='shop-cancel' || act==='shop-buy' || act==='bounty-ok'){ tfAction(act, el); return; }
+  if(act==='rm-open'){ ui.rmOpen = ui.rmOpen===el.dataset.rk ? null : el.dataset.rk; render(); return; }
+  if(act==='rm-play'){ const u=cineUrl(el.dataset.rk); if(u) playCine(u, ()=>{ render(); }); return; }
+  if(act==='rm-wall-del'){ const k=el.dataset.rk, i=+el.dataset.i, w=(rankMedia().walls[k]||[])[i]; if(!w) return; setRankMedia(m=>{ m.walls[k]=(m.walls[k]||[]).filter((_,j)=>j!==i); }); deleteAsset(w.id); bgShown=null; toast('Wallpaper removed'); render(); return; }
+  if(act==='rm-cine-del'){ const k=el.dataset.rk, c=rankMedia().cine[k]; if(!c) return; setRankMedia(m=>{ delete m.cine[k]; }); deleteAsset(c.id); toast('Scene removed'); render(); return; }
   if(act==='item-ask' || act==='item-buy' || act==='item-cancel' || act==='item-use' || act==='item-off'){ itemAction(act, el); return; }
   if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
   if(act==='fold'){ ui.fold=ui.fold||{}; const id=el.dataset.id; ui.fold[id]=!ui.fold[id]; render(); return; }
@@ -4238,9 +4294,10 @@ document.addEventListener('click', e=>{
   if(act==='view-rank'){ ui.viewRank=Number(el.dataset.i); if(lastC) renderOverlay(lastC); return; }
   if(act==='close-view'){ ui.viewRank=null; if(lastC) renderOverlay(lastC); return; }
   if(act==='scene-ok'){ markScene(el.dataset.key); const ov=document.getElementById('overlay'); ov.hidden=true; ov.innerHTML=''; render(); return; }
-  if(act==='cine-play'){ const i=Number(el.dataset.rank), r=RANKS[i]; if(!r||!CINE[r.id]) return; playCine(CINE[r.id], ()=>{ ui.cineFor=i; if(lastC) renderOverlay(lastC); }); return; }
+  if(act==='cine-play'){ const i=Number(el.dataset.rank), r=RANKS[i]; if(!r||!cineUrl(r.id)) return; playCine(cineUrl(r.id), ()=>{ ui.cineFor=i; if(lastC) renderOverlay(lastC); }); return; }
   if(act==='cine-skip'){ if(ui.cineEnd) ui.cineEnd(); return; }
-  if(act==='cine-replay'){ const i=Number(el.dataset.i), r=RANKS[i]; if(!r||!CINE[r.id]) return; playCine(CINE[r.id], ()=>{ if(lastC) renderOverlay(lastC); }); return; }
+  if(act==='cine-replay'){ const i=Number(el.dataset.i), r=RANKS[i]; if(!r||!cineUrl(r.id)) return; playCine(cineUrl(r.id), ()=>{ if(lastC) renderOverlay(lastC); }); return; }
+  if(act==='tf-scene'){ const u=cineUrl('tf-'+el.dataset.id); if(u) playCine(u, ()=>{ if(lastC) renderOverlay(lastC); }); return; }
   if(act==='promo-ok'){
     const C=lastC; const s=clone(S()); if(C){ s.celebrated=C.peak; s.celebratedId=RANKS[C.peak].id; } delete s.themeRank; delete s.themeRankId;
     document.getElementById('overlay').hidden=true; save('settings', null, s); return;
@@ -4260,6 +4317,27 @@ document.addEventListener('change', e=>{
       toast(`${sd.name}'s picture saved`);
     }).catch(e=>toast(e && e.code ? uploadErrorText(e) : "That picture couldn't be opened. Try a JPEG or PNG."))
     .finally(()=>{ delete ui.uploading['sen-'+id]; render(); });
+    return;
+  }
+  if(el.dataset.act==='rm-walls'){
+    const k=el.dataset.rk, files=Array.from(el.files||[]); el.value=''; if(!files.length) return;
+    if(state.mode!=='db'){ toast('This phone couldn\'t open its storage. Close the app fully and open it again.'); return; }
+    const room=5-(rankMedia().walls[k]||[]).length, pick=files.slice(0, Math.max(0, room));
+    if(!pick.length){ toast('This rank already has 5 wallpapers. Remove one first.'); return; }
+    ui.uploading['rmw-'+k]=true; render(); toast(pick.length===1?'Saving wallpaper…':`Saving ${pick.length} wallpapers…`);
+    (async()=>{ let n=0; for(const f of pick){ try{ const blob=await shrinkPhoto(f); const res=await uploadAsset(blob,'image/jpeg'); setRankMedia(m=>{ (m.walls[k]=m.walls[k]||[]).push({id:res.id, name:baseName(f)}); }); n++; }catch(e){ toast(e && e.code ? uploadErrorText(e) : "A photo couldn't be opened. Try a JPEG or PNG."); } }
+      if(n) toast(n===1?'Wallpaper saved':`${n} wallpapers saved`); if(files.length>pick.length) toast(`Only ${pick.length} fit: a rank holds 5.`); })()
+    .finally(()=>{ delete ui.uploading['rmw-'+k]; bgShown=null; render(); });
+    return;
+  }
+  if(el.dataset.act==='rm-cine'){
+    const k=el.dataset.rk, file=el.files && el.files[0]; el.value=''; if(!file) return;
+    if(state.mode!=='db'){ toast('This phone couldn\'t open its storage. Close the app fully and open it again.'); return; }
+    const type=(file.type && /^video\//.test(file.type)) ? file.type : (/\.mov$/i.test(file.name||'') ? 'video/quicktime' : 'video/mp4');
+    ui.uploading['rmc-'+k]=true; render(); toast('Saving scene…');
+    uploadAsset(file, type).then(res=>{ const old=rankMedia().cine[k]; setRankMedia(m=>{ m.cine[k]={id:res.id, name:baseName(file)}; }); if(old && old.id!==res.id) deleteAsset(old.id); toast('Scene saved'); })
+    .catch(e=>toast(e && e.code==='too_large' ? 'That video is over 150 MB. Pick a shorter one.' : e && e.code ? uploadErrorText(e) : "That video couldn't be saved."))
+    .finally(()=>{ delete ui.uploading['rmc-'+k]; render(); });
     return;
   }
   if(el.dataset.act==='bg-file'){

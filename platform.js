@@ -144,7 +144,7 @@ const assetsApi = Object.freeze({
     await ready;
     const type = (opts && opts.type) || blob.type || 'application/octet-stream';
     const b = blob.type === type ? blob : new Blob([blob], {type});
-    if(b.size > 20*1024*1024) throw { code:'too_large' };
+    if(b.size > (/^video\//.test(type) ? 150 : 20)*1024*1024) throw { code:'too_large' };
     const id = hex(16);
     try{ await tx('blobs', 'readwrite', st=>st.put(b, id)); }
     catch(e){ throw { code: (e && e.name === 'QuotaExceededError') ? 'quota_or_state' : 'unavailable' }; }
