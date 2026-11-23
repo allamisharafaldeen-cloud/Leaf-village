@@ -1,0 +1,51 @@
+# Village health check: makes sure the Cloudflare key that publishes the sync + reminders Worker still works
+# and is not about to expire. Runs on the 1st of every month (GitHub emails the owner if it fails) and on demand.
+name: Village health check
+
+on:
+  schedule:
+    - cron: '17 6 1 * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/health.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Cloudflare key still valid and not expiring soon
+        run: |
+          set -u
+          verify() { curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$1"; }
+          R="$(verify https://api.cloudflare.com/client/v4/user/tokens/verify)"
+          if ! echo "$R" | grep -q '"success":true'; then
+            R="$(verify "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/verify")"
+          fi
+          echo "$R" | node -e '
+            let s=""; process.stdin.on("data",d=>s+=d).on("end",()=>{
+              let j; try{ j=JSON.parse(s); }catch(e){ console.log("::error::Could not read the answer from Cloudflare"); process.exit(1); }
+              if(!j.success || !j.result || j.result.status!=="active"){ console.log("::error::The Cloudflare key (CLOUDFLARE_API_TOKEN) is not active any more. Make a new one: see VILLAGE-MANUAL.md, section \"The Cloudflare key\"."); process.exit(1); }
+              const exp=j.result.expires_on;
+              if(!exp){ console.log("Cloudflare key is active and never expires. All good."); return; }
+              const days=Math.floor((Date.parse(exp)-Date.now())/86400000);
+              console.log("Cloudflare key is active. It expires on "+exp.slice(0,10)+" ("+days+" days).");
+              if(days<45){ console.log("::error::The Cloudflare key expires in "+days+" days. Make a new one: see VILLAGE-MANUAL.md, section \"The Cloudflare key\"."); process.exit(1); }
+            });'
+
+      - name: The app and the sync server answer
+        run: |
+          set -u
+          a=$(curl -s -o /dev/null -w '%{http_code}' https://allamisharafaldeen-cloud.github.io/Leaf-village/)
+          w=$(curl -s -o /dev/null -w '%{http_code}' https://leaf-village-sync.allamisharafaldeen.workers.dev/)
+          echo "App page: HTTP $a · Sync server: HTTP $w"
+          [ "$a" = 200 ] || { echo "::error::The app page did not load (HTTP $a)."; exit 1; }
+          case "$w" in 5*|000) echo "::error::The sync server did not answer properly (HTTP $w)."; exit 1;; esac
