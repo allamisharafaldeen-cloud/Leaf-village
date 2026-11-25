@@ -198,6 +198,20 @@ function comboMatches(hours, sets){
 }
 
 /* ---------- the engine ---------- */
+/* ---------- weighted sets ----------
+   A set can carry added weight (x.kg, a belt or a backpack). Old sets have none and count as bodyweight.
+   Maxes are kept per weight, so a weighted set is never compared with a bodyweight one. The weight you train
+   with (the "working weight") is the weight of your latest test; the bodyweight test on the first Friday of a
+   month does not change it. Weighted reps earn XP in proportion to the total load: reps x (body + added) / body. */
+export const LOAD = {bw:69, cap:200, step:2.5, upAt:12, e1Reps:12};
+export const kgOf = x => (x && Number.isFinite(+x.kg) && +x.kg > 0) ? Math.min(LOAD.cap, Math.round(+x.kg * 4) / 4) : 0;
+export const bwAt = (list, d) => { let w = null; for(const b of list){ if(b.date <= d) w = b.weight; else break; } return w || (list[0] && list[0].weight) || LOAD.bw; };
+export const e1rm = (bw, kg, reps) => (bw + kg) * (1 + reps / 30);
+const loadXp = (bw, kg, reps) => kg > 0 ? Math.round(reps * (bw + kg) / bw) : reps;
+const monthBwTest = d => +d.slice(8, 10) <= 7;
+/* does a set at weight kg count as a groove set when the target is `target` reps at the working weight? */
+export const meets = (bw, x, load, target) => { const kg = kgOf(x); return kg === load ? x.reps >= target : e1rm(bw, kg, x.reps) >= e1rm(bw, load, target) - 1e-9; };
+
 /* opts.resume: a checkpoint (the `state` an earlier run returned) to continue from instead of starting at day one.
    opts.until: the last day to process (default: today). A checkpoint must fall on a Saturday, so that weekly
    counters start clean, and far enough back that every day up to it is final. */
@@ -207,7 +221,9 @@ export function computeAll(data, nowMs, opts){
   const exIds = Object.keys(s.exercises || {});
   const maxes = {}, best = {}, totalReps = {};
   exIds.forEach(id => { const b = (s.baseline || {})[id] || {max:0, date:s.startDate}; maxes[id] = b.max; best[id] = b.max; totalReps[id] = 0; });
-  if(from){ Object.assign(maxes, from.maxes); Object.assign(best, from.best); Object.assign(totalReps, from.totalReps); }
+  const load = {}, wmax = {}, wbest = {};
+  exIds.forEach(id => { load[id] = 0; wmax[id] = {}; wbest[id] = {}; });
+  if(from){ Object.assign(maxes, from.maxes); Object.assign(best, from.best); Object.assign(totalReps, from.totalReps); if(from.load) Object.assign(load, from.load); if(from.wmax) Object.keys(from.wmax).forEach(k => { wmax[k] = Object.assign({}, from.wmax[k]); }); if(from.wbest) Object.keys(from.wbest).forEach(k => { wbest[k] = Object.assign({}, from.wbest[k]); }); }
   const days = [], prs = [], weeks = {}, awards = [];
   /* the four weeks before a checkpoint are carried along, so the shadow clone still has someone to race */
   if(from && Array.isArray(from.tail)) from.tail.forEach(w => { weeks[w.start] = {start:w.start, reps:{}, missed:0, days:w.days, done:0, qual:0, weigh:0, prDone:false, open:false, xp:w.xp, prs:[], repsAll:w.repsAll, mins:w.mins, ex:w.ex, past:true}; });
@@ -222,26 +238,27 @@ export function computeAll(data, nowMs, opts){
       last = d;
       const plan = planFor(s, d);
       const sets = ((dayDocs[d] || {}).sets) || [];
+      const bw = bwAt(bodyList, d), lx = x => loadXp(bw, kgOf(x), x.reps);
       const wk = weekStart(d);
       const W = weeks[wk] || (weeks[wk] = {start:wk, reps:{}, missed:0, days:0, done:0, qual:0, weigh:0, prDone:false, open:false, xp:0, prs:[], repsAll:0, mins:0});
-      sets.forEach(x => { totalReps[x.ex] = (totalReps[x.ex] || 0) + x.reps; W.reps[x.ex] = (W.reps[x.ex] || 0) + x.reps; W.repsAll += x.reps; });
+      sets.forEach(x => { totalReps[x.ex] = (totalReps[x.ex] || 0) + x.reps; W.reps[x.ex] = (W.reps[x.ex] || 0) + lx(x); W.repsAll += lx(x); });
       let base = 0, complete = false, info = {};
       if(plan.type === 'gtg'){
-        const ex = plan.ex, g = plan.gtg, target = gtgTarget(maxes[ex], g.pct);
+        const ex = plan.ex, g = plan.gtg, kg = load[ex] || 0, target = gtgTarget(kg ? wmax[ex][kg] : maxes[ex], g.pct);
         const exSets = sets.filter(x => x.ex === ex).slice(0, Math.max(10, g.sets));
         let q = 0;
-        exSets.forEach(x => { if(x.reps >= target){ q++; base += XP.gtgSet + x.reps; } else base += x.reps; });
+        exSets.forEach(x => { if(meets(bw, x, kg, target)){ q++; base += XP.gtgSet + lx(x); } else base += lx(x); });
         complete = q >= g.minSets;
         if(complete) base += XP.gtgComplete;
         if(q >= g.sets) base += XP.gtgFull;
-        info = {ex, target, q, need:g.minSets, goal:g.sets, logged:exSets.length};
+        info = {ex, target, kg, q, need:g.minSets, goal:g.sets, logged:exSets.length};
       } else if(plan.type === 'combo'){
         const g = plan.gtg, per = plan.combo.sets;
         const parts = plan.exs.map(ex => {
-          const target = gtgTarget(maxes[ex], g.pct), exSets = sets.filter(x => x.ex === ex).slice(0, Math.max(10, per));
+          const kg = load[ex] || 0, target = gtgTarget(kg ? wmax[ex][kg] : maxes[ex], g.pct), exSets = sets.filter(x => x.ex === ex).slice(0, Math.max(10, per));
           let q = 0;
-          exSets.forEach(x => { if(x.reps >= target){ q++; base += XP.gtgSet + x.reps; } else base += x.reps; });
-          return {ex, target, q, need:per, logged:exSets.length};
+          exSets.forEach(x => { if(meets(bw, x, kg, target)){ q++; base += XP.gtgSet + lx(x); } else base += lx(x); });
+          return {ex, target, kg, q, need:per, logged:exSets.length};
         });
         complete = parts.every(pt => pt.q >= per);
         if(complete) base += XP.gtgComplete + XP.gtgFull;
@@ -249,11 +266,19 @@ export function computeAll(data, nowMs, opts){
       } else if(plan.type === 'test'){
         const t = plan.test;
         const tex = (t.ex || []).filter(id => (s.exercises || {})[id]);
-        const per = tex.map(id => { const xs = sets.filter(x => x.ex === id).slice(0, t.sets); return {ex:id, sets:xs, top:xs.reduce((m, x) => Math.max(m, x.reps), 0), prev:maxes[id], prBefore:best[id], pr:false}; });
-        per.forEach(p => p.sets.forEach(x => { base += XP.testRep * x.reps; }));
+        const per = tex.map(id => { const xs = sets.filter(x => x.ex === id).slice(0, t.sets), kg = xs.reduce((m, x) => Math.max(m, kgOf(x)), 0), at = xs.filter(x => kgOf(x) === kg), top = at.reduce((m, x) => Math.max(m, x.reps), 0);
+          /* the other weights tried that day (a bodyweight check next to a weighted set) keep their own records */
+          const others = {}; xs.forEach(x => { const k = kgOf(x); if(k !== kg) others[k] = Math.max(others[k] || 0, x.reps); });
+          return {ex:id, sets:xs, kg, top, others, prev:kg ? (wmax[id][kg] != null ? wmax[id][kg] : null) : maxes[id], prBefore:kg ? (wbest[id][kg] || 0) : best[id], pr:false, load:load[id] || 0}; });
+        per.forEach(p => p.sets.forEach(x => { base += XP.testRep * lx(x); }));
         complete = per.length > 0 && per.every(p => p.sets.length >= t.sets);
         if(complete) base += XP.testComplete;
-        per.forEach(p => { if(p.sets.length && p.top > best[p.ex]){ p.pr = true; base += XP.pr; const rec = {date:d, ex:p.ex, v:p.top}; prs.push(rec); W.prs.push(rec); best[p.ex] = p.top; } });
+        per.forEach(p => {
+          if(!p.sets.length) return;
+          const mark = (kg, v) => { const b = kg ? (wbest[p.ex][kg] || 0) : best[p.ex]; if(v > b){ const rec = kg ? {date:d, ex:p.ex, v, kg, from:b} : {date:d, ex:p.ex, v}; prs.push(rec); W.prs.push(rec); if(kg) wbest[p.ex][kg] = v; else best[p.ex] = v; return true; } return false; };
+          if(mark(p.kg, p.top)){ p.pr = true; base += XP.pr; }
+          Object.keys(p.others).forEach(k => mark(+k, p.others[k]));
+        });
         info = {per, sets:t.sets};
       }
       let status;
@@ -269,7 +294,10 @@ export function computeAll(data, nowMs, opts){
       else xp = base;
       W.days++;
       if(plan.type === 'test' && (status === 'done' || status === 'missed')){
-        info.per.forEach(p => { if(p.sets.length){ maxes[p.ex] = p.top; } });
+        info.per.forEach(p => { if(!p.sets.length) return;
+          const put = (kg, v) => { if(kg) wmax[p.ex][kg] = v; else maxes[p.ex] = v; };
+          put(p.kg, p.top); Object.keys(p.others).forEach(k => put(+k, p.others[k]));
+          if(p.kg > 0) load[p.ex] = p.kg; else if(!(load[p.ex] > 0 && monthBwTest(d))) load[p.ex] = 0; });
       }
       const bonus = [];
       if(plan.type === 'gtg' || plan.type === 'combo'){ const before = W.qual; W.qual += (plan.type === 'combo' ? info.qAll : info.q) || 0; if(before < CHALLENGES.kakashi.goal && W.qual >= CHALLENGES.kakashi.goal) bonus.push('kakashi'); }
@@ -298,7 +326,7 @@ export function computeAll(data, nowMs, opts){
   const r = RANKS[peak], nx = RANKS[peak + 1];
   /* everything needed to carry on from the last processed day */
   const tail = last ? Object.keys(weeks).filter(k => k <= last).sort().slice(-4).map(k => { const w = weeks[k]; return {start:w.start, days:w.days, xp:w.xp, repsAll:w.repsAll, mins:w.mins, ex:w.ex || 0}; }) : [];
-  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), study:{streak:study.streak, best:study.best}, sleep:{streak:sleep.streak, best:sleep.best, start:sleep.start}, tail} : null;
+  const state = last ? {date:last, total, peak, streak, bestStreak, doneCount, missedCount, maxes:Object.assign({}, maxes), best:Object.assign({}, best), totalReps:Object.assign({}, totalReps), load:Object.assign({}, load), wmax:JSON.parse(JSON.stringify(wmax)), wbest:JSON.parse(JSON.stringify(wbest)), study:{streak:study.streak, best:study.best}, sleep:{streak:sleep.streak, best:sleep.best, start:sleep.start}, tail} : null;
   return { today, settings:s, study, sleep, awards, weekNow, weeks, todayRec, days, state, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount,
     maxes, best, prs, totalReps, exIds, body:bodyList, bodyDates,
     rank:r.name, nextRank:nx ? nx.name : null, xpToNext:nx ? Math.max(0, nx.xp - total) : null };

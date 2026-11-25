@@ -726,6 +726,54 @@ test('scrolls: Rare and Forbidden cover any area; a bought Forbidden Scroll arri
   assert.deepEqual(Object.keys(cs.scrolls.used), ['workout|2026-12-01']); assert.equal(cs.shop.buys.length, 2);
 });
 
+/* ---------- weighted sets ---------- */
+test('weighted sets: maxes per weight, the working weight follows the test, targets and XP follow the load, server agrees', () => {
+  const V = village();
+  V.body = {'2026-11-01':{date:'2026-11-01', weight:69}};
+  const kgSet = (d, ex, reps, kg, h, m) => ({ex, reps, kg, t:iso(d, h, m || 0)});
+  let C = E.compute(V, at('2026-11-27', 9));
+  assert.equal(E.suggestKg(C, 'dips'), 0, 'dips at 20 have not outgrown bodyweight yet');
+  V.days['2026-11-27'] = {date:'2026-11-27', sets:[kgSet('2026-11-27', 'dips', 11, 10, 17), kgSet('2026-11-27', 'dips', 9, 10, 17, 10), kgSet('2026-11-27', 'pullups', 12, 0, 17, 20), kgSet('2026-11-27', 'pullups', 11, 0, 17, 30)]};
+  C = E.compute(V, at('2026-11-27', 20));
+  const fri = day(C, '2026-11-27');
+  assert.equal(fri.status, 'done');
+  assert.equal(C.load.dips, 10, 'the working weight is the weight of the test'); assert.equal(C.load.pullups, 0);
+  assert.equal(C.wmax.dips[10], 11); assert.equal(C.maxes.dips, 20, 'the bodyweight max is untouched');
+  assert.ok(C.prs.some(p => p.ex === 'dips' && p.kg === 10 && p.v === 11), 'a first weighted test is a record at that weight');
+  assert.ok(E.strengthNow(C, 'dips').v > 100, 'strength score from a set of 12 or fewer');
+  /* Monday dips: groove sets of half the weighted max, carrying the weight */
+  V.days['2026-11-30'] = {date:'2026-11-30', sets:[0, 1, 2, 3].map(k => kgSet('2026-11-30', 'dips', 6, 10, 9 + k)).concat([kgSet('2026-11-30', 'dips', 6, 0, 14)])};
+  C = E.compute(V, at('2026-11-30', 20));
+  const mon = day(C, '2026-11-30');
+  assert.equal(mon.info.target, 6); assert.equal(mon.info.kg, 10);
+  assert.equal(mon.info.q, 4, 'a bodyweight set of 6 is lighter than the target and does not count');
+  assert.equal(E.suggestKg(C, 'dips'), 10);
+  const plain = clone(V); plain.days['2026-11-30'].sets.forEach(x => { delete x.kg; });
+  const P = E.compute(plain, at('2026-11-30', 20));
+  assert.ok(day(C, '2026-11-30').base > day(P, '2026-11-30').base, 'weighted reps earn more XP than the same reps without weight');
+  /* the server sees the same days */
+  const Wk = computeAll(V, at('2026-11-30', 20));
+  assert.deepEqual(C.days.map(d => [d.date, d.status, d.xp]), Wk.days.map(d => [d.date, d.status, d.xp]));
+  /* first Friday of December: the bodyweight check, which keeps the working weight */
+  C = E.compute(V, at('2026-12-04', 9));
+  assert.equal(E.suggestKg(C, 'dips'), 0, 'first test of the month is at bodyweight');
+  V.days['2026-12-04'] = {date:'2026-12-04', sets:[kgSet('2026-12-04', 'dips', 29, 0, 17), kgSet('2026-12-04', 'dips', 25, 0, 17, 10), kgSet('2026-12-04', 'pullups', 13, 0, 17, 20), kgSet('2026-12-04', 'pullups', 12, 0, 17, 30)]};
+  C = E.compute(V, at('2026-12-04', 20));
+  assert.equal(C.maxes.dips, 29); assert.equal(C.load.dips, 10, 'the monthly bodyweight test keeps the working weight');
+  assert.equal(day(C, '2026-12-04').status, 'done');
+  /* hitting 12 at the working weight: the next test suggests 2.5 kg more */
+  V.days['2026-12-11'] = {date:'2026-12-11', sets:[kgSet('2026-12-11', 'dips', 12, 10, 17), kgSet('2026-12-11', 'dips', 10, 10, 17, 10), kgSet('2026-12-11', 'pullups', 14, 0, 17, 20), kgSet('2026-12-11', 'pullups', 12, 0, 17, 30)]};
+  C = E.compute(V, at('2026-12-18', 9));
+  assert.equal(E.suggestKg(C, 'dips'), 12.5);
+  assert.equal(E.suggestKg(C, 'pullups'), 5, 'pull-ups at 14 get their first weight');
+  const Wk2 = computeAll(V, at('2026-12-18', 9));
+  assert.deepEqual(C.days.map(d => [d.date, d.status, d.xp]), Wk2.days.map(d => [d.date, d.status, d.xp]));
+  /* a bad weight is dropped by the backup check */
+  const bad = clone(V); bad.days['2026-12-11'].sets[0].kg = -4;
+  const cl = E.cleanBackup(Object.assign({app:'The Leaf Village'}, bad), at('2026-12-18', 9));
+  assert.equal((cl.data || cl.backup || cl).days['2026-12-11'].sets.length, 3);
+});
+
 /* ---------- Hokage Book ---------- */
 test('Hokage Book: one chapter per reached rank, written from the logs; the rest sealed; no finale before Hokage', () => {
   const V = cleanWeek();

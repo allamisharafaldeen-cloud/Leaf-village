@@ -467,6 +467,8 @@ test('auto-progression: after the Friday test Kakashi suggests next week\'s sett
   await closeScenes(B);
   assert.equal(await B.page.locator('#prog-card').count(), 0, 'no card before the test is done');
   let n = 0;
+  /* this test is about bodyweight maxes: take off the weight the app suggests for maxes this high */
+  for(const ex of ['pullups', 'dips']){ const minus = B.page.locator(`[data-act="kg"][data-ex="${ex}"][data-d="-1"]`); for(let k = 0; k < 10 && await minus.count() && await minus.isEnabled(); k++){ await minus.evaluate(b => b.click()); await B.page.waitForTimeout(60); } }
   for(const reps of [14, 12, 26, 24]){ await B.setTime(at('2026-11-13', 17, 5 + 5 * n)); await B.logSet(reps); n++; await until(async () => ((await B.docs())['leaf/main/days/2026-11-13'] || {sets:[]}).sets.length === n, `test set ${n}`); }
   await B.page.waitForSelector('#prog-card');
   const card = (await B.page.locator('#prog-card').textContent()).replace(/\s+/g, ' ');

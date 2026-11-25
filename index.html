@@ -581,6 +581,15 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .rm-thumb.add{cursor:pointer; border-style:dashed}
 .rm-thumb i{position:absolute; left:0; right:0; bottom:0; font-style:normal; font-size:9.5px; text-align:center; padding:2px 0; background:rgba(0,0,0,.55); color:#fff}
 .rm-x{position:absolute; top:3px; right:3px; width:22px; height:22px; border-radius:50%; border:0; background:rgba(0,0,0,.6); color:#fff; font-size:11px; display:grid; place-items:center; padding:0}
+.kgpick{display:flex; align-items:center; justify-content:center; gap:10px; margin:6px 0 2px}
+.kgpick button{width:34px; height:34px; border-radius:50%; border:1.5px solid var(--line); background:var(--card); color:var(--ink); font-size:18px; line-height:1}
+.kgpick button:disabled{opacity:.35}
+.kgpick span{min-width:112px; text-align:center; padding:5px 12px; border-radius:999px; background:color-mix(in srgb, var(--chakra) 14%, transparent); font-size:14px}
+.kgtag{font-style:normal; font-size:11.5px; font-weight:700; padding:1px 6px; border-radius:999px; background:color-mix(in srgb, var(--chakra) 18%, transparent); margin-left:3px}
+.kgnote{margin:4px 0 8px; font-size:13px; padding:6px 10px; border-radius:10px; background:color-mix(in srgb, var(--chakra) 12%, transparent)}
+.wmax{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; font-size:13px; margin-top:6px}
+.wmax > b{min-width:70px}
+.wmax span{opacity:.85}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto; background-position:center}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px; background-position:left bottom}
@@ -1438,6 +1447,14 @@ function ninjaHeader(C){
   <div class="xpbar"><div class="xptrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Progress to next rank"><div class="xpfill" style="width:${pct}%"></div></div><div class="xprow">${left}${right}</div></div>`;
 }
 
+function testNote(C, ex){
+  const t=C.todayRec, p=t.info.per.find(x=>x.ex===ex); if(!p || p.sets.length) return '';
+  const load=(C.load||{})[ex]||0, sug=E.suggestKg(C, ex), nm=exName(ex).toLowerCase();
+  if(load>0 && sug===0) return `<p class="kgnote">Monthly bodyweight check: test ${esc(nm)} with no weight today. Your working weight stays ${kgTxt(load)}.</p>`;
+  if(load>0 && sug>load) return `<p class="kgnote">You hit ${E.LOAD.upAt} at ${kgTxt(load)}. Go up to ${kgTxt(sug)}.</p>`;
+  if(load===0 && sug>0) return `<p class="kgnote">Your bodyweight ${esc(nm)} max has outgrown bodyweight. Test with ${kgTxt(sug)} today.</p>`;
+  return '';
+}
 function stepper(key, label){
   const v=ui.reps[key];
   return `<div class="stepper">
@@ -1446,6 +1463,21 @@ function stepper(key, label){
     <button type="button" data-act="step" data-key="${key}" data-d="1" aria-label="One more rep">+</button>
   </div>`;
 }
+
+/* a groove target at the working weight */
+const grooveTarget = (C, ex, pct) => { const kg=(C.load||{})[ex]||0, m=kg>0?(C.wmax[ex]||{})[kg]:C.maxes[ex]; return gtgTarget(m, pct); };
+/* weighted sets: the weight that goes on the next set of an exercise, picked with − and + in 2.5 kg steps */
+const kgTxt = kg => kg>0 ? `+${+kg.toFixed(2)} kg` : 'Bodyweight';
+function kgNow(C, ex){ const k=C.today+'|'+ex; ui.kg=ui.kg||{}; if(ui.kg[k]==null) ui.kg[k]=E.suggestKg(C, ex); return ui.kg[k]; }
+function kgPicker(C, ex){
+  const kg=kgNow(C, ex);
+  return `<div class="kgpick" role="group" aria-label="${esc(exName(ex))} weight">
+    <button type="button" data-act="kg" data-ex="${ex}" data-d="-1" aria-label="Less weight"${kg<=0?' disabled':''}>−</button>
+    <span class="num"><b>${kgTxt(kg)}</b></span>
+    <button type="button" data-act="kg" data-ex="${ex}" data-d="1" aria-label="More weight">+</button>
+  </div>`;
+}
+const kgTag = x => x && x.kg>0 ? ` <em class="kgtag">+${+x.kg} kg</em>` : '';
 
 /* one-time swap: today trades its workout mission with tomorrow's, for this week only */
 const DAY_KIND = {rest:'rest day', test:'test day', gtg:'groove day', combo:'mixed day'};
@@ -1520,13 +1552,13 @@ function missionCard(C){
     const note = t.status==='done'
       ? (i.q>=i.goal ? `<span><b>All ${i.goal} sets done.</b> Extra sets still count.</span>` : `<span><b>Mission complete.</b> Set ${i.goal} earns +${XP.gtgFull} XP.</span>`)
       : `<span><b>${i.q} of ${i.need}</b> sets to complete</span>`;
-    const chips = i.exSets.map(x=>`<li class="${x.reps<i.target?'under':''}"><b>${x.reps}</b> reps <time>${timeOf(x.t)}</time></li>`).join('');
+    const chips = i.exSets.map(x=>`<li class="${x.reps<i.target && !(x.kg>i.kg)?'under':''}"><b>${x.reps}</b> reps${kgTag(x)} <time>${timeOf(x.t)}</time></li>`).join('');
     body = `
-      <p class="mission-sub">Grease the groove: ${i.goal} mini-sets of <b>${i.target}</b> strict ${esc(exName(i.ex).toLowerCase())}, spread through the day. Never to failure. Finish ${i.need} to complete the mission.</p>
+      <p class="mission-sub">Grease the groove: ${i.goal} mini-sets of <b>${i.target}</b> strict ${esc(exName(i.ex).toLowerCase())}${i.kg?` with <b>+${+i.kg} kg</b>`:''}, spread through the day. Never to failure. Finish ${i.need} to complete the mission.</p>
       <div class="chakra" aria-label="Chakra: ${i.q} of ${i.goal} sets">${segs}</div>
       <div class="chakra-note">${note}<span class="num">${i.target} reps / set</span></div>
       ${t.status==='done' ? `<div class="complete-badge">${ico.check} Mission complete</div>` : ''}
-      ${state.readOnly ? '' : `<div class="logger">${stepper(key,'reps this set')}<button class="btn chakra-btn" data-act="log" data-ex="${i.ex}" data-key="${key}">Log set ${i.logged+1}</button></div>`}
+      ${state.readOnly ? '' : `${kgPicker(C, i.ex)}<div class="logger">${stepper(key,'reps this set')}<button class="btn chakra-btn" data-act="log" data-ex="${i.ex}" data-key="${key}">Log set ${i.logged+1}</button></div>`}
       ${chips ? `<ul class="sets" aria-label="Sets logged today">${chips}</ul>` : ''}`;
   } else if(t.plan.type==='combo'){
     const i=t.info;
@@ -1534,11 +1566,11 @@ function missionCard(C){
       const key='combo-'+p.ex, nm=exName(p.ex), short=nm.toLowerCase().replace(/s$/,'');
       if(ui.reps[key]==null) ui.reps[key]=p.target;
       const segs = Array.from({length:p.need},(_,k)=>`<i class="${k<p.q?'on':''}"></i>`).join('');
-      const chips = p.exSets.map(x=>`<li class="${x.reps<p.target?'under':''}"><b>${x.reps}</b> reps <time>${timeOf(x.t)}</time></li>`).join('');
+      const chips = p.exSets.map(x=>`<li class="${x.reps<p.target && !(x.kg>p.kg)?'under':''}"><b>${x.reps}</b> reps${kgTag(x)} <time>${timeOf(x.t)}</time></li>`).join('');
       return `<div class="test-ex combo-ex">
-        <header><b>${esc(nm)}</b><span class="muted num">${p.q>=p.need?'Done':`${p.q} of ${p.need} sets`} · ${p.target} reps</span></header>
+        <header><b>${esc(nm)}</b><span class="muted num">${p.q>=p.need?'Done':`${p.q} of ${p.need} sets`} · ${p.target} reps${p.kg?` · +${+p.kg} kg`:''}</span></header>
         <div class="chakra" aria-label="${esc(nm)}: ${p.q} of ${p.need} sets">${segs}</div>
-        ${state.readOnly ? '' : `<div class="logger">${stepper(key,'reps this set')}<button class="btn chakra-btn" data-act="log" data-ex="${p.ex}" data-key="${key}">Log ${esc(short)} set ${p.logged+1}</button></div>`}
+        ${state.readOnly ? '' : `${kgPicker(C, p.ex)}<div class="logger">${stepper(key,'reps this set')}<button class="btn chakra-btn" data-act="log" data-ex="${p.ex}" data-key="${key}">Log ${esc(short)} set ${p.logged+1}</button></div>`}
         ${chips ? `<ul class="sets" aria-label="${esc(nm)} sets logged today">${chips}</ul>` : ''}
       </div>`;
     }).join('');
@@ -1549,17 +1581,19 @@ function missionCard(C){
     const i=t.info;
     const blocks = i.per.map(p=>{
       const key='test-'+p.ex;
-      if(ui.reps[key]==null) ui.reps[key]=p.sets.length ? p.sets[p.sets.length-1].reps : p.prev;
+      const tk=kgNow(C, p.ex), wm=tk>0 ? (C.wmax[p.ex]||{})[tk] : C.maxes[p.ex];
+      if(ui.reps[key]==null) ui.reps[key]=p.sets.length ? p.sets[p.sets.length-1].reps : (wm!=null ? wm : 10);
       const slots = Array.from({length:i.sets},(_,k)=>{
         const x=p.sets[k];
-        if(x) return `<div class="slot filled"><span>Set ${k+1}</span><span><b>${x.reps}</b>${p.pr && x.reps===p.top && p.sets.findIndex(y=>y.reps===p.top)===k ? ' <span class="pr">NEW MAX</span>':''}</span></div>`;
+        if(x) return `<div class="slot filled"><span>Set ${k+1}</span><span><b>${x.reps}</b>${kgTag(x)}${p.pr && x.reps===p.top && p.sets.findIndex(y=>y.reps===p.top)===k ? ' <span class="pr">NEW MAX</span>':''}</span></div>`;
         return `<div class="slot"><span>Set ${k+1}</span><span>to failure</span></div>`;
       }).join('');
       const canLog = p.sets.length<i.sets && !state.readOnly;
       return `<div class="test-ex">
-        <header><b>${esc(exName(p.ex))}</b><span class="muted num">max ${p.prev} · best ${p.prBefore}</span></header>
+        <header><b>${esc(exName(p.ex))}</b><span class="muted num">${(()=>{ const k=p.sets.length?p.kg:tk, m=k>0?(C.wmax[p.ex]||{})[k]:C.maxes[p.ex], b=k>0?(C.wbest[p.ex]||{})[k]:C.best[p.ex]; return k>0 ? (m!=null?`max ${m} · best ${b} at +${+k} kg`:`first test at +${+k} kg`) : `max ${C.maxes[p.ex]} · best ${C.best[p.ex]}`; })()}</span></header>
+        ${testNote(C, p.ex)}
         <div class="slots">${slots}</div>
-        ${canLog ? `${stepper(key,'reps to failure')}<button class="btn chakra-btn" data-act="log" data-ex="${p.ex}" data-key="${key}">Log ${esc(exName(p.ex).toLowerCase())} set ${p.sets.length+1}</button>` : ''}
+        ${canLog ? `${p.sets.length?'':kgPicker(C, p.ex)}${stepper(key,'reps to failure')}<button class="btn chakra-btn" data-act="log" data-ex="${p.ex}" data-key="${key}">Log ${esc(exName(p.ex).toLowerCase())} set ${p.sets.length+1}</button>` : ''}
       </div>`;
     }).join('');
     body = `<p class="mission-sub">Test day. ${i.sets} strict sets of each exercise to failure, with full rest between. Your best set becomes your new max and sets next week's groove targets.</p>
@@ -1629,8 +1663,8 @@ function upNext(C){
   const s=S(); const tm=addDays(C.today,1); if(tm<s.startDate) return '';
   const p=planFor(s,tm), m=missionMeta(p,C);
   let detail='';
-  if(p.type==='gtg') detail=`${p.gtg.sets} × ${gtgTarget(C.maxes[p.ex],p.gtg.pct)} reps`;
-  else if(p.type==='combo') detail=p.exs.map(ex=>`${p.combo.sets} × ${gtgTarget(C.maxes[ex],p.gtg.pct)} ${exName(ex).toLowerCase()}`).join(' + ');
+  if(p.type==='gtg') detail=`${p.gtg.sets} × ${grooveTarget(C,p.ex,p.gtg.pct)} reps`;
+  else if(p.type==='combo') detail=p.exs.map(ex=>`${p.combo.sets} × ${grooveTarget(C,ex,p.gtg.pct)} ${exName(ex).toLowerCase()}`).join(' + ');
   else if(p.type==='test') detail=`${p.test.sets} sets to failure each`;
   else detail='Rest and recover';
   return `<section class="card" style="flex-direction:row;align-items:center;justify-content:space-between"><div><div class="eyebrow">Tomorrow · ${DOW[parse(tm).getDay()]}</div><b style="font-size:16px">${esc(m.title)}</b> <span class="muted">· ${esc(detail)}</span></div><span class="seal" style="position:static;width:40px;height:40px;font-size:20px;border-width:2px;transform:rotate(-6deg)">${m.seal}</span></section>`;
@@ -2347,6 +2381,18 @@ function heatmap(C){
   return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Last 12 weeks of training">${labels}${cells}${months}</svg></div>`;
 }
 
+function strengthCard(C){
+  const ex=C.exIds.filter(id=>((C.strength||{})[id]||[]).length);
+  if(!ex.length) return '';
+  const series=ex.map(id=>({name:exName(id), color:exColor(id), points:C.strength[id].map(p=>({date:p.date, v:Math.round(p.v)}))}));
+  const now=ex.map(id=>{ const p=E.strengthNow(C, id); return `${esc(exName(id).toLowerCase())} ${Math.round(p.v)} kg`; }).join(' · ');
+  const rows=ex.map(id=>{ const w=C.wmax[id]||{}, ks=Object.keys(w).map(Number).sort((a,b)=>a-b); return ks.length?`<div class="wmax"><b>${esc(exName(id))}</b>${[`<span>BW <b>${C.maxes[id]}</b></span>`].concat(ks.map(k=>`<span>+${k} kg <b>${w[k]}</b></span>`)).join('')}</div>`:''; }).join('');
+  return `<section class="card"><div class="section-head"><h2>Strength</h2><span class="eyebrow">${now}</span></div>
+    ${lineChart(series,{label:'Estimated one-rep max over time'})}
+    <div class="legend">${ex.map(id=>`<span><i style="background:${exColor(id)}"></i>${esc(exName(id))}</span>`).join('')}</div>
+    ${rows}
+  </section>`;
+}
 function statsView(C){
   const s=S();
   const ex=C.exIds;
@@ -2355,8 +2401,9 @@ function statsView(C){
   const tiles = `
     <div class="tiles">
       <div class="tile power"><span class="eyebrow">Power level</span><span class="big num">${C.power!=null?fmt(C.power):'—'}</span></div>
-      <div class="tile"><span class="eyebrow">Pull-up max</span><span class="big num">${C.maxes.pullups??'—'}<small> reps</small></span><span class="sub">Best ever ${C.best.pullups??'—'}</span></div>
-      <div class="tile"><span class="eyebrow">Dip max</span><span class="big num">${C.maxes.dips??'—'}<small> reps</small></span><span class="sub">Best ever ${C.best.dips??'—'}</span></div>
+      ${['pullups','dips'].map(id=>{ const kg=(C.load||{})[id]||0, nm=id==='dips'?'Dip':'Pull-up';
+        if(kg>0){ const m=(C.wmax[id]||{})[kg]; return `<div class="tile"><span class="eyebrow">${nm} max · +${+kg} kg</span><span class="big num">${m??'—'}<small> reps</small></span><span class="sub">Bodyweight ${C.maxes[id]??'—'} · best ${C.best[id]??'—'}</span></div>`; }
+        return `<div class="tile"><span class="eyebrow">${nm} max</span><span class="big num">${C.maxes[id]??'—'}<small> reps</small></span><span class="sub">Best ever ${C.best[id]??'—'}</span></div>`; }).join('')}
       <div class="tile"><span class="eyebrow">Bodyweight</span><span class="big num">${C.weight!=null?(+C.weight.toFixed(1)):'—'}<small> kg</small></span><span class="sub">${prevW!=null?`${prevW>=0?'+':'−'}${Math.abs(prevW).toFixed(1)} kg since first weigh-in`:'Log weekly on the Ninja tab'}</span></div>
       <div class="tile"><span class="eyebrow">Streak</span><span class="big num">${C.streak}<small> days</small></span><span class="sub">Best ${C.bestStreak} · ×${mult(C.streak)} XP${nt?` (×${nt[1]} at ${nt[0]})`:''}</span></div>
     </div>`;
@@ -2375,7 +2422,7 @@ function statsView(C){
   const toggle=`<div class="stats-mode" role="group" aria-label="Stats view"><button type="button" class="chip" data-act="stats-mode" data-v="workout" aria-pressed="${ui.statsMode!=='study' && ui.statsMode!=='sleep'}">Workout</button><button type="button" class="chip" data-act="stats-mode" data-v="study" aria-pressed="${ui.statsMode==='study'}">Study</button><button type="button" class="chip" data-act="stats-mode" data-v="sleep" aria-pressed="${ui.statsMode==='sleep'}">Sleep</button></div>`;
   if(ui.statsMode==='study') return topbar('Stats') + toggle + reportCard(C) + studyStatsView(C);
   if(ui.statsMode==='sleep') return topbar('Stats') + toggle + sleepStatsView(C);
-  return topbar('Stats') + toggle + reportCard(C) + tiles + repsCard + maxCard + wCard + cal + totals;
+  return topbar('Stats') + toggle + reportCard(C) + tiles + repsCard + strengthCard(C) + maxCard + wCard + cal + totals;
 }
 
 /* --- plan --- */
@@ -2409,8 +2456,8 @@ function planView(C){
     <h2>Groove days</h2>
     <p class="muted" style="margin:0;font-size:14px">Each mini-set uses a percentage of your latest test max.</p>
     <div class="mini-steppers">${mini('Sets / day','sets',d.gtg.sets,'mini-sets')}${mini('To complete','minSets',d.gtg.minSets,'sets needed')}${mini('Intensity','pct',d.gtg.pct,'% of max')}</div>
-    <p class="muted num" style="margin:0;font-size:13px">At these settings: ${C.exIds.map(id=>`${esc(exName(id))} ${d.gtg.sets} × ${gtgTarget(C.maxes[id],d.gtg.pct)}`).join(' · ')}</p>
-    ${comboIds.length===2?`<div class="mini-steppers" style="grid-template-columns:minmax(0,1fr) 2fr">${mini('Mixed days','comboSets',d.combo.sets,'sets of each')}<p class="muted num" style="margin:0;font-size:13px;align-self:center">Every set of both is needed to complete a mixed day: ${comboIds.map(id=>`${esc(exName(id))} ${d.combo.sets} × ${gtgTarget(C.maxes[id],d.gtg.pct)}`).join(' + ')}</p></div>`:''}
+    <p class="muted num" style="margin:0;font-size:13px">At these settings: ${C.exIds.map(id=>`${esc(exName(id))} ${d.gtg.sets} × ${grooveTarget(C,id,d.gtg.pct)}`).join(' · ')}</p>
+    ${comboIds.length===2?`<div class="mini-steppers" style="grid-template-columns:minmax(0,1fr) 2fr">${mini('Mixed days','comboSets',d.combo.sets,'sets of each')}<p class="muted num" style="margin:0;font-size:13px;align-self:center">Every set of both is needed to complete a mixed day: ${comboIds.map(id=>`${esc(exName(id))} ${d.combo.sets} × ${grooveTarget(C,id,d.gtg.pct)}`).join(' + ')}</p></div>`:''}
   </section>
   <section class="card">
     <h2>Study days</h2>
@@ -3419,8 +3466,8 @@ function writeSummary(C){
   const s=S(), today=C.today, upcoming={};
   for(let k=0;k<8;k++){
     const d=addDays(today,k); if(d<s.startDate) continue; const p=planFor(s,d);
-    if(p.type==='gtg') upcoming[d]={type:'gtg', ex:p.ex, exName:exName(p.ex), target:gtgTarget(C.maxes[p.ex],p.gtg.pct), need:p.gtg.minSets, goal:p.gtg.sets};
-    else if(p.type==='combo') upcoming[d]={type:'combo', parts:p.exs.map(ex=>({ex, exName:exName(ex), target:gtgTarget(C.maxes[ex],p.gtg.pct), need:p.combo.sets}))};
+    if(p.type==='gtg') upcoming[d]={type:'gtg', ex:p.ex, exName:exName(p.ex), target:grooveTarget(C,p.ex,p.gtg.pct), kg:(C.load||{})[p.ex]||0, need:p.gtg.minSets, goal:p.gtg.sets};
+    else if(p.type==='combo') upcoming[d]={type:'combo', parts:p.exs.map(ex=>({ex, exName:exName(ex), target:grooveTarget(C,ex,p.gtg.pct), need:p.combo.sets}))};
     else if(p.type==='test') upcoming[d]={type:'test', sets:p.test.sets, tests:(p.test.ex||[]).filter(id=>(s.exercises||{})[id]).map(id=>({ex:id, exName:exName(id), max:C.maxes[id]}))};
     else upcoming[d]={type:'rest'};
   }
@@ -4111,7 +4158,8 @@ function logSet(ex, key){
   const C=lastC; if(!C||!C.todayRec||state.readOnly) return;
   const reps=Math.round(ui.reps[key]||0); if(reps<1){ toast('Add at least one rep.'); return; }
   const d=C.today, day=clone(getDay(d)) || {date:d, sets:[]};
-  day.date=d; day.sets=(day.sets||[]).concat([{ex, reps, t:new Date().toISOString()}]);
+  const kg=kgNow(C, ex), rec={ex, reps, t:new Date().toISOString()}; if(kg>0) rec.kg=kg;
+  day.date=d; day.sets=(day.sets||[]).concat([rec]);
   const prevPR=C.prs.length, prevStatus=C.todayRec.status, prevXp=C.todayRec.xp, prevAwards=(C.awards||[]).length, prevCombo=C.todayRec.info.combo||0;
   save('days', d, day);
   const A=lastC; if(!A||!A.todayRec) return;
@@ -4127,7 +4175,7 @@ function logSet(ex, key){
     setTimeout(()=>FX.leafBurst(), pr?1200:80); SFX.play('complete', wait);
   }
   if(pr && done) toast(`New max and mission complete · ${signed(gained)} XP`);
-  else if(pr) toast(`New max: ${reps} ${exName(ex).toLowerCase()} · ${signed(gained)} XP`);
+  else if(pr) toast(`New max: ${reps} ${exName(ex).toLowerCase()}${kg>0?` at +${+kg} kg`:''} · ${signed(gained)} XP`);
   else if(done) toast(`Mission complete · ${signed(gained)} XP`);
   else toast(`${reps} ${exName(ex).toLowerCase()} logged · ${signed(gained)} XP${(A.todayRec.info.combo||0)>prevCombo?` · study combo +${STUDY.combo}`:''}`);
   announceAwards(A, prevAwards);
@@ -4145,6 +4193,9 @@ document.addEventListener('click', e=>{
   const act=el.dataset.act;
   if(act==='plan-day'||act==='test-ex') return;
   if(DAY_BOUND.test(act) && dayRolled()) return;
+  if(act==='kg'){ const C=lastC; if(!C) return; const ex=el.dataset.ex, k=C.today+'|'+ex, v=Math.max(0, Math.min(E.LOAD.cap, kgNow(C, ex)+Number(el.dataset.d)*E.LOAD.step)); ui.kg[k]=v;
+    const t=C.todayRec; if(t && t.plan.type==='test'){ const p=t.info.per.find(x=>x.ex===ex); if(p && !p.sets.length){ const m=v>0?(C.wmax[ex]||{})[v]:C.maxes[ex]; ui.reps['test-'+ex]=m!=null?m:10; } }
+    SFX.play('tick'); render(); return; }
   if(act==='step'){ const k=el.dataset.key; ui.reps[k]=clamp((ui.reps[k]||0)+Number(el.dataset.d),0,999); SFX.play('tick'); render(); return; }
   if(act==='sound'){ SFX.toggle(); render(); return; }
   if(act==='rank-walls'){ prefs.rankWalls = prefs.rankWalls===false; savePrefs(); render(); return; }

@@ -94,8 +94,8 @@ export function decide({data, nowMs, slot, picks, resume}){
     }
     if(n.briefing && testOk && t && t.status !== 'done'){
       const i = t.info;
-      if(plan.type === 'gtg') say(sensei, `${sensei}.brief.gtg`, {need:i.need, goal:i.goal, target:i.target, ex:lower(i.ex)});
-      else if(plan.type === 'combo') say(sensei, `${sensei}.brief.combo`, {combo:i.parts.map(p => `${p.need} × ${p.target} ${lower(p.ex)}`).join(' and ')});
+      if(plan.type === 'gtg') say(sensei, `${sensei}.brief.gtg`, {need:i.need, goal:i.goal, target:i.target, ex:lower(i.ex) + (i.kg ? ` with +${i.kg} kg` : '')});
+      else if(plan.type === 'combo') say(sensei, `${sensei}.brief.combo`, {combo:i.parts.map(p => `${p.need} × ${p.target} ${lower(p.ex)}${p.kg ? ` with +${p.kg} kg` : ''}`).join(' and ')});
       else if(plan.type === 'test'){ if(i.per.length) say('guy', 'guy.brief.test', {maxes:i.per.map(p => `${p.prev} ${lower(p.ex)}`).join(' and '), sets:i.sets}); }
       else say('jiraiya', 'jiraiya.brief.rest', {});
     }
