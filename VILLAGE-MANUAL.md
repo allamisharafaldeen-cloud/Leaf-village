@@ -9,6 +9,8 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
   nothing can drift. Past days cannot be edited.
 - Data lives on each device (IndexedDB) and syncs through the Cloudflare Worker. Pictures, videos and sounds you add
   stay on the device you added them on.
+- Sync rules: logged sets and study minutes from two devices are always joined. Settings: the latest edit wins,
+  except purchases and used scrolls, which are never lost whichever device edits last.
 - Settings → Backup exports everything (except your own pictures/videos) to a .json file. Import restores it.
 
 ## Training
