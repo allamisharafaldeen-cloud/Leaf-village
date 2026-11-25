@@ -264,7 +264,8 @@ const bodyList = data => Object.values(data.body || {}).filter(b => b && typeof 
    month does not change it. Weighted reps earn XP in proportion to the total load: reps x (body + added) / body. */
 const LOAD = {bw:69, cap:200, step:2.5, upAt:12, e1Reps:12};
 const kgOf = x => (x && Number.isFinite(+x.kg) && +x.kg > 0) ? Math.min(LOAD.cap, Math.round(+x.kg * 4) / 4) : 0;
-const bwAt = (list, d) => { let w = null; for(const b of list){ if(b.date <= d) w = b.weight; else break; } return w || (list[0] && list[0].weight) || LOAD.bw; };
+/* before the first weigh-in the default bodyweight is used, so a first weigh-in never rewrites past days */
+const bwAt = (list, d) => { let w = null; for(const b of list){ if(b.date <= d) w = b.weight; else break; } return w || LOAD.bw; };
 const e1rm = (bw, kg, reps) => (bw + kg) * (1 + reps / 30);
 const loadXp = (bw, kg, reps) => kg > 0 ? Math.round(reps * (bw + kg) / bw) : reps;
 const monthBwTest = d => +d.slice(8, 10) <= 7;
@@ -1067,7 +1068,7 @@ function hokageBook(C){
   RANKS.forEach((r, i) => { if(i === 0){ reachedOn.push(days.length ? days[0].date : (s.startDate || C.today)); return; } const d = days.find(x => x.peak >= i); reachedOn.push(d ? d.date : null); });
   const ach = achievements(C), sh = shop(C);
   const baseMax = id => { const b = (s.baseline || {})[id]; return posNum(b && b.max, 0); };
-  const maxAt = (id, upto) => C.prs.filter(p => p.ex === id && p.date <= upto).reduce((m, p) => Math.max(m, p.v), baseMax(id));
+  const maxAt = (id, upto) => C.prs.filter(p => p.ex === id && !p.kg && p.date <= upto).reduce((m, p) => Math.max(m, p.v), baseMax(id));
   const range = (from, to) => {
     const ds = days.filter(x => x.date >= from && x.date <= to), reps = {};
     ds.forEach(x => x.sets.forEach(z => { reps[z.ex] = (reps[z.ex] || 0) + z.reps; }));

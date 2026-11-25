@@ -208,7 +208,8 @@ function comboMatches(hours, sets){
    month does not change it. Weighted reps earn XP in proportion to the total load: reps x (body + added) / body. */
 export const LOAD = {bw:69, cap:200, step:2.5, upAt:12, e1Reps:12};
 export const kgOf = x => (x && Number.isFinite(+x.kg) && +x.kg > 0) ? Math.min(LOAD.cap, Math.round(+x.kg * 4) / 4) : 0;
-export const bwAt = (list, d) => { let w = null; for(const b of list){ if(b.date <= d) w = b.weight; else break; } return w || (list[0] && list[0].weight) || LOAD.bw; };
+/* before the first weigh-in the default bodyweight is used, so a first weigh-in never rewrites past days */
+export const bwAt = (list, d) => { let w = null; for(const b of list){ if(b.date <= d) w = b.weight; else break; } return w || LOAD.bw; };
 export const e1rm = (bw, kg, reps) => (bw + kg) * (1 + reps / 30);
 const loadXp = (bw, kg, reps) => kg > 0 ? Math.round(reps * (bw + kg) / bw) : reps;
 const monthBwTest = d => +d.slice(8, 10) <= 7;

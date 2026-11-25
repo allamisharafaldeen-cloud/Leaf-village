@@ -1,7 +1,7 @@
 /* The Leaf Village · what the senseis say, and when.
    decide() is a pure function: give it the synced documents, the time and the slot, and it returns
    the one notification to send (or nothing). The rules are the ones from docs/fable-session-1.md. */
-import { computeAll, planFor, examFor, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, dateAt, sleepGoal } from './engine.js';
+import { computeAll, planFor, examFor, onCallDay, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, dateAt, sleepGoal } from './engine.js';
 import { LINES, SENSEI_NAMES, fill } from './lines.js';
 
 /* 5:40, 11:40 and 14:40 on the clock; the evening two follow tonight's sleep goal (see eveningSlotAt) */
@@ -76,6 +76,8 @@ export function decide({data, nowMs, slot, picks, resume}){
     if(slot === 'MORNING') say('hiruzen', 'hiruzen.exam', {day:Math.round((dayMs(today) - dayMs(exam.start)) / 86400000) + 1, days:Math.round((dayMs(exam.end) - dayMs(exam.start)) / 86400000) + 1});
     return finish(out);
   }
+  /* on call at the hospital: the day is already safe, so no nags at all */
+  if(onCallDay(s, today)) return finish(out);
 
   const t = C.todayRec, plan = t ? t.plan : planFor(s, today), sensei = senseiFor(s, today);
   const testOk = plan.type !== 'test' || n.test;

@@ -2718,8 +2718,11 @@ function skillNews(C){
 }
 /* write the scrolls the inventory says were used, so the server and other devices see the same protected days */
 let scrollWriteKey='';
+const PAGE_T0=Date.now(); let syncedThisVisit=false;
 function writeScrollMarks(C){
   if(state.readOnly || !settled() || !S()) return;
+  /* with sync on, wait for this visit's first sync: a device still holding old settings must not write them back over newer ones */
+  if(Sync && Sync.hasKey && Sync.hasKey() && !syncedThisVisit) return;
   const B=E.scrollBook(C); if(!B.pending.length) return;
   const key=B.pending.map(p=>p.key+p.type).join(','); if(key===scrollWriteKey) return; scrollWriteKey=key;
   const s=clone(S()), used=Object.assign({}, s.scrolls && s.scrolls.used);
@@ -4702,7 +4705,10 @@ document.addEventListener('click', firstTouch, {capture:true, passive:true});
 try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }); }catch(e){}
 try{ new MutationObserver(()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']}); }catch(e){}
 
-if(Sync) Sync.onChange(()=>{ if(ui.tab==='settings' || !S()) render(); });
+if(Sync) Sync.onChange(()=>{
+  /* the first good sync of this visit: only now may this device write things it worked out itself (used scrolls) */
+  const st=Sync.status(); if(!syncedThisVisit && st.on && st.state==='idle' && st.last>=PAGE_T0){ syncedThisVisit=true; if(lastC) render(); return; }
+  if(ui.tab==='settings' || !S()) render(); });
 readHash();
 initStore();
 try{ if(sessionStorage.getItem('leaf-imported')){ sessionStorage.removeItem('leaf-imported'); setTimeout(()=>toast('Backup imported. Welcome back to the village.'), 1200); } }catch(e){}

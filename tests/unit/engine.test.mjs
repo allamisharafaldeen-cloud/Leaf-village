@@ -812,3 +812,11 @@ test('Hokage Book: one chapter per reached rank, written from the logs; the rest
   assert.ok(opened[opened.length - 1].open, 'the last reached chapter is still being written');
   assert.ok(B.chapters[E.RANKS.length - 1].sealed); assert.equal(B.finale, null);
 });
+
+test('a first weigh-in never rewrites the XP of weighted days before it', () => {
+  const V = village();
+  V.days['2026-11-06'] = {date:'2026-11-06', sets:[{ex:'dips', reps:11, kg:10, t:iso('2026-11-06', 17)}, {ex:'dips', reps:9, kg:10, t:iso('2026-11-06', 17, 10)}, {ex:'pullups', reps:10, t:iso('2026-11-06', 17, 20)}, {ex:'pullups', reps:9, t:iso('2026-11-06', 17, 30)}]};
+  const before = day(E.compute(V, at('2026-11-10', 9)), '2026-11-06').xp;
+  V.body = {'2026-11-09':{date:'2026-11-09', weight:80}};
+  assert.equal(day(E.compute(V, at('2026-11-10', 9)), '2026-11-06').xp, before);
+});
