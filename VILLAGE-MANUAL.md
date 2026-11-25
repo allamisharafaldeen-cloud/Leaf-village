@@ -57,4 +57,5 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - `index.html` is the whole app; `leaf-engine.js` is all the maths (also used by tests); `worker/src/engine.js` is the
   server copy of the maths — **any change to statuses, targets or XP must be made in both**.
 - `sw.js`: bump `VERSION` on every release or phones keep the old version.
-- Tests: `npm test` (unit + browser). Keep them green before pushing.
+- Tests: `npm test` (unit + browser + a short random-data check). `npm run test:fuzz` runs 200 random villages
+  through the app maths and the server maths and fails if they disagree. Keep them green before pushing.
