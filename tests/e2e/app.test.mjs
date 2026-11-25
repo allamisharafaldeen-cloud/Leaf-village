@@ -195,6 +195,30 @@ test('settings: the latest edit wins and reaches the other device (reminder swit
   noErrors();
 });
 
+test('a purchase on one device survives a later settings change on a device that had not seen it', async () => {
+  rig.worker.offline = true;
+  /* the iPad buys a bowl of ramen while the sync server is out of reach */
+  await A.setTime(T0 + min(95)); await A.tab('ninja');
+  await A.page.evaluate(() => document.querySelector('[data-act="item-ask"][data-id="ramen"]').click());
+  await A.page.evaluate(() => document.querySelector('[data-act="item-buy"][data-id="ramen"]').click());
+  await until(async () => (((await A.docs())['leaf/main'].shop || {}).buys || []).some(b => b.id === 'ramen'), 'the purchase to save on the iPad');
+  /* a little later the phone, which never saw it, marks the day as on call */
+  await B.setTime(T0 + min(100)); await B.tab('mission');
+  await B.page.evaluate(() => document.querySelector('[data-act="oncall-on"]').click());
+  await until(async () => ((await B.docs())['leaf/main'].oncall || []).includes('2026-11-15'), 'on call to save on the phone');
+  rig.worker.offline = false;
+  assert.equal(await A.sync(), true); assert.equal(await B.sync(), true); assert.equal(await A.sync(), true);
+  for(const [who, d] of [['iPad', (await A.docs())['leaf/main']], ['phone', (await B.docs())['leaf/main']], ['server', serverDocs()['leaf/main']]]){
+    assert.ok(((d.shop || {}).buys || []).some(b => b.id === 'ramen'), `${who}: the ramen is still bought`);
+    assert.deepEqual(d.oncall, ['2026-11-15'], `${who}: and the day is on call`);
+  }
+  assert.deepEqual((await A.docs())['leaf/main'], (await B.docs())['leaf/main'], 'both devices hold the same settings');
+  /* the phone's shop shows it as eaten today */
+  await B.tab('ninja');
+  assert.match(await B.page.locator('[data-item="ramen"]').textContent(), /Eaten today/);
+  noErrors();
+});
+
 test('importing a backup again with sync on keeps the logs made since', async () => {
   await A.tab('settings');
   await A.importBackup(FIXTURE);

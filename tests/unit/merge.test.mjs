@@ -94,3 +94,16 @@ test('same ignores the order fields were written in', () => {
   assert.ok(M.same({a:1, b:{c:2, d:[1, 2]}}, {b:{d:[1, 2], c:2}, a:1}));
   assert.ok(!M.same({a:[1, 2]}, {a:[2, 1]}));
 });
+
+test('settings: whichever copy wins keeps every purchase and every used scroll either copy holds', () => {
+  const ipad = {name:'Sharaf', notify:{weekly:false}, shop:{owned:{gon:{date:'2026-11-20', price:800}}, buys:[{id:'ramen', date:'2026-11-24', price:100}]}, scrolls:{used:{'workout|2026-11-30':'common'}}};
+  const phone = {name:'Sharaf', notify:{weekly:true}, shop:{owned:{gon:{date:'2026-11-20', price:800}, kirito:{date:'2026-11-25', price:1500}}, buys:[{id:'ramen', date:'2026-11-24', price:100}, {id:'title-copy', date:'2026-11-25', price:150}]}, scrolls:{used:{'study|2026-11-29':'rare'}}};
+  const w = M.keepAppendOnly('leaf/main', ipad, phone);
+  assert.equal(w.notify.weekly, false, 'everything else is the winner\'s');
+  assert.deepEqual(Object.keys(w.shop.owned).sort(), ['gon', 'kirito']);
+  assert.deepEqual(w.shop.buys.map(b => b.id), ['ramen', 'title-copy'], 'no purchase twice, none lost');
+  assert.deepEqual(w.scrolls.used, {'workout|2026-11-30':'common', 'study|2026-11-29':'rare'});
+  assert.equal(M.keepAppendOnly('leaf/main', phone, {name:'x'}), phone, 'nothing to add: the winner comes back untouched');
+  assert.equal(M.keepAppendOnly('leaf/prefs', ipad, phone), ipad, 'only the settings work this way');
+  assert.deepEqual(M.keepAppendOnly('leaf/main', w, phone), w, 'safe to repeat');
+});

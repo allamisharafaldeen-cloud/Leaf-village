@@ -120,6 +120,23 @@ test('settings and the like: the latest edit wins, whichever device syncs last',
   assert.equal(byPath(await sync(env, 0, [{path:weigh, data:{date:'2026-11-12', weight:72.9}, mtime:now - 50}]))[weigh].data.weight, 72.9);
 });
 
+test('settings: a newer edit from a device that missed a purchase does not wipe the purchase out', async () => {
+  const env = makeEnv(), now = Date.now();
+  const base = {name:'Sharaf', shop:{owned:{}, buys:[]}};
+  await sync(env, 0, [{path:'leaf/main', data:base, mtime:now - 60000}]);
+  /* the phone buys ramen */
+  await sync(env, 0, [{path:'leaf/main', data:{name:'Sharaf', shop:{owned:{}, buys:[{id:'ramen', date:'2026-11-25', price:100}]}}, mtime:now - 30000}]);
+  /* the iPad, still on the old copy, changes something later */
+  const r = await sync(env, 0, [{path:'leaf/main', data:{name:'Sharaf', oncall:['2026-11-25'], shop:{owned:{}, buys:[]}}, mtime:now - 1000}]);
+  const got = byPath(r)['leaf/main'].data;
+  assert.deepEqual(got.oncall, ['2026-11-25'], 'the later edit wins');
+  assert.deepEqual(got.shop.buys.map(b => b.id), ['ramen'], 'and the purchase is still there');
+  /* an older copy arriving late adds its used scroll to the newer stored one */
+  const late = await sync(env, 0, [{path:'leaf/main', data:{name:'Sharaf', scrolls:{used:{'workout|2026-11-24':'common'}}}, mtime:now - 90000}]);
+  const g2 = byPath(late)['leaf/main'].data;
+  assert.deepEqual(g2.oncall, ['2026-11-25']); assert.deepEqual(g2.scrolls.used, {'workout|2026-11-24':'common'}); assert.equal(g2.shop.buys.length, 1);
+});
+
 test('junk is ignored: unknown paths, wrong shapes, oversized documents', async () => {
   const env = makeEnv();
   const res = await sync(env, 0, [{path:'leaf/secrets', data:{a:1}}, {path:'../etc', data:{}}, {path:DAY, data:'not an object'}, {path:STUDY, data:[1, 2]},

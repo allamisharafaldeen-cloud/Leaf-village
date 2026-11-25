@@ -343,7 +343,7 @@ function compute(data, nowMs){
       else if(status === 'missed'){ streak = 0; xp = base - (plan.type === 'test' ? XP.missTest : XP.missGtg); missedCount++; W.missed++; }
       else xp = base;
       W.days++;
-      if(plan.type === 'test' && (status === 'done' || status === 'missed')){
+      if(plan.type === 'test' && (status === 'done' || status === 'missed' || status === 'scroll')){
         info.per.forEach(p => { if(!p.sets.length) return;
           const put = (kg, v) => { if(kg) wmax[p.ex][kg] = v; else { maxes[p.ex] = v; maxHist[p.ex].push({date:d, v}); } };
           put(p.kg, p.top); Object.keys(p.others).forEach(k => put(+k, p.others[k]));
@@ -374,7 +374,9 @@ function compute(data, nowMs){
       let rival = 0;
       if(dowOf(d) === 6 && d < today){ W.rival = raceResult(W, weeks[addDays(wk, -RIVAL.back)]); if(W.rival && W.rival.win){ rival = RIVAL.xp; xp += rival; total += rival; } }
       peak = Math.max(peak, rankFor(total));
-      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, rival, sxp:srec ? srec.xp : 0, slxp, gain:total - beforeTotal, total, peak, maxes:plan.type === 'test' ? Object.assign({}, maxes) : null});
+      /* the XP gained this day, before any missed-workout penalty: what Ryō are paid on */
+      const earn = Math.max(0, xp + (status === 'missed' ? (plan.type === 'test' ? XP.missTest : XP.missGtg) : 0)) + (srec ? Math.max(0, srec.xp) : 0) + Math.max(0, slxp);
+      days.push({date:d, plan, sets, status, xp, base, info, streak, bonus, rival, sxp:srec ? srec.xp : 0, slxp, gain:total - beforeTotal, earn, total, peak, maxes:plan.type === 'test' ? Object.assign({}, maxes) : null});
     }
   }
   const todayRec = days.length && days[days.length-1].date === today ? days[days.length-1] : null;
@@ -985,9 +987,10 @@ const buysOf = s => (isObj(s.shop) && Array.isArray(s.shop.buys)) ? s.shop.buys.
 function shop(C){
   if(C._shop) return C._shop;
   const s = C.settings || {}, bought = (isObj(s.shop) && isObj(s.shop.owned)) ? s.shop.owned : {}, buys = buysOf(s);
-  /* Ryō come only from XP gained: a missed day costs XP, never coins already earned. A bowl of ramen doubles a day. */
+  /* Ryō come only from XP gained: a missed workout costs XP, never Ryō, not even the Ryō from that day's study and
+     sleep. A bowl of ramen doubles a day. */
   const ramen = new Set(buys.filter(b => b.id === 'ramen').map(b => b.date));
-  const earned = Math.floor(C.days.reduce((m, d) => m + Math.max(0, d.gain || 0) * (ramen.has(d.date) ? 2 : 1), 0) / RYO_PER_XP);
+  const earned = Math.floor(C.days.reduce((m, d) => m + (d.earn != null ? d.earn : Math.max(0, d.gain || 0)) * (ramen.has(d.date) ? 2 : 1), 0) / RYO_PER_XP);
   let bounty = 0, spent = buys.reduce((m, b) => m + Math.round(b.price), 0);
   const owned = {};
   const forms = transforms(C).map(t => {
@@ -1103,7 +1106,7 @@ function hokageBook(C){
 }
 
 return {
-  QUESTS, sideQuests, onCallDay, LOAD, kgOf, e1rm, bwAt, suggestKg, strengthNow, monthBwTest,
+  QUESTS, sideQuests, onCallDay, LOAD, kgOf, meets, e1rm, bwAt, suggestKg, strengthNow, monthBwTest,
   hokageBook, SCROLL_FROM, scrollUsed, SCROLL, scrollBook, SHOP_ITEMS,
   TRANSFORMS, transforms, swapOf, RARITY, SHOP_FROM, RYO_PER_XP, shop,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,

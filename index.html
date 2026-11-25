@@ -323,6 +323,7 @@ body.has-bg .chal{background:var(--paper-glass)}
 .sc-cell.exam{background:var(--exam); border-color:var(--exam)}
 .sc-cell.exam b,.sc-cell.exam small{color:#fff}
 .sc-cell.shield{border-style:dashed; border-color:var(--study)}
+.sc-cell.covered{border-style:dashed; border-color:#c48d1e; background:color-mix(in srgb, #f3dc9b 45%, transparent)}
 .sc-cell.future,.sc-cell.before{opacity:.45}
 .sc-cell.today{outline:2px solid var(--chakra); outline-offset:1px}
 .lg-shield{border:1.5px dashed var(--study); background:transparent!important}
@@ -333,6 +334,7 @@ body.has-bg .chal{background:var(--paper-glass)}
 .yr-row i{display:block; aspect-ratio:1; border-radius:2px; background:var(--line); min-width:0}
 .yr-row i.done,.yr-row i.open,.yr-row i.shield{background:color-mix(in srgb, var(--study) calc(var(--f)*100%), var(--line))}
 .yr-row i.missed{background:var(--danger)}
+.yr-row i.covered{background:#e0b85a}
 .yr-row i.rest{background:var(--rest-soft)}
 .yr-row i.exam{background:var(--exam)}
 
@@ -464,6 +466,7 @@ body.has-bg .stage::after{background:linear-gradient(to top,var(--shade-mid) 0%,
 .dot.rest{background:var(--rest-soft); border-color:var(--rest); color:var(--rest)}
 .dot.open{border-color:var(--chakra)}
 .dot.future{border-style:dashed}
+.dot.covered{background:#f3dc9b; border-color:#c48d1e; color:#8a5a00}
 .wd small{font-family:var(--f-data); font-size:9.5px; letter-spacing:.05em}
 
 /* stats */
@@ -1138,6 +1141,8 @@ const shortDate = s => parse(s).toLocaleDateString('en-GB',{day:'numeric', month
 const timeOf = iso => { try{ const d=new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }catch(e){ return ''; } };
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
+/* a day's status as a CSS class; a day saved by a protection scroll is "covered" (the class "scroll" belongs to the Mission scroll cards) */
+const stCls = st => st==='scroll' ? 'covered' : st;
 const exColor = id => id==='pullups' ? 'var(--leaf)' : id==='dips' ? 'var(--chakra)' : 'var(--rest)';
 
 /* ---------- per-device preferences ---------- */
@@ -1515,6 +1520,8 @@ function kgPicker(C, ex){
   </div>`;
 }
 const kgTag = x => x && x.kg>0 ? ` <em class="kgtag">+${+x.kg} kg</em>` : '';
+/* does this logged set count as a groove set? (the engine's own rule, so a lighter set on a weighted day shows as under) */
+const setOk = (C, part, x) => E.meets(E.bwAt(C.body||[], C.today), x, part.kg||0, part.target);
 
 /* one-time swap: today trades its workout mission with tomorrow's, for this week only */
 const DAY_KIND = {rest:'rest day', test:'test day', gtg:'groove day', combo:'mixed day'};
@@ -1621,7 +1628,7 @@ function missionCard(C){
     const note = t.status==='done'
       ? (i.q>=i.goal ? `<span><b>All ${i.goal} sets done.</b> Extra sets still count.</span>` : `<span><b>Mission complete.</b> Set ${i.goal} earns +${XP.gtgFull} XP.</span>`)
       : `<span><b>${i.q} of ${i.need}</b> sets to complete</span>`;
-    const chips = i.exSets.map(x=>`<li class="${x.reps<i.target && !(x.kg>i.kg)?'under':''}"><b>${x.reps}</b> reps${kgTag(x)} <time>${timeOf(x.t)}</time></li>`).join('');
+    const chips = i.exSets.map(x=>`<li class="${setOk(C, i, x)?'':'under'}"><b>${x.reps}</b> reps${kgTag(x)} <time>${timeOf(x.t)}</time></li>`).join('');
     body = `
       <p class="mission-sub">Grease the groove: ${i.goal} mini-sets of <b>${i.target}</b> strict ${esc(exName(i.ex).toLowerCase())}${i.kg?` with <b>+${+i.kg} kg</b>`:''}, spread through the day. Never to failure. Finish ${i.need} to complete the mission.</p>
       <div class="chakra" aria-label="Chakra: ${i.q} of ${i.goal} sets">${segs}</div>
@@ -1635,7 +1642,7 @@ function missionCard(C){
       const key='combo-'+p.ex, nm=exName(p.ex), short=nm.toLowerCase().replace(/s$/,'');
       if(ui.reps[key]==null) ui.reps[key]=p.target;
       const segs = Array.from({length:p.need},(_,k)=>`<i class="${k<p.q?'on':''}"></i>`).join('');
-      const chips = p.exSets.map(x=>`<li class="${x.reps<p.target && !(x.kg>p.kg)?'under':''}"><b>${x.reps}</b> reps${kgTag(x)} <time>${timeOf(x.t)}</time></li>`).join('');
+      const chips = p.exSets.map(x=>`<li class="${setOk(C, p, x)?'':'under'}"><b>${x.reps}</b> reps${kgTag(x)} <time>${timeOf(x.t)}</time></li>`).join('');
       return `<div class="test-ex combo-ex">
         <header><b>${esc(nm)}</b><span class="muted num">${p.q>=p.need?'Done':`${p.q} of ${p.need} sets`} · ${p.target} reps${p.kg?` · +${+p.kg} kg`:''}</span></header>
         <div class="chakra" aria-label="${esc(nm)}: ${p.q} of ${p.need} sets">${segs}</div>
@@ -1723,7 +1730,7 @@ function weekStrip(C){
     const plan = d>=s.startDate ? planFor(s,d) : null;
     if(plan) lab = plan.type==='rest' ? 'REST' : plan.type==='test' ? 'TEST' : plan.type==='combo' ? (plan.exs||[]).map(id=>String(exName(id)).slice(0,1).toUpperCase()).join('+') : (exName(plan.ex).slice(0,4).toUpperCase());
     if(d<s.startDate){ cls='future'; lab='—'; }
-    else if(rec){ cls=rec.status; inner = rec.status==='done'?ico.check : rec.status==='missed'?ico.x : rec.status==='rest'?ico.rest : rec.status==='scroll'?ico.shield : ''; }
+    else if(rec){ cls=stCls(rec.status); inner = rec.status==='done'?ico.check : rec.status==='missed'?ico.x : rec.status==='rest'?ico.rest : rec.status==='scroll'?ico.shield : ''; }
     return `<div class="wd${d===C.today?' is-today':''}"><span>${DOW[k].slice(0,3)}</span><b>${parse(d).getDate()}</b><span class="dot ${cls}">${inner}</span><small>${lab}</small></div>`;
   }).join('');
   return `<section class="card"><div class="section-head"><h2>This week</h2><span class="eyebrow">${esc(shortDate(ws))} – ${esc(shortDate(addDays(ws,6)))}</span></div><div class="week">${cells}</div></section>`;
@@ -2032,7 +2039,7 @@ function studyMonth(C, ym){
     const d=`${y}-${pad(m)}-${pad(k)}`, rec=C.study.days[d], tgt=studyTarget(d);
     let cls='future', label='', extra='';
     if(rec){
-      cls=rec.status; label = rec.mins ? (Math.round(rec.mins/6)/10).toString().replace(/\.0$/,'')+'h' : '';
+      cls=stCls(rec.status); label = rec.mins ? (Math.round(rec.mins/6)/10).toString().replace(/\.0$/,'')+'h' : '';
       if(rec.status==='shield' || rec.status==='scroll') extra=ico.shield; else if(rec.broke) extra='<em>×</em>';
     } else if(d<=C.today) cls='before';
     if(!rec && d>C.today && isExam(d)) cls='exam future';
@@ -2047,7 +2054,7 @@ function studyYear(C){
   const rows=Array.from({length:12},(_,mi)=>{
     const n=new Date(y,mi+1,0).getDate();
     const cells=Array.from({length:n},(_,k)=>{ const d=`${y}-${pad(mi+1)}-${pad(k+1)}`, rec=C.study.days[d]; const f=rec?clamp(rec.mins/(rec.tgt?rec.tgt.full:360),0,1):0;
-      return `<i class="${rec?rec.status:'none'}" style="--f:${f.toFixed(2)}" title="${esc(shortDate(d))}${rec?': '+fmtH(rec.mins):''}"></i>`; }).join('');
+      return `<i class="${rec?stCls(rec.status):'none'}" style="--f:${f.toFixed(2)}" title="${esc(shortDate(d))}${rec?': '+fmtH(rec.mins):''}"></i>`; }).join('');
     return `<div class="yr-row"><span>${new Date(y,mi,1).toLocaleDateString('en-GB',{month:'short'})}</span><div>${cells}</div></div>`;
   }).join('');
   return `<div class="yr">${rows}</div>`;
@@ -2718,11 +2725,12 @@ function skillNews(C){
 }
 /* write the scrolls the inventory says were used, so the server and other devices see the same protected days */
 let scrollWriteKey='';
-const PAGE_T0=Date.now(); let syncedThisVisit=false;
+/* with sync on, this device writes what it worked out itself (used scrolls) only straight after a good sync, so it
+   never writes from a stale copy, e.g. an iPad coming back from the background on a new day */
+const freshSync = () => { if(!(Sync && Sync.hasKey && Sync.hasKey())) return true; const st=Sync.status(); return st.state==='idle' && !!st.last && Date.now()-st.last < 60000; };
 function writeScrollMarks(C){
   if(state.readOnly || !settled() || !S()) return;
-  /* with sync on, wait for this visit's first sync: a device still holding old settings must not write them back over newer ones */
-  if(Sync && Sync.hasKey && Sync.hasKey() && !syncedThisVisit) return;
+  if(!freshSync()) return;
   const B=E.scrollBook(C); if(!B.pending.length) return;
   const key=B.pending.map(p=>p.key+p.type).join(','); if(key===scrollWriteKey) return; scrollWriteKey=key;
   const s=clone(S()), used=Object.assign({}, s.scrolls && s.scrolls.used);
@@ -4706,8 +4714,8 @@ try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
 try{ new MutationObserver(()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']}); }catch(e){}
 
 if(Sync) Sync.onChange(()=>{
-  /* the first good sync of this visit: only now may this device write things it worked out itself (used scrolls) */
-  const st=Sync.status(); if(!syncedThisVisit && st.on && st.state==='idle' && st.last>=PAGE_T0){ syncedThisVisit=true; if(lastC) render(); return; }
+  /* a sync just finished: if a used scroll is waiting to be written, this is the moment (see freshSync) */
+  if(lastC && freshSync() && !state.readOnly){ try{ if(E.scrollBook(lastC).pending.length){ render(); return; } }catch(e){} }
   if(ui.tab==='settings' || !S()) render(); });
 readHash();
 initStore();

@@ -15,7 +15,7 @@ import { snapshotFromDocs, dateAt, addDays, checkpointTarget, historyKey, advanc
 import { decide, slotAt, eveningSlotAt, TITLES, NOTIFY_DEFAULT } from './reminders.js';
 import { generateVapid, sendPush, validEndpoint } from './webpush.js';
 
-const { kindOf, mergeEntries, unionKeys, same } = LeafMerge;
+const { kindOf, mergeEntries, unionKeys, same, keepAppendOnly } = LeafMerge;
 const CHECKPOINT_STEP_DAYS = 120;
 const MAX_PUSH_DOCS = 24, PAGE = 300, MAX_DOC_BYTES = 400000, MAX_BODY_BYTES = 1500000, MAX_REMOVED = 500;
 const enc = new TextEncoder();
@@ -91,8 +91,16 @@ async function writeDocs(env, incoming, now){
       const ex = have[d.path], kind = kindOf(d.path), old = ex ? parseObj(ex.data) : null;
       if(kind === 'lww'){
         const mtime = Math.min(d.mtime, now);
-        if(ex && (ex.mtime > mtime || same(old, d.data))) return;           // the stored edit is newer, or nothing changed
-        write.push({path:d.path, data:JSON.stringify(d.data), removed:'[]', mtime, base:ex ? ex.seq : 0});
+        if(ex && same(old, d.data)) return;                                   // nothing changed
+        if(ex && ex.mtime > mtime){
+          /* the stored edit is newer and stays; it only takes in purchases or used scrolls the older copy holds */
+          const kept = keepAppendOnly(d.path, old, d.data);
+          if(kept === old) return;
+          write.push({path:d.path, data:JSON.stringify(kept), removed:'[]', mtime:ex.mtime, base:ex.seq});
+          return;
+        }
+        const data = old ? keepAppendOnly(d.path, d.data, old) : d.data;
+        write.push({path:d.path, data:JSON.stringify(data), removed:'[]', mtime, base:ex ? ex.seq : 0});
       } else {
         const oldRemoved = ex ? parseArr(ex.removed) : [];
         const removed = unionKeys(oldRemoved, d.removed).slice(-MAX_REMOVED);

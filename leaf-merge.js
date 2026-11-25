@@ -5,7 +5,10 @@
      (a tombstone) so the other copy drops that same entry too.
    - shield and offday: true wins.
    - Everything else (settings, prefs, media, timer, weigh-ins, sleep nights): the latest edit wins.
-     A sleep night can only be entered or changed on the morning it belongs to, so there is nothing to join. */
+     A sleep night can only be entered or changed on the morning it belongs to, so there is nothing to join.
+   - Except inside the settings: purchases (shop.owned, shop.buys) and used protection scrolls (scrolls.used) are
+     only ever added, never taken back, so whichever copy wins keeps every one either copy holds. A device that was
+     away for a day can then never wipe out what the other device bought or used meanwhile. */
 (function(root, factory){
   if(typeof module === 'object' && module.exports) module.exports = factory();
   else root.LeafMerge = factory();
@@ -103,6 +106,28 @@ function unionKeys(a, b){
   return out;
 }
 
+/* the winning copy of the settings, with every purchase and used scroll the losing copy has (see the top) */
+function keepAppendOnly(path, win, lose){
+  if(path !== 'leaf/main' || !isObj(win) || !isObj(lose)) return win;
+  const ws = isObj(win.shop) ? win.shop : {}, ls = isObj(lose.shop) ? lose.shop : {};
+  const wOwned = isObj(ws.owned) ? ws.owned : {}, lOwned = isObj(ls.owned) ? ls.owned : {};
+  const wBuys = Array.isArray(ws.buys) ? ws.buys : [], lBuys = Array.isArray(ls.buys) ? ls.buys : [];
+  const wUsed = isObj(win.scrolls) && isObj(win.scrolls.used) ? win.scrolls.used : {}, lUsed = isObj(lose.scrolls) && isObj(lose.scrolls.used) ? lose.scrolls.used : {};
+  const bKey = b => JSON.stringify(isObj(b) ? [b.id, b.date, b.price] : b), have = new Set(wBuys.map(bKey));
+  const addBuys = lBuys.filter(b => isObj(b) && !have.has(bKey(b)));
+  const addOwned = Object.keys(lOwned).filter(k => !(k in wOwned));
+  const addUsed = Object.keys(lUsed).filter(k => !(k in wUsed));
+  if(!addBuys.length && !addOwned.length && !addUsed.length) return win;
+  const out = Object.assign({}, win);
+  if(addBuys.length || addOwned.length){
+    out.shop = Object.assign({}, ws);
+    if(addOwned.length) out.shop.owned = Object.assign({}, lOwned, wOwned);
+    if(addBuys.length) out.shop.buys = wBuys.concat(addBuys).sort((a, b) => (isObj(a) && isObj(b) && a.date !== b.date) ? (a.date < b.date ? -1 : 1) : 0);
+  }
+  if(addUsed.length) out.scrolls = Object.assign({}, isObj(win.scrolls) ? win.scrolls : {}, {used:Object.assign({}, lUsed, wUsed)});
+  return out;
+}
+
 /* same content, whatever order the fields were written in */
 function canon(v){
   if(Array.isArray(v)) return v.map(canon);
@@ -117,5 +142,5 @@ function covers(path, doc, other){
   return same(mergeEntries(path, doc, other, []), mergeEntries(path, doc, {}, []));
 }
 
-return { kindOf, isEntries, mergeEntries, removedKeys, entryKeys, unionKeys, same, covers, setKey, studyKey, canon };
+return { kindOf, isEntries, mergeEntries, removedKeys, entryKeys, unionKeys, same, covers, setKey, studyKey, canon, keepAppendOnly };
 });

@@ -652,7 +652,8 @@ test('shop: Ryō from XP, forms earned before the shop stay owned, later mission
   sets(V, '2026-11-07', 'dips', 25, 4);
   let C = E.compute(V, at('2026-11-24', 9));
   let S = E.shop(C);
-  assert.equal(S.earned, Math.floor(C.days.reduce((m, d) => m + Math.max(0, d.gain), 0) / E.RYO_PER_XP), 'every 5 XP gained is 1 Ryō, back-paid; missed days never take coins back');
+  assert.equal(S.earned, Math.floor(C.days.reduce((m, d) => m + d.earn, 0) / E.RYO_PER_XP), 'every 5 XP gained is 1 Ryō, back-paid; missed days never take coins back');
+  C.days.forEach(d => assert.ok(d.earn >= Math.max(0, d.gain), d.date));
   assert.ok(S.earned > Math.floor(C.total / E.RYO_PER_XP), 'the missed days after the clean week cost XP, not Ryō');
   const gon = S.forms.find(f => f.id === 'gon');
   assert.equal(gon.own.how, 'mission', 'Gon was earned before the shop opened, so he stays owned');
@@ -813,6 +814,24 @@ test('Hokage Book: one chapter per reached rank, written from the logs; the rest
   assert.ok(B.chapters[E.RANKS.length - 1].sealed); assert.equal(B.finale, null);
 });
 
+test('Ryō: a missed workout never takes away the Ryō from that day\'s study', () => {
+  const V = village(); V.settings.studyStart = START;
+  study(V, '2026-11-02', 300);
+  const C = E.compute(V, at('2026-11-03', 9)), d = day(C, '2026-11-02');
+  assert.equal(d.status, 'missed'); assert.ok(d.sxp > 0);
+  assert.equal(d.earn, d.sxp, 'the study XP is paid in full');
+  assert.ok(d.gain < d.sxp, 'while the XP total does feel the missed workout');
+});
+test('a half-done test day saved by a scroll still records the max that was tested', () => {
+  const V = village();
+  V.days['2026-12-04'] = {date:'2026-12-04', sets:[{ex:'dips', reps:24, t:iso('2026-12-04', 17)}, {ex:'dips', reps:20, t:iso('2026-12-04', 17, 10)}]};
+  let C = E.compute(V, at('2026-12-05', 9));
+  assert.equal(day(C, '2026-12-04').status, 'missed'); assert.equal(C.maxes.dips, 24);
+  V.settings.scrolls = {used:{'workout|2026-12-04':'common'}};
+  C = E.compute(V, at('2026-12-05', 9));
+  assert.equal(day(C, '2026-12-04').status, 'scroll'); assert.equal(C.maxes.dips, 24, 'the scroll protects the streak, the test still counts');
+  assert.deepEqual(C.days.map(x => [x.date, x.status, x.xp]), computeAll(V, at('2026-12-05', 9)).days.map(x => [x.date, x.status, x.xp]));
+});
 test('a first weigh-in never rewrites the XP of weighted days before it', () => {
   const V = village();
   V.days['2026-11-06'] = {date:'2026-11-06', sets:[{ex:'dips', reps:11, kg:10, t:iso('2026-11-06', 17)}, {ex:'dips', reps:9, kg:10, t:iso('2026-11-06', 17, 10)}, {ex:'pullups', reps:10, t:iso('2026-11-06', 17, 20)}, {ex:'pullups', reps:9, t:iso('2026-11-06', 17, 30)}]};

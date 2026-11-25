@@ -297,7 +297,7 @@ export function computeAll(data, nowMs, opts){
       else if(status === 'missed'){ streak = 0; xp = base - (plan.type === 'test' ? XP.missTest : XP.missGtg); missedCount++; W.missed++; }
       else xp = base;
       W.days++;
-      if(plan.type === 'test' && (status === 'done' || status === 'missed')){
+      if(plan.type === 'test' && (status === 'done' || status === 'missed' || status === 'scroll')){
         info.per.forEach(p => { if(!p.sets.length) return;
           const put = (kg, v) => { if(kg) wmax[p.ex][kg] = v; else maxes[p.ex] = v; };
           put(p.kg, p.top); Object.keys(p.others).forEach(k => put(+k, p.others[k]));

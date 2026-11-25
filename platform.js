@@ -290,7 +290,16 @@ function applyRemote(list, first, pushed){
         else if(pushed && pushed[path] !== undefined && pushed[path] === (ver[path] || 0)) keep = false; // the server has judged the copy we sent
         else if(first) keep = localWins;
         else keep = mine + sm.skew > (d.mtime || 0);                                                 // our edit is the later one
-        if(keep){ if(first) sm.dirty[path] = Date.now(); return; }
+        if(keep){
+          if(first) sm.dirty[path] = Date.now();
+          /* our copy stays, and takes in any purchase or used scroll only theirs holds (leaf-merge.js) */
+          const kept = M.keepAppendOnly ? M.keepAppendOnly(path, local, d.data) : local;
+          if(kept !== local) writes.push([path, kept]);
+          return;
+        }
+        /* theirs wins, and keeps any purchase or used scroll only ours holds; then ours must still go up */
+        const took = (M.keepAppendOnly && local !== undefined) ? M.keepAppendOnly(path, d.data, local) : d.data;
+        if(took !== d.data){ sm.dirty[path] = Date.now(); writes.push([path, took]); return; }
         delete sm.dirty[path];
         if(local === undefined || !M.same(local, d.data)) writes.push([path, d.data]);
       }
