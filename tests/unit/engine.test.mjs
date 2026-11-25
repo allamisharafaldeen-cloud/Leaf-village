@@ -776,6 +776,27 @@ test('weighted sets: maxes per weight, the working weight follows the test, targ
   assert.equal((cl.data || cl.backup || cl).days['2026-12-11'].sets.length, 3);
 });
 
+/* ---------- on call and side quests ---------- */
+test('on call: a missed day marked on call costs nothing and keeps the streak; the server agrees', () => {
+  const V = village(); scrollWeek(V);
+  let C = E.compute(V, at('2026-12-02', 9));
+  assert.equal(day(C, '2026-12-01').status, 'missed');
+  V.settings.oncall = ['2026-12-01'];
+  C = E.compute(V, at('2026-12-02', 9));
+  const d = day(C, '2026-12-01');
+  assert.equal(d.status, 'exam'); assert.equal(d.streak, day(C, '2026-11-30').streak);
+  assert.deepEqual(C.days.map(x => [x.date, x.status, x.xp]), computeAll(V, at('2026-12-02', 9)).days.map(x => [x.date, x.status, x.xp]));
+});
+test('side quests: three a week, the same every time, paid in Ryō when done', () => {
+  const V = village(); scrollWeek(V);
+  const C = E.compute(V, at('2026-11-30', 22)), Q = E.sideQuests(C);
+  assert.ok(Q.weeks.length >= 2); Q.weeks.forEach(w => assert.equal(new Set(w.quests.map(q => q.id)).size, 3));
+  assert.deepEqual(E.sideQuests(E.compute(V, at('2026-11-30', 22))).weeks.map(w => w.quests.map(q => q.id)), Q.weeks.map(w => w.quests.map(q => q.id)));
+  const paid = Q.weeks.reduce((m, w) => m + w.quests.filter(q => q.done).reduce((a, q) => a + q.ryo, 0), 0);
+  assert.equal(Q.ryo, paid); assert.equal(E.shop(C).quests, paid);
+  assert.equal(E.shop(C).balance, E.shop(C).earned + E.shop(C).bounty + paid - E.shop(C).spent);
+});
+
 /* ---------- Hokage Book ---------- */
 test('Hokage Book: one chapter per reached rank, written from the logs; the rest sealed; no finale before Hokage', () => {
   const V = cleanWeek();

@@ -81,7 +81,10 @@ export const exName = (s, id) => { const e = ((s && s.exercises) || {})[id]; ret
 const studyPlanOf = e => { const st = (e && e.study) || {}; return {week:Object.assign({}, STUDY_DEFAULT.week, st.week), end:Object.assign({}, STUDY_DEFAULT.end, st.end)}; };
 export const studyTarget = (s, d) => { const w = dow(d); if(w === 4) return null; const sp = studyPlanOf(entryFor(s || {}, d)); const t = (w === 5 || w === 6) ? sp.end : sp.week; return {min:t.min, full:t.full}; };
 export const examFor = (s, d) => ((s || {}).examWeeks || []).find(e => e && e.start <= d && d <= e.end) || null;
-export const isExam = (s, d) => !!examFor(s, d);
+/* an on-call day (marked on the day itself, at most 2 a week) counts like an exam day: what you manage still earns,
+   nothing missed costs XP or breaks a streak */
+export const onCallDay = (s, d) => !!(s && Array.isArray(s.oncall) && s.oncall.includes(d));
+export const isExam = (s, d) => !!examFor(s, d) || onCallDay(s, d);
 
 function splitByDay(a, b){
   const out = []; let st = a;
@@ -353,7 +356,7 @@ export function snapshotFromDocs(map){
 export function checkpointTarget(today, back){ const d = addDays(today, -(back || 15)); return addDays(d, -((dow(d) + 1) % 7)); }
 /* a fingerprint of the settings that shape history; if it changes, old checkpoints no longer apply */
 export function historyKey(s){
-  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null, s.scrolls || null]);
+  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null, s.scrolls || null, s.oncall || null]);
   let h = 2166136261; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${t.length}.${h >>> 0}`;
 }

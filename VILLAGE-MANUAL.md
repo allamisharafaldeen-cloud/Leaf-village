@@ -21,6 +21,9 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - **Skill tree** (Ninja): moves unlock by bodyweight max (Pull by pull-ups, Push by dips). Unlocking is a badge; a move
   only joins training after its baseline test and if you add it to a day in the Plan tab.
 - **One-time swap**: trade today's mission with tomorrow's, this week only.
+- **On call** (Mission tab, 2 a week, today only): the day counts like an exam day: what you do still earns, nothing
+  missed costs XP or breaks a streak, and no scroll is used.
+- **Side quests** (Ninja tab): 3 optional challenges a week, picked by the week. Done = Ryō, missed = nothing.
 
 ## XP, ranks, streaks
 - XP from sets, completed missions, tests, new maxes, rest days, study hours, good nights, weekly sensei challenges and

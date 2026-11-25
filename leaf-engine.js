@@ -110,7 +110,10 @@ const studyPlanOf = e => { const st = (e && isObj(e.study)) ? e.study : {}; retu
 const studyTarget = (s, d) => { const w = dowOf(d); if(w === 4) return null; const sp = studyPlanOf(entryFor(s || {}, d)); const t = (w === 5 || w === 6) ? sp.end : sp.week; return {min:t.min, full:t.full}; };
 const examList = s => (s && Array.isArray(s.examWeeks)) ? s.examWeeks : [];
 const examFor = (s, d) => examList(s).find(e => e && e.start <= d && d <= e.end) || null;
-const isExam = (s, d) => !!examFor(s, d);
+/* an on-call day (marked on the day itself, at most 2 a week) counts like an exam day: what you manage still earns,
+   nothing missed costs XP or breaks a streak */
+const onCallDay = (s, d) => !!(s && Array.isArray(s.oncall) && s.oncall.includes(d));
+const isExam = (s, d) => !!examFor(s, d) || onCallDay(s, d);
 
 /* split a time span into per-day pieces (local midnight boundaries) */
 function splitByDay(a, b){
@@ -401,6 +404,46 @@ function suggestKg(C, ex){
   const st = LOAD_START[ex];
   return st && (C.maxes[ex] || 0) >= st.at ? st.kg : 0;
 }
+/* ---------- side quests: three small optional challenges a week, paid in Ryō ---------- */
+const QUESTS = [
+  {id:'morning', name:'Morning ninja', text:'Log 3 sets before noon on 2 days', goal:2, ryo:100},
+  {id:'bed', name:'Early to bed', text:'4 good nights', goal:4, ryo:120},
+  {id:'weekend', name:'Weekend scholar', text:'Study 2 hours on a Friday or Saturday', goal:120, ryo:120},
+  {id:'row', name:'Three in a row', text:'Complete 3 workout days in a row', goal:3, ryo:100},
+  {id:'books', name:'Five days of books', text:'Meet your study target on 5 days', goal:5, ryo:150},
+  {id:'extra', name:'The extra mile', text:'Log every planned groove set (not just the minimum) on 2 days', goal:2, ryo:100},
+  {id:'scale', name:'Check the scale', text:'Log a weigh-in', goal:1, ryo:60},
+  {id:'record', name:'Break a record', text:'Set a new max, at any weight', goal:1, ryo:150}
+];
+const QUEST_FROM = '2026-11-22';
+function questWeek(C, start){
+  let h = 0; for(const ch of start) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const pool = QUESTS.slice(), pick = [];
+  while(pick.length < 3){ h = (h * 1103515245 + 12345) >>> 0; pick.push(pool.splice(h % pool.length, 1)[0]); }
+  const dates = []; for(let i = 0; i < 7; i++){ const d = addDays(start, i); if(d <= C.today) dates.push(d); }
+  const wd = {}; C.days.forEach(d => { wd[d.date] = d; });
+  const prog = q => {
+    if(q.id === 'morning') return dates.filter(d => wd[d] && (wd[d].sets || []).filter(x => new Date(x.t).getHours() < 12).length >= 3).length;
+    if(q.id === 'bed') return dates.filter(d => C.sleep && C.sleep.days[d] && C.sleep.days[d].status === 'good').length;
+    if(q.id === 'weekend') return dates.filter(d => dowOf(d) === 5 || dowOf(d) === 6).reduce((m, d) => Math.max(m, (C.study.days[d] || {}).mins || 0), 0);
+    if(q.id === 'row'){ let run = 0, best = 0; dates.forEach(d => { const r = wd[d]; if(r && r.status === 'done' && r.plan.type !== 'rest'){ run++; best = Math.max(best, run); } else if(!(r && (r.status === 'rest' || r.status === 'open'))) run = 0; }); return best; }
+    if(q.id === 'books') return dates.filter(d => C.study.days[d] && C.study.days[d].status === 'done').length;
+    if(q.id === 'extra') return dates.filter(d => { const r = wd[d]; return r && r.info && r.plan.type === 'gtg' && r.info.goal && r.info.logged >= r.info.goal; }).length;
+    if(q.id === 'scale') return dates.filter(d => (C.body || []).some(b => b.date === d)).length;
+    if(q.id === 'record') return C.prs.filter(p => dates.includes(p.date)).length;
+    return 0;
+  };
+  return {start, quests:pick.map(q => { const n = prog(q); return Object.assign({}, q, {n:Math.min(n, q.goal), done:n >= q.goal}); })};
+}
+function sideQuests(C){
+  if(C._quests) return C._quests;
+  const weeks = []; let ryo = 0;
+  for(let w = weekStart(QUEST_FROM), g = 0; w <= C.today && g < 600; w = addDays(w, 7), g++){ const q = questWeek(C, w); weeks.push(q); q.quests.forEach(x => { if(x.done) ryo += x.ryo; }); }
+  const out = {weeks, ryo, now:weeks[weeks.length - 1] || null};
+  Object.defineProperty(C, '_quests', {value:out, enumerable:false});
+  return out;
+}
+
 /* the latest strength score of each exercise and its history */
 const strengthNow = (C, ex) => { const h = (C.strength || {})[ex] || []; return h.length ? h[h.length - 1] : null; };
 
@@ -488,6 +531,10 @@ function cleanBackup(d, nowMs){
     const u = (isObj(s.scrolls) && isObj(s.scrolls.used)) ? s.scrolls.used : null, keep = {};
     if(u) Object.keys(u).forEach(k => { const m = /^(workout|study|sleep)\|(\d{4}-\d{2}-\d{2})$/.exec(k); if(m && isDate(m[2]) && ['common','rare','forbidden'].includes(u[k])) keep[k] = u[k]; });
     if(!u || Object.keys(keep).length !== Object.keys(u).length){ s.scrolls = {used:keep}; fixed++; }
+  }
+  if(s.oncall !== undefined){
+    const oc = Array.isArray(s.oncall) ? [...new Set(s.oncall.filter(isDate))].sort() : [];
+    if(!Array.isArray(s.oncall) || oc.length !== s.oncall.length){ s.oncall = oc; fixed++; }
   }
   if(s.swaps !== undefined){
     const sw = swapList(s);
@@ -956,7 +1003,8 @@ function shop(C){
   const has = {}; buys.forEach(b => { if(ITEM_OF[b.id].kind !== 'treat' && ITEM_OF[b.id].kind !== 'scroll') has[b.id] = b.date; });
   const items = SHOP_ITEMS.map(it => Object.assign({}, it, {rar:RARITY[it.rarity], owned:has[it.id] || null}));
   const ramenToday = ramen.has(C.today), forbiddenMonth = buys.some(b => b.id === 'forbidden' && monthOf(b.date) === monthOf(C.today));
-  const out = {earned, bounty, spent, balance:earned + bounty - spent, forms, owned, pick, items, buys, ramenToday, forbiddenMonth};
+  const quests = sideQuests(C).ryo;
+  const out = {earned, bounty, quests, spent, balance:earned + bounty + quests - spent, forms, owned, pick, items, buys, ramenToday, forbiddenMonth};
   Object.defineProperty(C, '_shop', {value:out, enumerable:false});
   return out;
 }
@@ -1054,7 +1102,7 @@ function hokageBook(C){
 }
 
 return {
-  LOAD, kgOf, e1rm, bwAt, suggestKg, strengthNow, monthBwTest,
+  QUESTS, sideQuests, onCallDay, LOAD, kgOf, e1rm, bwAt, suggestKg, strengthNow, monthBwTest,
   hokageBook, SCROLL_FROM, scrollUsed, SCROLL, scrollBook, SHOP_ITEMS,
   TRANSFORMS, transforms, swapOf, RARITY, SHOP_FROM, RYO_PER_XP, shop,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,
