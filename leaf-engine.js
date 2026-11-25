@@ -791,22 +791,31 @@ function rival(C){
 /* ---------- jutsu: harder variations that become available at a rank ----------
    Reaching the rank only unlocks one. It becomes an exercise when its own baseline is tested and saved,
    and it joins the plan only when it is picked for a day in the Plan tab. */
+/* ---------- the skill tree: harder moves unlock as your bodyweight max grows ----------
+   Two branches. A move unlocks when your best bodyweight max of its branch reaches the number. Unlocking gives the
+   badge; a move enters your training only after its own baseline test and only if you add it to a day in the Plan
+   tab. The two weighted moves need no baseline: you learn them by putting weight on with the weight picker. */
 const JUTSU = [
-  {id:'chest-to-bar-pullups', name:'Chest-to-bar pull-ups', of:'pullups', rank:'genin',         how:'Pull until the bar touches your chest. Same strict form, a longer path.'},
-  {id:'archer-pullups',       name:'Archer pull-ups',       of:'pullups', rank:'chunin',        how:'One arm pulls while the other stays long on the bar. Alternate sides.'},
-  {id:'lsit-pullups',         name:'L-sit pull-ups',        of:'pullups', rank:'special-jonin', how:'Legs held straight out in front for the whole set.'},
-  {id:'weighted-dips',        name:'Weighted dips',         of:'dips',    rank:'jonin',         how:'Dips with added weight on a belt or in a backpack. Keep the same depth.'},
-  {id:'ring-dips',            name:'Ring dips',             of:'dips',    rank:'anbu',          how:'Dips on rings. The rings move, so every rep has to be controlled.'},
-  {id:'weighted-pullups',     name:'Weighted pull-ups',     of:'pullups', rank:'akatsuki',      how:'Pull-ups with added weight, from a dead hang to chin over the bar.'},
-  {id:'typewriter-pullups',   name:'Typewriter pull-ups',   of:'pullups', rank:'sannin',        how:'Pull up, then travel from hand to hand with your chin above the bar.'},
-  {id:'korean-dips',          name:'Korean dips',           of:'dips',    rank:'sage',          how:'Dips with the bar behind your back. Go only as deep as your shoulders allow.'},
-  {id:'muscle-ups',           name:'Muscle-ups',            of:'pullups', rank:'susanoo',       how:'From a dead hang to straight arms above the bar in one movement.'},
-  {id:'one-arm-negatives',    name:'One-arm negatives',     of:'pullups', rank:'kage',          how:'Lower yourself slowly on one arm. Each slow descent is one rep.'}
+  {id:'chest-to-bar-pullups', branch:'pull', of:'pullups', need:10, glyph:'突', nick:'Dynamic Entry',   name:'Chest-to-bar pull-ups', how:'Pull until the bar touches your chest. Same strict form, a longer path.'},
+  {id:'archer-pullups',       branch:'pull', of:'pullups', need:12, glyph:'写', nick:'Sharingan Copy',  name:'Archer pull-ups',       how:'One arm pulls while the other stays long on the bar. Alternate sides.'},
+  {id:'weighted-pullups',     branch:'pull', of:'pullups', need:14, glyph:'重', nick:"Lee's Weights",   name:'Weighted pull-ups',     how:'Pull-ups with a backpack or a dip belt. Set the weight with the picker above the reps.', load:true},
+  {id:'muscle-ups',           branch:'pull', of:'pullups', need:16, glyph:'雷', nick:'Chidori',         name:'Muscle-ups',            how:'From a dead hang to straight arms above the bar in one explosive movement.'},
+  {id:'lsit-pullups',         branch:'pull', of:'pullups', need:18, glyph:'影', nick:'Shadow Possession', name:'L-sit pull-ups',      how:'Legs held straight out in front for the whole set.'},
+  {id:'typewriter-pullups',   branch:'pull', of:'pullups', need:20, glyph:'渦', nick:'Whirlpool',       name:'Typewriter pull-ups',   how:'Pull up, then travel from hand to hand with your chin above the bar.'},
+  {id:'one-arm-negatives',    branch:'pull', of:'pullups', need:25, glyph:'門', nick:'Eight Gates',     name:'One-arm negatives',     how:'Lower yourself slowly on one arm. Each slow descent is one rep.'},
+  {id:'weighted-dips',        branch:'push', of:'dips',    need:25, glyph:'岩', nick:'Boulder Body',    name:'Weighted dips',         how:'Dips with a backpack or a dip belt. Set the weight with the picker above the reps.', load:true},
+  {id:'pike-pushups',         branch:'push', of:'dips',    need:30, glyph:'龍', nick:'Rising Dragon',   name:'Pike push-ups',         how:'Hips high, hands on the floor, lower the top of your head between your hands and press back up.'},
+  {id:'wall-hspu',            branch:'push', of:'dips',    need:35, glyph:'螺', nick:'Rasengan',        name:'Wall handstand push-ups', how:'Kick up to a handstand against the wall, lower your head to the floor with control, press back up.'},
+  {id:'ring-dips',            branch:'push', of:'dips',    need:40, glyph:'輪', nick:'Water Prison',    name:'Ring dips',             how:'Dips on rings. The rings move, so every rep has to be controlled.'},
+  {id:'korean-dips',          branch:'push', of:'dips',    need:45, glyph:'逆', nick:'Reverse Summoning', name:'Korean dips',         how:'Dips with the bar behind your back. Go only as deep as your shoulders allow.'}
 ];
 function jutsu(C){
   const ex = isObj(C.settings.exercises) ? C.settings.exercises : {}, base = C.settings.baseline || {};
-  return JUTSU.map(j => { const at = RANKS.findIndex(r => r.id === j.rank), learned = !!ex[j.id];
-    return Object.assign({}, j, {at, rankName:RANKS[at].name, unlocked:C.peak >= at, learned, baseline:learned && base[j.id] ? base[j.id] : null, max:learned ? C.maxes[j.id] : null}); });
+  /* the day a bodyweight max first reached each number */
+  const reached = (of, n) => { const b = base[of]; if(b && b.max >= n) return b.date || C.settings.startDate; const p = C.prs.find(r => r.ex === of && !r.kg && r.v >= n); return p ? p.date : null; };
+  return JUTSU.map(j => { const best = C.best[j.of] || 0, unlocked = best >= j.need;
+    const learned = j.load ? !!((C.load && C.load[j.of] > 0) || (C.wbest && Object.keys(C.wbest[j.of] || {}).length)) : !!ex[j.id];
+    return Object.assign({}, j, {best, unlocked, date:unlocked ? reached(j.of, j.need) : null, learned, baseline:!j.load && learned && base[j.id] ? base[j.id] : null, max:!j.load && learned ? C.maxes[j.id] : null}); });
 }
 
 /* ---------- transformation jutsu: hidden forms from other worlds ----------

@@ -590,6 +590,36 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .wmax{display:flex; flex-wrap:wrap; gap:6px 12px; align-items:baseline; font-size:13px; margin-top:6px}
 .wmax > b{min-width:70px}
 .wmax span{opacity:.85}
+.sk-tree{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+.sk-head{display:flex; flex-direction:column; align-items:center; margin-bottom:8px}
+.sk-head b{font-family:var(--f-display); font-size:20px; letter-spacing:.04em}
+.sk-head small{font-size:11.5px; opacity:.65}
+.sk-branch ol{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; align-items:stretch}
+.sk{position:relative; display:flex; flex-direction:column; align-items:center}
+.sk-link{width:3px; height:16px; border-radius:2px; background:color-mix(in srgb, var(--ink) 22%, transparent)}
+.sk-link.lit{background:var(--sk); box-shadow:0 0 8px var(--sk)}
+.sk-pull{--sk:#e0782a}
+.sk-push{--sk:#3f8ce6}
+.sk-btn{all:unset; box-sizing:border-box; width:100%; display:grid; grid-template-columns:46px 1fr; gap:8px; align-items:center; padding:6px 8px; border-radius:14px; cursor:pointer; border:1.5px solid transparent}
+.sk.sel .sk-btn{border-color:var(--sk); background:color-mix(in srgb, var(--sk) 10%, transparent)}
+.sk-orb{position:relative; width:46px; height:46px; border-radius:50%; display:grid; place-items:center; background:conic-gradient(var(--sk) var(--p,0%), color-mix(in srgb, var(--ink) 12%, transparent) 0); flex:none}
+.sk-orb > span{width:38px; height:38px; border-radius:50%; display:grid; place-items:center; background:var(--card); font-size:20px; font-weight:700; color:color-mix(in srgb, var(--ink) 40%, transparent)}
+.sk.open .sk-orb, .sk-orb.open{background:var(--sk); box-shadow:0 0 14px color-mix(in srgb, var(--sk) 70%, transparent)}
+.sk.open .sk-orb > span, .sk-orb.open > span{color:var(--sk)}
+.sk.learned .sk-orb, .sk-orb.learned{background:linear-gradient(135deg, #f7d774, #c48d1e); box-shadow:0 0 14px rgba(233,185,73,.7)}
+.sk.learned .sk-orb > span, .sk-orb.learned > span{background:var(--sk); color:#fff}
+.sk-orb.locked{background:color-mix(in srgb, var(--ink) 12%, transparent)}
+.sk-txt{display:flex; flex-direction:column; min-width:0; line-height:1.2}
+.sk-txt b{font-size:13.5px}
+.sk-txt small{font-size:11px; opacity:.7}
+.sk-txt em{font-style:normal; font-size:11px; font-weight:700; color:var(--sk); margin-top:2px}
+.sk.locked .sk-txt b{opacity:.6}
+.sk-detail{margin-top:12px; padding:12px; border-radius:14px; border:1.5px solid var(--line); background:color-mix(in srgb, var(--paper, #fff) 60%, transparent)}
+.sk-dhead{display:flex; gap:10px; align-items:center; margin-bottom:6px}
+.sk-dhead > div{display:flex; flex-direction:column}
+.sk-dhead small{opacity:.7; font-size:12.5px}
+.sk-detail p{margin:6px 0; font-size:13.5px}
+.sk-need{font-size:13px}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto; background-position:center}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px; background-position:left bottom}
@@ -2636,6 +2666,16 @@ function itemAction(act, el){
     setTimeout(()=>{ if(it.kind==='fx'){ tfPoof(); } FX.leafBurst(); }, 200);
   }
 }
+/* a skill unlocked since the last visit: one toast each (the first visit just takes note of what is open) */
+function skillNews(C){
+  if(state.readOnly || !settled()) return;
+  let seen; try{ seen=JSON.parse(localStorage.getItem('leaf-skills-seen')||'null'); }catch(e){ seen=null; }
+  const open=E.jutsu(C).filter(j=>j.unlocked);
+  if(!seen){ try{ localStorage.setItem('leaf-skills-seen', JSON.stringify(open.map(j=>j.id))); }catch(e){} return; }
+  const fresh=open.filter(j=>!seen.includes(j.id)); if(!fresh.length) return;
+  try{ localStorage.setItem('leaf-skills-seen', JSON.stringify(seen.concat(fresh.map(j=>j.id)))); }catch(e){}
+  fresh.forEach((j,i)=>setTimeout(()=>{ toast(`Skill unlocked: ${j.nick} (${j.name})`, 4000); SFX.play('promo'); }, 1200+i*4200));
+}
 /* write the scrolls the inventory says were used, so the server and other devices see the same protected days */
 let scrollWriteKey='';
 function writeScrollMarks(C){
@@ -2690,26 +2730,41 @@ function tfAction(act, el){
   else render();
 }
 function jutsuCard(C){
-  const list=E.jutsu(C), open=list.filter(j=>j.unlocked).length;
-  const rows=list.map(j=>{
-    if(!j.unlocked) return `<li class="locked" data-jutsu="${j.id}"><div class="jutsu-top"><b>${esc(j.name)}</b><span>Unlocks at ${esc(j.rankName)}</span></div></li>`;
-    if(j.learned) return `<li class="learned" data-jutsu="${j.id}"><div class="jutsu-top"><b>${esc(j.name)}</b><span>Learned</span></div><p>${esc(j.how)}</p><p>Baseline ${j.baseline?`${j.baseline.max} on ${esc(shortDate(j.baseline.date))}`:'saved'}${j.max!=null && j.baseline && j.max!==j.baseline.max?` · max now ${j.max}`:''}. Choose it for a day in the Plan tab when you want it in your week.</p></li>`;
-    const form = ui.jutsu && ui.jutsu.id===j.id;
-    return `<li class="open" data-jutsu="${j.id}"><div class="jutsu-top"><b>${esc(j.name)}</b><span>Unlocked</span></div><p>${esc(j.how)}</p>
-      ${state.readOnly?'':form?`<p>Baseline test: when you are fresh, do one strict set to failure and enter the reps. That number sets its groove targets.</p>
+  const list=E.jutsu(C), open=list.filter(j=>j.unlocked).length, sel=list.find(j=>j.id===ui.skill);
+  const node=(j, k, arr)=>{
+    const st=j.learned?'learned':j.unlocked?'open':'locked', pct=Math.min(100, Math.round(j.best/j.need*100));
+    const prevOpen = k===0 || arr[k-1].unlocked;
+    return `<li class="sk ${st}${sel&&sel.id===j.id?' sel':''}${j.unlocked&&!prevOpen?'':''}" data-jutsu="${j.id}">
+      ${k?`<span class="sk-link${j.unlocked?' lit':''}" aria-hidden="true"></span>`:''}
+      <button type="button" class="sk-btn" data-act="skill-pick" data-id="${j.id}" aria-expanded="${!!(sel&&sel.id===j.id)}">
+        <span class="sk-orb"${j.unlocked?'':` style="--p:${pct}%"`}><span>${j.glyph}</span></span>
+        <span class="sk-txt"><b>${esc(j.nick)}</b><small>${esc(j.name)}</small><em>${j.learned?'Learned':j.unlocked?'Unlocked':`${j.best} / ${j.need} ${j.of==='dips'?'dips':'pull-ups'}`}</em></span>
+      </button></li>`;
+  };
+  const branch=(b, title, sub)=>{ const arr=list.filter(j=>j.branch===b); return `<div class="sk-branch sk-${b}"><div class="sk-head"><b>${title}</b><small>${sub}</small></div><ol>${arr.map((j,k)=>node(j,k,arr)).join('')}</ol></div>`; };
+  let detail='';
+  if(sel){
+    const j=sel, form=ui.jutsu && ui.jutsu.id===j.id;
+    let act='';
+    if(!j.unlocked) act=`<p class="sk-need">Unlocks at <b>${j.need}</b> bodyweight ${j.of==='dips'?'dips':'pull-ups'}. Your best: <b>${j.best}</b>. ${j.need-j.best} to go.</p>`;
+    else if(j.load) act=j.learned?`<p class="sk-need">Learned${j.date?` · unlocked ${esc(shortDate(j.date))}`:''}. Your working weight: <b>+${+((C.load||{})[j.of]||0)} kg</b>.</p>`:`<p class="sk-need">Unlocked${j.date?` ${esc(shortDate(j.date))}`:''}. Learn it by putting weight on with the picker on your next ${j.of==='dips'?'dip':'pull-up'} test.</p>`;
+    else if(j.learned) act=`<p class="sk-need">Learned · baseline ${j.baseline?`${j.baseline.max} on ${esc(shortDate(j.baseline.date))}`:'saved'}${j.max!=null && j.baseline && j.max!==j.baseline.max?` · max now ${j.max}`:''}. Add it to a day in the Plan tab when you want it in your week.</p>`;
+    else if(state.readOnly) act='';
+    else if(form) act=`<p class="sk-need">Baseline test: when you are fresh, do one strict set to failure and enter the reps.</p>
         <div class="form-grid"><label class="field"><span>Strict reps in one set</span><input id="jutsu-max" type="number" inputmode="numeric" min="1" max="200" data-bind="jutsu.max" value="${esc(ui.jutsu.max||'')}"></label></div>
-        <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="jutsu-learn" data-id="${j.id}">Save baseline and learn</button><button type="button" class="btn small ghost" data-act="jutsu-cancel">Not yet</button></div>`
-        :`<div class="btnrow"><button type="button" class="btn small ghost" data-act="jutsu-open" data-id="${j.id}">Take the baseline test</button></div>`}</li>`;
-  }).join('');
-  return `<section class="card" id="jutsu-card"><div class="section-head"><h2>Jutsu scrolls</h2><span class="eyebrow">${open} / ${list.length} unlocked</span></div>
-    <p class="muted" style="margin:0;font-size:13px">Harder variations unlock as you rise in rank. Unlocking only makes one available: it needs its own baseline test, and it enters your week only if you add it in the Plan tab.</p>
-    <ul class="jutsu">${rows}</ul></section>`;
+        <div class="btnrow"><button type="button" class="btn small chakra-btn" data-act="jutsu-learn" data-id="${j.id}">Save baseline and learn</button><button type="button" class="btn small ghost" data-act="jutsu-cancel">Not yet</button></div>`;
+    else act=`<p class="sk-need">Unlocked${j.date?` ${esc(shortDate(j.date))}`:''}. Optional: take a baseline test to add it to your training.</p><div class="btnrow"><button type="button" class="btn small ghost" data-act="jutsu-open" data-id="${j.id}">Take the baseline test</button></div>`;
+    detail=`<div class="sk-detail" data-jutsu-detail="${j.id}" style="--sk:${j.branch==='pull'?'#e0782a':'#3f8ce6'}"><div class="sk-dhead"><span class="sk-orb big ${j.learned?'learned':j.unlocked?'open':'locked'}"><span>${j.glyph}</span></span><div><b>${esc(j.nick)}</b><small>${esc(j.name)}</small></div></div><p>${esc(j.how)}</p>${act}</div>`;
+  }
+  return `<section class="card" id="jutsu-card"><div class="section-head"><h2>Skill tree</h2><span class="eyebrow">${open} / ${list.length} unlocked</span></div>
+    <div class="sk-tree">${branch('pull','Pull','by your pull-up max')}${branch('push','Push','by your dip max')}</div>
+    ${detail}</section>`;
 }
 function jutsuAction(act, el){
   if(state.readOnly || !lastC) return;
   if(act==='jutsu-open'){ ui.jutsu={id:el.dataset.id, max:''}; render(); const f=document.getElementById('jutsu-max'); if(f) f.focus({preventScroll:true}); return; }
   if(act==='jutsu-cancel'){ ui.jutsu=null; render(); return; }
-  const j=E.jutsu(lastC).find(x=>x.id===el.dataset.id); if(!j || !j.unlocked || j.learned) return;
+  const j=E.jutsu(lastC).find(x=>x.id===el.dataset.id); if(!j || !j.unlocked || j.learned || j.load) return;
   const max=Math.round(Number((ui.jutsu||{}).max));
   if(!(max>=1 && max<=200)){ toast('Enter the reps from your baseline set.'); return; }
   const s=clone(S()); s.exercises=s.exercises||{}; s.baseline=s.baseline||{};
@@ -3984,6 +4039,7 @@ function render(){
     applyTheme(themeIndex(C));
     applyLook();
     writeScrollMarks(C);
+    skillNews(C);
     html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
     if(ui.tab==='plan' || ui.tab==='settings' || ui.tab==='ninja') html=foldCards(html);
   }catch(err){
@@ -4088,7 +4144,6 @@ function renderOverlay(C){
         <h2 id="promo-title" style="color:${r.color}">${esc(r.name)}</h2>
         <p style="margin:0;font-size:14.5px"><b>Third Hokage:</b> ${esc(fillLine(SENSEI_LINES.hiruzen.promo[0],{rank:r.name}))}</p>
         <p class="muted" style="margin:0">${fmt(C.total)} XP earned. ${nx?`Next: ${esc(nx.name)} at ${fmt(nx.xp)} XP.`:'You have reached the final form.'}</p>
-        ${(()=>{ const nj=E.JUTSU.filter(j=>rankIdx(j.rank)>seen && rankIdx(j.rank)<=C.peak); return nj.length?`<p id="promo-jutsu" style="margin:0;font-size:14px"><b>New jutsu unlocked:</b> ${nj.map(j=>esc(j.name)).join(', ')}. ${nj.length===1?'Its scroll is':'Their scrolls are'} in the Ninja tab.</p>`:''; })()}
         <button class="btn chakra-btn" data-act="promo-ok" style="width:100%">Accept rank</button>
       </div>
     </div>`;
@@ -4326,6 +4381,7 @@ document.addEventListener('click', e=>{
   if(act==='prog-accept' || act==='prog-keep'){ progressionAction(act); return; }
   if(act==='examc-save' || act==='examc-clear'){ examCountAction(act); return; }
   if(act==='jutsu-open' || act==='jutsu-cancel' || act==='jutsu-learn'){ jutsuAction(act, el); return; }
+  if(act==='skill-pick'){ ui.skill = ui.skill===el.dataset.id ? null : el.dataset.id; ui.jutsu=null; SFX.play('tick'); render(); if(ui.skill) setTimeout(()=>{ const d=document.querySelector('.sk-detail'); if(d) d.scrollIntoView({block:'nearest', behavior:'smooth'}); }, 50); return; }
   if(act==='tf-on' || act==='tf-off' || act==='tf-wear' || act==='tf-seen' || act==='shop-ask' || act==='shop-cancel' || act==='shop-buy' || act==='bounty-ok'){ tfAction(act, el); return; }
   if(act==='rm-open'){ ui.rmOpen = ui.rmOpen===el.dataset.rk ? null : el.dataset.rk; render(); return; }
   if(act==='rm-play'){ const u=cineUrl(el.dataset.rk); if(u) playCine(u, ()=>{ render(); }); return; }

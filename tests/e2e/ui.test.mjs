@@ -644,14 +644,17 @@ test('focus cycles: 50 minutes of work, a 10-minute break that is not counted, a
   noErrors();
 });
 
-test('jutsu unlocks: available at a rank, learned through its own baseline test, and only in the plan if it is added there', async () => {
+test('skill tree: moves unlock by max, learned through their own baseline test, and only in the plan if added there', async () => {
   const B = await fresh('jutsu');
   await B.tab('ninja');
   const card = B.page.locator('#jutsu-card');
-  assert.match(await card.locator('.section-head').textContent(), /5 \/ 10 unlocked/);
-  assert.equal(await card.locator('li.open').count(), 5); assert.equal(await card.locator('li.locked').count(), 5);
-  assert.match(await card.locator('[data-jutsu="weighted-pullups"]').textContent(), /Unlocks at Akatsuki/);
-  assert.equal(await card.locator('li.locked button').count(), 0, 'a locked jutsu cannot be started');
+  assert.match(await card.locator('.section-head').textContent(), /4 \/ 12 unlocked/);
+  assert.equal(await card.locator('li.sk.open').count(), 4); assert.equal(await card.locator('li.sk.locked').count(), 8);
+  assert.match(await card.locator('[data-jutsu="muscle-ups"]').textContent(), /15 \/ 16 pull-ups/);
+  await card.locator('[data-act="skill-pick"][data-id="muscle-ups"]').click();
+  assert.equal(await card.locator('[data-act="jutsu-open"]').count(), 0, 'a locked move cannot be started');
+  assert.match(await card.locator('.sk-detail').textContent(), /1 to go/);
+  await card.locator('[data-act="skill-pick"][data-id="archer-pullups"]').click();
   await card.locator('[data-act="jutsu-open"][data-id="archer-pullups"]').click();
   await card.locator('[data-act="jutsu-learn"]').click();
   assert.match(await toastText(B), /Enter the reps from your baseline set/);
@@ -661,8 +664,8 @@ test('jutsu unlocks: available at a rank, learned through its own baseline test,
   assert.deepEqual(s.exercises['archer-pullups'], {name:'Archer pull-ups', jutsu:true});
   assert.deepEqual(s.baseline['archer-pullups'], {max:4, date:'2026-11-15'});
   assert.deepEqual(s.scheduleHistory, fixture.settings.scheduleHistory, 'the plan is untouched');
-  assert.match(await card.locator('[data-jutsu="archer-pullups"]').textContent(), /Learned.*Baseline 4 on 15 Nov.*Choose it for a day in the Plan tab/);
-  assert.equal(await card.locator('li.learned').count(), 1);
+  assert.match(await card.locator('.sk-detail').textContent(), /Learned · baseline 4 on 15 Nov.*Plan tab/);
+  assert.equal(await card.locator('li.sk.learned').count(), 1);
   await B.tab('mission');
   assert.match(await B.page.locator('.mscroll[data-sid="work"] .mission-title').textContent(), /Pull-up Groove/, 'today\'s mission is the same');
   /* it can now be chosen in the Plan tab, and starts tomorrow like any plan change */
@@ -681,12 +684,6 @@ test('jutsu unlocks: available at a rank, learned through its own baseline test,
   await openScroll(B, 'work');
   assert.match(await B.page.locator('.mscroll[data-sid="work"] .mission-sub').textContent(), /6 mini-sets of 2 strict archer pull-ups/);
   await B.close();
-  /* a promotion names the jutsu it unlocks */
-  const behind = clone(fixture); behind.settings.celebrated = 4;
-  const P = await fresh('jutsu-promo', {file:tmpFile('behind2.json', behind)});
-  await P.page.waitForSelector('#overlay .promo');
-  assert.match(await P.page.locator('#promo-jutsu').textContent(), /New jutsu unlocked: Ring dips\. Its scroll is in the Ninja tab/);
-  await P.close();
   noErrors();
 });
 
