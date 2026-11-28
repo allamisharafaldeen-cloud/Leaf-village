@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>The Leaf Village</title>
 <meta name="description" content="Sharaf's training and study tracker.">
 <meta name="theme-color" content="#e9eee1" media="(prefers-color-scheme: light)">
@@ -68,6 +68,9 @@ body.has-bg .loading{background:var(--card); border-radius:14px}
 #banner{position:relative; z-index:1}
 .theme-shift body,.theme-shift .card,.theme-shift .tile,.theme-shift .tabs,.theme-shift .scroll,.theme-shift .btn{transition:background-color .9s ease,color .9s ease,border-color .9s ease,box-shadow .9s ease}
 button,input,select{font:inherit; color:inherit}
+/* an app, not a web page: no pinch or double-tap zoom anywhere (scrolling still works) */
+html,body{touch-action:pan-x pan-y; -webkit-text-size-adjust:100%; text-size-adjust:100%}
+a,button,label,input,select,[data-act]{touch-action:manipulation}
 button{cursor:pointer}
 :focus-visible{outline:3px solid var(--chakra); outline-offset:2px; border-radius:8px}
 .wrap{position:relative; z-index:1; max-width:560px; margin:0 auto; padding-block:14px 112px; display:flex; flex-direction:column; gap:18px}
@@ -497,7 +500,7 @@ body.has-bg .stage::after{background:linear-gradient(to top,var(--shade-mid) 0%,
 .plan-row{display:grid; grid-template-columns:84px 1fr; gap:10px; align-items:center}
 .plan-row label{font-weight:700; font-size:14px}
 .plan-row label small{display:block; font-weight:400; color:var(--muted); font-size:11.5px}
-select,input[type=number],input[type=text],input[type=date],input[type=time]{width:100%; min-width:0; padding:10px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--paper); font-size:15px}
+select,input[type=number],input[type=text],input[type=date],input[type=time]{width:100%; min-width:0; padding:10px 12px; border-radius:10px; border:1.5px solid var(--line); background:var(--paper); font-size:16px}
 .mini-steppers{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px}
 .mini{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-radius:12px; background:var(--paper); text-align:center}
 .mini span{font-size:11.5px; color:var(--muted)}
@@ -4713,6 +4716,10 @@ document.addEventListener('click', firstTouch, {capture:true, passive:true});
 try{ matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }); }catch(e){}
 try{ new MutationObserver(()=>{ if(appliedTheme!=null){ applyTheme(appliedTheme,true); lastHtml=''; render(); } }).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']}); }catch(e){}
 
+/* iPhone and iPad Safari ignore the viewport setting for pinch zoom, so the pinch gesture itself is stopped here
+   (double-tap zoom is already off through touch-action, which keeps fast taps on the + and − buttons working) */
+['gesturestart','gesturechange','gestureend'].forEach(t=>document.addEventListener(t, e=>e.preventDefault(), {passive:false}));
+document.addEventListener('touchmove', e=>{ if(e.touches && e.touches.length>1) e.preventDefault(); }, {passive:false});
 if(Sync) Sync.onChange(()=>{
   /* a sync just finished: if a used scroll is waiting to be written, this is the moment (see freshSync) */
   if(lastC && freshSync() && !state.readOnly){ try{ if(E.scrollBook(lastC).pending.length){ render(); return; } }catch(e){} }
