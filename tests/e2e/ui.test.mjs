@@ -176,12 +176,18 @@ test('study timer over midnight: each day gets its own minutes; a page left open
   await B.tab('mission');
   const before = clone(await B.docs());
   await B.setTime(at('2026-11-17', 0, 0, 20));
-  await B.page.evaluate(() => { const b = document.querySelector('.mscroll[data-sid="study"] [data-act="st-add"][data-min="60"]'); if(b) b.click(); });
+  /* the page's own once-a-second check may turn the day just before the tap lands: read what the page showed at the
+     moment of the tap, in the same step, so the test knows which of the two honest outcomes to expect */
+  const shown = await B.page.evaluate(() => { const t = document.querySelector('.stage .eyebrow').textContent; const b = document.querySelector('.mscroll[data-sid="study"] [data-act="st-add"][data-min="60"]'); if(b) b.click(); return t; });
   await sleep(400);
   docs = await B.docs();
   assert.deepEqual(docs['leaf/main/study/2026-11-16'], before['leaf/main/study/2026-11-16'], 'the closed day was not touched');
-  assert.equal(docs['leaf/main/study/2026-11-17'], undefined, 'and the tap did not silently log into the new day either');
-  assert.match(await toastText(B), /A new day has begun/);
+  if(/16 November/.test(shown)){
+    assert.equal(docs['leaf/main/study/2026-11-17'], undefined, 'and the tap did not silently log into the new day either');
+    assert.match(await toastText(B), /A new day has begun/);
+  } else {
+    assert.deepEqual(docs['leaf/main/study/2026-11-17'].entries.map(e => e.min), [60], 'the page had already turned: the tap counts for the day it showed');
+  }
   await until(async () => /17 November/.test(await B.page.locator('.stage .eyebrow').textContent()), 'the page to show the new day');
   await closeScenes(B);
   await B.close();

@@ -633,6 +633,10 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .quests small{font-size:12.5px; opacity:.75}
 .quests em{font-style:normal; font-size:11.5px; font-weight:700; opacity:.8}
 .swap-line.oncall span{font-size:13px}
+.problems{margin-top:10px}
+.problems ul{margin:6px 0; padding-left:18px; font-size:12.5px}
+.problems time{opacity:.65; margin-right:4px}
+.problems small{opacity:.55}
 .nbadge{display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 6px; margin-left:8px; border-radius:999px; background:#e0352b; color:#fff; font-family:var(--f-data, inherit); font-size:12px; font-weight:800; line-height:1; letter-spacing:0; vertical-align:middle; box-shadow:0 0 0 2px var(--card), 0 2px 6px rgba(224,53,43,.45); animation:nbpop .35s ease-out}
 .tabs a{position:relative}
 .tabs a .nbadge{position:absolute; top:2px; left:calc(50% + 6px); margin:0; min-width:18px; height:18px; font-size:11px; padding:0 5px}
@@ -1017,6 +1021,17 @@ const AURA = {"eight-gates": "#ff3b2f", "byakugan": "#dfe3ff", "akatsuki": "#ff4
 const GUEST_ART = {"ayanokoji": {"ar": 0.344, "box": [-13.92, -0.63, 115.75, 101.14]}, "eren": {"ar": 0.636, "box": [-1.93, -1.32, 103.6, 102.33]}, "gojo": {"ar": 0.437, "box": [-11.81, -2.49, 115.68, 104.1]}, "gon": {"ar": 0.636, "box": [-1.28, -1.03, 101.96, 101.85]}, "isagi": {"ar": 0.362, "box": [-16.76, -1.1, 132.36, 102.24]}, "jinwoo": {"ar": 0.64, "box": [-4.9, -1.23, 109.21, 102.37]}, "kaneki": {"ar": 0.614, "box": [-1.31, -0.76, 102.98, 101.57]}, "kirito": {"ar": 0.478, "box": [-6.38, -0.93, 107.53, 101.91]}, "lelouch": {"ar": 0.598, "box": [-1.52, -0.25, 103.12, 101.12]}, "tanjiro": {"ar": 0.533, "box": [-2.07, -1.32, 103.43, 102.67]}, "tobi": {"ar": 0.394, "box": [-15.5, -0.42, 131.0, 100.8]}};
 /* the rules (rank thresholds, XP, streak tiers) live in leaf-engine.js; this is how each rank looks */
 const E = window.LeafEngine;
+/* a small diary of anything that went wrong on this device (the last 15), shown in Settings → Backup, so a problem
+   can be described exactly later instead of guessed at */
+const ERR_KEY='leaf-problems';
+function noteProblem(msg, where){
+  try{ const l=JSON.parse(localStorage.getItem(ERR_KEY)||'[]'); const m=String(msg||'unknown').slice(0,240);
+    if(l.length && l[l.length-1].m===m){ l[l.length-1].n=(l[l.length-1].n||1)+1; l[l.length-1].t=Date.now(); }
+    else l.push({t:Date.now(), m, w:String(where||'').slice(0,120), n:1});
+    localStorage.setItem(ERR_KEY, JSON.stringify(l.slice(-15))); }catch(e){}
+}
+window.addEventListener('error', e=>{ if(e && e.message && !/Updating the village/.test(e.message)) noteProblem(e.message, (e.filename||'').split('/').pop()+':'+(e.lineno||'')); });
+window.addEventListener('unhandledrejection', e=>{ const r=e && e.reason; noteProblem(r && (r.message || r.code || JSON.stringify(r)) || 'a promise failed', 'async'); });
 /* Guard against a half-updated app: a new page served with an engine script left over from the previous version.
    That only happens for a moment during an update, so wait for the new offline copy and reload once. */
 (function staleEngineGuard(){
@@ -1143,12 +1158,18 @@ const fxSubtle = () => reduceMotion() || prefs.anim==='subtle';
 /* ---------- utils ---------- */
 const {pad, ymd, parse, addDays, dnum, daysBetween, weekStart, rankFor} = E;
 const todayStr = () => ymd(new Date());
-const fmt = n => Math.round(n).toLocaleString('en-US');
+/* number and date words are made with formatters built once and remembered: making a new one for every number on
+   screen was the slowest part of drawing a tab */
+const NUM_F = new Intl.NumberFormat('en-US', {maximumFractionDigits:0});
+const fmt = n => NUM_F.format(Math.round(n));
+const memoFmt = (opts, locale) => { const f=new Intl.DateTimeFormat(locale||'en-GB', opts), m=new Map(); return s => { let v=m.get(s); if(v===undefined){ v=f.format(parse(s)); if(m.size>2000) m.clear(); m.set(s, v); } return v; }; };
 const signed = n => (n>0?'+':n<0?'−':'') + fmt(Math.abs(n));
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const clone = o => o==null ? o : JSON.parse(JSON.stringify(o));
-const longDate = s => parse(s).toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long'});
-const shortDate = s => parse(s).toLocaleDateString('en-GB',{day:'numeric', month:'short'});
+const longDate = memoFmt({weekday:'long', day:'numeric', month:'long'});
+const shortDate = memoFmt({day:'numeric', month:'short'});
+const monthName = memoFmt({month:'long'}), monthShort = memoFmt({month:'short'}), monthYear = memoFmt({month:'long', year:'numeric'});
+const weekdayName = memoFmt({weekday:'long'}, 'en-US');
 const timeOf = iso => { try{ const d=new Date(iso); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }catch(e){ return ''; } };
 const sleep = ms => new Promise(r=>setTimeout(r,ms));
 const clamp = (v,a,b) => Math.max(a,Math.min(b,v));
@@ -1536,13 +1557,14 @@ const setOk = (C, part, x) => E.meets(E.bwAt(C.body||[], C.today), x, part.kg||0
 
 /* one-time swap: today trades its workout mission with tomorrow's, for this week only */
 const DAY_KIND = {rest:'rest day', test:'test day', gtg:'groove day', combo:'mixed day'};
-function weekdayOf(d){ return new Date(d+'T12:00:00').toLocaleDateString('en-US',{weekday:'long'}); }
+function weekdayOf(d){ return weekdayName(d); }
 /* Plan and Settings: every card folds down to its title bar; tap the bar to open it (closed when the app opens) */
 function foldCards(html){
   ui.fold=ui.fold||{};
   return html.replace(/<section class="card([^"]*)"([^>]*)>((?:(?!<section|<h2)[\s\S]){0,400}?)<h2([^>]*)>([\s\S]*?)<\/h2>/g, (all, cls, rest, before, h2a, title) => {
     if(/xp-card|foldable|nofold/.test(cls) || /id="rescue"/.test(rest) || /<button/.test(before)) return all;
-    const id='f'+hashStr(title.replace(/<[^>]*>/g,'').trim()), open=!!ui.fold[id];
+    /* the id comes from the title text alone: a badge in the title (e.g. side quests to claim) must not change it */
+    const id='f'+hashStr(title.replace(/<span class="nbadge"[\s\S]*?<\/span>/g,'').replace(/<[^>]*>/g,'').trim()), open=!!ui.fold[id];
     return `<section class="card foldable${open?'':' folded'}${cls}"${rest}>${before}<button type="button" class="fold-head" data-act="fold" data-id="${id}" aria-expanded="${open}"><h2${h2a}>${title}</h2><span class="xp-chev" aria-hidden="true"></span></button>`;
   });
 }
@@ -2086,7 +2108,7 @@ function studyYear(C){
     const n=new Date(y,mi+1,0).getDate();
     const cells=Array.from({length:n},(_,k)=>{ const d=`${y}-${pad(mi+1)}-${pad(k+1)}`, rec=C.study.days[d]; const f=rec?clamp(rec.mins/(rec.tgt?rec.tgt.full:360),0,1):0;
       return `<i class="${rec?stCls(rec.status):'none'}" style="--f:${f.toFixed(2)}" title="${esc(shortDate(d))}${rec?': '+fmtH(rec.mins):''}"></i>`; }).join('');
-    return `<div class="yr-row"><span>${new Date(y,mi,1).toLocaleDateString('en-GB',{month:'short'})}</span><div>${cells}</div></div>`;
+    return `<div class="yr-row"><span>${monthShort(`${y}-${pad(mi+1)}-01`)}</span><div>${cells}</div></div>`;
   }).join('');
   return `<div class="yr">${rows}</div>`;
 }
@@ -2102,14 +2124,14 @@ function studyStatsView(C){
   const doneN=st.list.filter(r=>r.status==='done').length, missN=st.list.filter(r=>r.status==='missed').length, shN=st.list.filter(r=>r.status==='shield' || r.status==='scroll').length;
   const totalM=st.list.reduce((m,r)=>m+r.mins,0);
   if(!ui.studyMonth) ui.studyMonth=today.slice(0,7);
-  const ym=ui.studyMonth, [yy,mm]=ym.split('-').map(Number), title=new Date(yy,mm-1,1).toLocaleDateString('en-GB',{month:'long', year:'numeric'});
+  const ym=ui.studyMonth, [yy,mm]=ym.split('-').map(Number), title=monthYear(`${ym}-01`);
   const canPrev = ym > st.start.slice(0,7), canNext = ym < today.slice(0,7);
   const yearOpen = daysBetween(st.start, today) >= 30;
   const tiles=`<div class="tiles">
     <div class="tile power study-tile"><span class="eyebrow">Study streak</span><span class="big num">${st.streak}<small> ${st.streak===1?'day':'days'}</small></span><span class="sub">Best ${st.best} · Thursdays rest · one shield a week${shieldUsedThisWeek(C)?' (used this week)':''}</span></div>
     <div class="tile"><span class="eyebrow">Today</span><span class="big num">${fmtH(todayM)}</span><span class="sub">${(st.days[today]||{}).tgt?`Minimum ${fmtH(st.days[today].tgt.min)}`:'Rest day'}</span></div>
     <div class="tile"><span class="eyebrow">This week</span><span class="big num">${fmtH(weekM)}</span><span class="sub">Third Hokage's goal 30h</span></div>
-    <div class="tile"><span class="eyebrow">This month</span><span class="big num">${fmtH(monthM)}</span><span class="sub">${esc(new Date().toLocaleDateString('en-GB',{month:'long'}))}</span></div>
+    <div class="tile"><span class="eyebrow">This month</span><span class="big num">${fmtH(monthM)}</span><span class="sub">${esc(monthName(C.today))}</span></div>
     <div class="tile"><span class="eyebrow">Daily average</span><span class="big num">${fmtH(avg)}</span><span class="sub">Since ${esc(shortDate(st.start))}</span></div>
   </div>`;
   const week=`<section class="card"><div class="section-head"><h2>This week</h2><span class="eyebrow">${esc(shortDate(ws))} – ${esc(shortDate(addDays(ws,6)))}</span></div>${studyWeekChart(C)}
@@ -2181,7 +2203,7 @@ function examCard(C){
     body=`${usedThisMonth?`<p class="muted small">This month's pass was used ${esc(shortDate(usedThisMonth.start))} – ${esc(shortDate(usedThisMonth.end))}. You can schedule next month's.</p>`:''}
       ${state.readOnly?'':`<div class="form-grid"><label class="field"><span>Starts</span><input id="exam-start" type="date" min="${today}" max="${addDays(today,90)}" value="${esc(ui.examStart)}" data-bind="examStart"></label></div>
       <p class="muted small">Runs 7 days, ${esc(shortDate(ui.examStart))} to ${esc(shortDate(addDays(ui.examStart,6)))}.</p>
-      ${used?`<p class="muted small">You've already used the pass for ${esc(new Date(+chosenMonth.slice(0,4),+chosenMonth.slice(5)-1,1).toLocaleDateString('en-GB',{month:'long'}))}.</p>`:`<button class="btn small chakra-btn" data-act="exam-start">${ui.confirm==='exam-start'?'Tap again to confirm':'Start exam week'}</button>`}`}`;
+      ${used?`<p class="muted small">You've already used the pass for ${esc(monthName(chosenMonth+'-01'))}.</p>`:`<button class="btn small chakra-btn" data-act="exam-start">${ui.confirm==='exam-start'?'Tap again to confirm':'Start exam week'}</button>`}`}`;
   }
   return `<section class="card"><div class="section-head"><h2>Exam week pass</h2><span class="eyebrow">1 per month</span></div>
     <p class="muted small">For heavy exam weeks: 7 days where your workout and study streaks are frozen and nothing is required. Anything you do still earns XP. It can't cover days that have already passed.</p>${body}</section>`;
@@ -3768,6 +3790,7 @@ function settingsView(C){
     <p class="muted small">${Sync && Sync.hasKey() ? 'Sync keeps an online copy of your logs. A backup file is still your safety net: download one every Sunday and keep it in Files or iCloud Drive.' : 'Everything lives on this phone only. Download a backup every Sunday and keep it in Files or iCloud Drive. If the app is deleted, that file is your only copy.'}</p>
     <p class="muted small" style="margin:0">${backupAgeText()}</p>
     ${importBlock(true)}
+    ${problemsBlock()}
   </section>`;
 }
 
@@ -3782,6 +3805,14 @@ async function downloadBackup(){
   }
   try{ await navigator.clipboard.writeText(text); toast('Downloads aren\'t available here, so the backup was copied to your clipboard.'); }
   catch(e){ toast('The backup couldn\'t be saved. Try again.'); }
+}
+function problemsBlock(){
+  let l=[]; try{ l=JSON.parse(localStorage.getItem(ERR_KEY)||'[]'); }catch(e){}
+  if(!l.length) return '';
+  const last=l[l.length-1], when=new Date(last.t);
+  return `<details class="problems"><summary class="muted small">${l.length} ${l.length===1?'problem':'problems'} noted on this device · latest ${esc(shortDate(E.ymd(when)))}</summary>
+    <ul>${l.slice().reverse().map(p=>`<li><time>${esc(shortDate(E.ymd(new Date(p.t))))} ${pad(new Date(p.t).getHours())}:${pad(new Date(p.t).getMinutes())}</time> ${esc(p.m)}${p.n>1?` (×${p.n})`:''}${p.w?` <small>${esc(p.w)}</small>`:''}</li>`).join('')}</ul>
+    <div class="btnrow"><button type="button" class="btn small ghost" data-act="problems-copy">Copy for Claude</button><button type="button" class="btn small ghost" data-act="problems-clear">Clear</button></div></details>`;
 }
 function backupAgeText(){
   let t=null; try{ t=+localStorage.getItem('leaf-last-backup')||null; }catch(e){}
@@ -4128,7 +4159,7 @@ function render(){
     html = ui.tab==='stats'?statsView(C) : ui.tab==='plan'?planView(C) : ui.tab==='ninja'?ninjaView(C) : ui.tab==='settings'?settingsView(C) : missionView(C);
     if(ui.tab==='plan' || ui.tab==='settings' || ui.tab==='ninja') html=foldCards(html);
   }catch(err){
-    try{ console.warn('render failed', err); }catch(e){}
+    try{ console.warn('render failed', err); noteProblem('render failed: '+(err && err.message || err), ui.tab); }catch(e){}
     if(appliedTheme==null) applyTheme(0);
     setView(rescueView(err), 'rescue'); updateTabs(false); document.getElementById('overlay').hidden=true; return;
   }
@@ -4362,6 +4393,8 @@ document.addEventListener('click', e=>{
   if(act==='swap-ask' || act==='swap-cancel' || act==='swap-yes' || act==='swap-undo'){ swapAction(act); return; }
   if(act==='oncall-on' || act==='oncall-off'){ onCallAction(act); return; }
   if(act==='quest-claim'){ questClaim(el); return; }
+  if(act==='problems-clear'){ try{ localStorage.removeItem(ERR_KEY); }catch(e){} render(); return; }
+  if(act==='problems-copy'){ let t=''; try{ t=localStorage.getItem(ERR_KEY)||'[]'; }catch(e){} const v=(document.querySelector('meta[name="leaf-version"]')||{}).content||''; navigator.clipboard.writeText(`Leaf Village problems ${v}\n${t}`).then(()=>toast('Copied. Paste it to Claude.'), ()=>toast('Could not copy.')); return; }
 
   if(act==='sensei-talk'){ ui.lineNonce=(ui.lineNonce||0)+1; SFX.play('tick'); render(); return; }
   if(act==='sensei-frame'){ prefs.senseiFrame=Object.assign({}, prefs.senseiFrame, {[el.dataset.id]:el.dataset.v}); savePrefs(); render(); return; }
@@ -4760,7 +4793,21 @@ try{ if(sessionStorage.getItem('leaf-imported')){ sessionStorage.removeItem('lea
 })();
 </script>
 <script>
-if('serviceWorker' in navigator){ window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+  /* An app kept in the background is not reloaded by iOS, so it could keep running an old version for days.
+     Coming back to it, look for a new version at most every 30 minutes; once a new one has taken over, the next time
+     the app is opened (or straight away if it is in the background) it reloads into it. Everything is saved, so
+     nothing is lost; only a half-typed field would be, which is why it never reloads while you are looking at it. */
+  const hadController = !!navigator.serviceWorker.controller;
+  let lastCheck = Date.now(), updateReady = false;
+  navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(!hadController) return; updateReady = true; if(document.hidden) location.reload(); });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden){ if(updateReady) location.reload(); return; }
+    if(updateReady){ location.reload(); return; }
+    if(Date.now() - lastCheck > 30*60000){ lastCheck = Date.now(); navigator.serviceWorker.getRegistration().then(r=>{ if(r) r.update(); }).catch(()=>{}); }
+  });
+}
 </script>
 </body>
 </html>
