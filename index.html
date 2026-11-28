@@ -741,6 +741,12 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .rm-char-art{flex:none; width:64px; height:96px; border-radius:10px; border:1.5px dashed var(--line); background:center/contain no-repeat color-mix(in srgb, var(--rk) 12%, transparent); display:grid; place-items:center; font-size:24px; color:var(--muted)}
 .rm-char b{display:block} .rm-char small{display:block; color:var(--muted); font-size:12.5px; margin:2px 0 6px}
 .shop-sub{margin:14px 0 6px; font-family:var(--f-data); font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
+.stage-xp{margin-top:10px; height:6px; border-radius:3px; background:rgba(255,255,255,.24); box-shadow:0 0 0 1px rgba(0,0,0,.28); overflow:hidden}
+.stage-xp i{display:block; height:100%; border-radius:3px; background:linear-gradient(90deg,var(--primary),var(--chakra)); box-shadow:0 0 8px var(--chakra); transition:width .6s ease}
+.stage-xprow{display:flex; justify-content:space-between; gap:10px; margin-top:4px; font-size:11.5px; color:var(--on-image-muted); text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.stage-xprow b{color:var(--on-image); font-family:var(--f-data)}
+.sstreak.exam-pill{box-shadow:inset 0 0 0 1.5px color-mix(in srgb, var(--exam) 75%, transparent)}
+.sstreak.exam-pill svg{color:color-mix(in srgb, var(--exam) 55%, #fff)}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto !important; background-position:center !important}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px !important; background-position:left bottom !important}
@@ -1583,6 +1589,10 @@ function ninjaHeader(C){
   const eyebrow = dayNum>=1 ? `Day ${dayNum} · ${longDate(C.today)}` : `Training begins ${longDate(s.startDate)}`;
   const name = esc(s.name||'Ninja');
   const xpbar = `<div class="xpbar"><div class="xptrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Progress to next rank"><div class="xpfill" style="width:${pct}%"></div></div><div class="xprow">${left}${right}</div></div>`;
+  /* on the stage: a slim XP line under the rank, and the exam countdown as one more pill under the streaks */
+  const stageXp = `<div class="stage-xp" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct)}" aria-label="Progress to next rank"><i style="width:${pct}%"></i></div><div class="stage-xprow">${left}${right}</div>`;
+  const X = examInfo(C), pills = (C.study.start?1:0) + (C.sleep && C.sleep.start?1:0);
+  const examPill = X && !X.passed ? `<div class="sstreak exam-pill" id="exam-pill" style="top:${94+pills*34}px" title="${esc(X.name)} · ${esc(longDate(X.date))}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h8M4 14.5h8M5 1.5c0 3 6 3.5 6 6.5s-6 3.5-6 6.5M11 1.5c0 3-6 3.5-6 6.5s6 3.5 6 6.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>${X.days===0?'<b>Today</b>':`<b>${X.days}</b><span>${X.days===1?'day':'days'}</span>`}</div>` : '';
   if(r.cut){
     const pw=todayPower(C), hasBg=!!bgShow(bgSlotNow()), L=stageLook(C, r);
     const sparks = pw>0 ? Array.from({length:Math.round(3+pw*7)},(_,i)=>`<i class="spark" style="--x:${12+((i*37)%76)}%;--d:${((i*0.61)%3).toFixed(2)}s;--t:${(2.4+(i%4)*.45).toFixed(2)}s"></i>`).join('') : '';
@@ -1600,8 +1610,9 @@ function ninjaHeader(C){
     <div class="streak${C.streak?'':' cold'}" title="Workout streak">${flame}<b>${C.streak}</b><span>streak</span></div>
     ${C.study.start?`<div class="sstreak${C.study.streak?'':' cold'}" title="Study streak">${ico.scrollS}<b>${C.study.streak}</b><span>study</span></div>`:''}
     ${C.sleep && C.sleep.start?`<div class="sstreak${C.sleep.streak?'':' cold'}${C.study.start?' second':''}" title="Sleep streak">${ico.zzzS}<b>${C.sleep.streak}</b><span>sleep</span></div>`:''}
-    <div class="stage-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1>${titleTag()}<span class="rank-pill"><i></i>${esc(r.name)}</span>${L.tf?`<button type="button" class="tf-pill" data-act="tf-off" aria-label="Release the transformation">as ${esc(L.tf.name.split(' ')[0])} ✕</button>`:''}${pw>=1?'<span class="charged-pill">Fully charged</span>':''}</div>
-  </section>` + xpbar;
+    ${examPill}
+    <div class="stage-text"><div class="eyebrow">${esc(eyebrow)}</div><h1 class="ninja-name">${name}</h1>${titleTag()}<span class="rank-pill"><i></i>${esc(r.name)}</span>${L.tf?`<button type="button" class="tf-pill" data-act="tf-off" aria-label="Release the transformation">as ${esc(L.tf.name.split(' ')[0])} ✕</button>`:''}${pw>=1?'<span class="charged-pill">Fully charged</span>':''}${stageXp}</div>
+  </section>`;
   }
   if(r.scene) return `
   <section class="hero" style="--rk:${r.color}" aria-label="Your rank">
@@ -2528,7 +2539,7 @@ function rivalCard(C){
 /* ---------- exam countdown ---------- */
 const examInfo = C => C._exam===undefined ? (C._exam=E.examCountdown(C)) : C._exam;
 function examCountCard(C){
-  const X=examInfo(C); if(!X || X.passed) return '';
+  const X=examInfo(C); if(!X || X.passed || !X.suggestPass) return '';   /* the days left live on the stage; this card comes back for the last week */
   const big = X.days===0 ? 'Today' : X.days===1 ? '1' : String(X.days), unit = X.days===0 ? 'exam day' : X.days===1 ? 'day left' : 'days left';
   const per = X.daysCounted ? X.banked/X.daysCounted : 0;
   return `<section class="card say" id="exam-count" style="--sc:var(--exam)" aria-label="Exam countdown">
@@ -2543,6 +2554,7 @@ function examCountSettings(C){
   const d=ui.examDraft;
   return `<section class="card" id="exam-count-set"><div class="section-head"><h2>Exam countdown</h2><span class="eyebrow">${X?(X.passed?'Passed':X.days===0?'Today':`${X.days} ${X.days===1?'day':'days'}`):'Not set'}</span></div>
     <p class="muted small">Name your next exam and its date. The Mission tab then shows the days left and the study hours you have banked since you set it, and the Third Hokage sharpens his study advice in the last two weeks. It changes no rules: for a week with nothing required, use the exam-week pass below.</p>
+    ${X && !X.passed?`<p class="small" id="exam-banked"><b>${fmtH(X.banked)}</b> of study banked since ${esc(shortDate(X.since))}${X.daysCounted>1?` · ${fmtH(X.banked/X.daysCounted)} a day`:''}</p>`:''}
     ${X && X.passed?`<p class="notice">${esc(X.name)} was on ${esc(longDate(X.date))}. Set your next exam, or clear it.</p>`:''}
     ${state.readOnly?'':`<div class="form-grid"><label class="field"><span>Exam name</span><input id="examc-name" type="text" maxlength="40" placeholder="Finals" data-bind="examDraft.name" value="${esc(d.name)}"></label>
       <label class="field"><span>Date</span><input id="examc-date" type="date" min="${C.today}" data-bind="examDraft.date" value="${esc(d.date)}"></label></div>

@@ -520,6 +520,7 @@ test('exam countdown: set in Settings, shown on the Mission tab with banked hour
   let card = (await B.page.locator('#exam-count').textContent()).replace(/\s+/g, ' ');
   assert.match(card, /6\s*days left/); assert.match(card, /Finals · Saturday 21 November/); assert.match(card, /0m of study banked since 15 Nov/);
   assert.match(card, /An exam-week pass would freeze both streaks/);
+  assert.match((await B.page.locator('#exam-pill').textContent()).trim(), /^6\s*days$/, 'the days left also sit under the streaks');
   await openScroll(B, 'study');
   assert.match(await B.page.locator('.mscroll.study .hokage-line').textContent(), /Finals/);
   await B.setTime(T0 + min(5));
@@ -532,13 +533,14 @@ test('exam countdown: set in Settings, shown on the Mission tab with banked hour
   await until(async () => (await B.docs())['leaf/main'].exam.date === '2026-12-20', 'the new date');
   assert.equal((await B.docs())['leaf/main'].exam.since, '2026-11-15');
   await B.tab('mission');
-  card = (await B.page.locator('#exam-count').textContent()).replace(/\s+/g, ' ');
-  assert.match(card, /35\s*days left/); assert.doesNotMatch(card, /exam-week pass/);
+  assert.equal(await B.page.locator('#exam-count').count(), 0, 'more than a week out: no card, just the days on the stage');
+  assert.match((await B.page.locator('#exam-pill').textContent()).trim(), /^35\s*days$/);
+  assert.match(await B.page.locator('#exam-pill').getAttribute('title'), /Finals · Sunday 20 December/);
   assert.doesNotMatch(await B.page.locator('.mscroll.study .hokage-line').textContent(), /Finals/, 'outside the last two weeks the usual lines return');
   await B.tab('settings');
   await B.page.locator('[data-act="examc-clear"]').click();
   await until(async () => (await B.docs())['leaf/main'].exam === undefined, 'cleared');
-  await B.tab('mission'); assert.equal(await B.page.locator('#exam-count').count(), 0);
+  await B.tab('mission'); assert.equal(await B.page.locator('#exam-count').count(), 0); assert.equal(await B.page.locator('#exam-pill').count(), 0);
   assert.deepEqual((await B.docs())['leaf/main'].examWeeks, fixture.settings.examWeeks, 'the exam-week pass is a separate thing and was not touched');
   await B.close();
   noErrors();
@@ -598,8 +600,10 @@ test('rest timer: each Friday test set starts a rest countdown by itself; +30 s,
   await until(async () => (await on()) === 1, 'the second rest');
   assert.equal(await clock(), '2:00', 'the chosen length is used');
   assert.match(await toastText(B), /12 pull-ups logged/, 'the normal toast still shows on a test day');
+  /* every toast is recorded, so a later one cannot hide "Rest done" */
+  await B.page.evaluate(() => { window.__toasts = []; const t = document.getElementById('toast'); new MutationObserver(() => window.__toasts.push(t.textContent)).observe(t, {childList:true, characterData:true, subtree:true}); });
   await B.setTime(at('2026-11-13', 17, 8));
-  await until(async () => /Rest done/.test(await toastText(B)), 'the bell at zero');
+  await until(async () => (await B.page.evaluate(() => window.__toasts.join(' | '))).includes('Rest done'), 'the bell at zero');
   assert.equal(await on(), 0);
   /* the last set of the test: no countdown, nothing left to rest for */
   for(const [m, reps] of [[9, 26], [14, 24]]){ await B.setTime(at('2026-11-13', 17, m)); await B.logSet(reps); }
