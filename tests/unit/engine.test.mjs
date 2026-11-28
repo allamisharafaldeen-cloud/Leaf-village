@@ -541,6 +541,25 @@ test('sleep: a good night needs hours, bedtime and wake time; earlier is fine; o
   assert.equal(C.weeks['2026-11-01'].xp, without.weeks['2026-11-01'].xp, 'sleep XP stays out of the shadow clone race');
 });
 
+test('sleep rhythm: usual times are medians across midnight, the score is 100 minus the average drift, on-call nights are left out', () => {
+  const V = cleanWeek();
+  const beds = ['23:40', '23:50', '00:00', '00:10', '00:20', '23:30', '00:00'], wakes = ['07:40', '07:40', '07:40', '08:40', '07:40', '07:40', '07:40'];
+  V.sleep = {}; beds.forEach((b, i) => { const d = E.addDays('2026-11-02', i); V.sleep[d] = {date:d, mins:470, score:80, bed:b, wake:wakes[i]}; });
+  V.sleep['2026-11-01'] = {date:'2026-11-01', oncall:true, mins:0};
+  const C = E.compute(V, at('2026-11-08', 12)), R = E.sleepRhythm(C);
+  assert.equal(R.n, 7, 'the on-call night is not counted');
+  assert.equal(R.bed, 0, 'usual bedtime is midnight (the median, measured across midnight)'); assert.equal(R.wake, 7 * 60 + 40);
+  assert.equal(R.bedSpread, 13); assert.equal(R.wakeSpread, 9);
+  assert.equal(R.score, 89); assert.equal(R.label, 'Like clockwork');
+  const few = E.sleepRhythm(E.compute(V, at('2026-11-05', 12)));
+  assert.equal(few.score, null, 'fewer than 5 nights: no score yet'); assert.equal(few.n, 4); assert.equal(few.need, 5);
+  const before = E.sleepRhythm(C, E.addDays(C.today, -14));
+  assert.equal(before.n, 0, 'the two weeks before had no nights');
+  const W = clone(V); ['2026-11-03', '2026-11-05'].forEach(d => { W.sleep[d].bed = '02:30'; W.sleep[d].wake = '10:30'; });
+  const R2 = E.sleepRhythm(E.compute(W, at('2026-11-08', 12)));
+  assert.equal(R2.score, 49, 'two nights 2½ hours late in a week cost about 40 points'); assert.equal(R2.label, 'Irregular');
+});
+
 test('sleep: the goal comes from the schedule, so a change starts tomorrow and never rewrites a past night', () => {
   const V = cleanWeek();
   V.sleep = {'2026-11-03':{date:'2026-11-03', mins:460, score:80, bed:'19:40', wake:'03:50'}};

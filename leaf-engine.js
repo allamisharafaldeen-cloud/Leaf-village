@@ -248,6 +248,27 @@ function computeSleep(data, today){
   return res;
 }
 
+/* ---------- sleep rhythm: how steady bed and wake times are over the last 14 nights ----------
+   A stat only (no XP). For each time, the usual value is the median and the spread is the average distance from it,
+   in minutes. Score = 100 minus the average of the two spreads (a night 30 minutes off on both costs 30 points).
+   On-call nights and nights without both times are left out; at least 5 nights are needed for a score. */
+const RHYTHM = {nights:14, min:5};
+function sleepRhythm(C, until){
+  until = until || C.today;
+  const from = addDays(until, -(RHYTHM.nights - 1));
+  const nights = (C.sleep ? C.sleep.list : []).filter(r => r.date >= from && r.date <= until && r.logged && r.bed != null && r.wake != null);
+  const out = {from, until, n:nights.length, need:RHYTHM.min, nights, score:null};
+  if(nights.length < RHYTHM.min) return out;
+  const beds = nights.map(r => eveClock(r.bed)), wakes = nights.map(r => mornClock(r.wake));
+  const med = a => { const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+  const spread = (a, m) => a.reduce((t, v) => t + Math.abs(v - m), 0) / a.length;
+  const mb = med(beds), mw = med(wakes), sb = spread(beds, mb), sw = spread(wakes, mw);
+  const score = Math.max(0, Math.min(100, Math.round(100 - (sb + sw) / 2)));
+  const wrap = m => ((Math.round(m) % 1440) + 1440) % 1440;
+  return Object.assign(out, {score, bed:wrap(mb), wake:wrap(mw), bedSpread:Math.round(sb), wakeSpread:Math.round(sw),
+    label:score >= 85 ? 'Like clockwork' : score >= 70 ? 'Steady' : score >= 50 ? 'Uneven' : 'Irregular'});
+}
+
 /* match each completed study hour to one workout set logged within the next 60 minutes */
 function comboMatches(hours, sets){
   const ts = sets.map(x => +new Date(x.t)).filter(n => !isNaN(n)).sort((a, b) => a - b), used = new Set(); let n = 0; const free = [];
@@ -1185,7 +1206,7 @@ return {
   pad, ymd, parse, isDate, addDays, dowOf, dnum, daysBetween, weekStart, dateAt, dayStartMs, rankFor,
   sortedHistory, entryFor, normEntry, planFor, gtgTarget, studyPlanOf, studyTarget, examFor, isExam,
   splitByDay, provisionalPieces, hourTimes, computeStudy, comboMatches, compute, streakStory, cleanBackup,
-  SLEEP, SLEEP_DEFAULT, sleepPlanOf, sleepGoal, clockMin, bedOk, wakeOk, sleepNight, computeSleep,
+  SLEEP, SLEEP_DEFAULT, sleepPlanOf, sleepGoal, clockMin, bedOk, wakeOk, sleepNight, computeSleep, sleepRhythm, RHYTHM,
   ACHIEVEMENTS, achievements, monthsOf, monthEnd, monthLabel, monthReport, chapterTitle, hokageSummary, chapters, hoursText, progression, examCountdown, RIVAL, raceResult, rival, FOCUS, focusSpans, timerSpans, JUTSU, jutsu
 };
 });

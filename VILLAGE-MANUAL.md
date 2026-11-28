@@ -34,11 +34,19 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
   that pose to line up with, has a 5/10 s timer and moves on to the next pose by itself. Compare any two dates side by
   side (with the weight and tape changes if you weighed in within 10 days). **On this device only**, not synced, not in
   the backup file.
+- **Sleep rhythm** (Stats → Sleep): how steady your bed and wake times are over the last 14 nights (a stat, no XP).
+  Usual time = the median; drift = the average distance from it. Score = 100 − the average of the two drifts in
+  minutes (85+ Like clockwork, 70+ Steady, 50+ Uneven, below Irregular). Needs 5 nights with both times; on-call
+  nights are left out. The chart shows each night as a bar from falling asleep to waking.
 - **One-time swap**: trade today's mission with tomorrow's, this week only.
 - **On call** (Mission tab, 2 a week, today only): the day counts like an exam day: what you do still earns, nothing
   missed costs XP or breaks a streak, and no scroll is used.
-- **Side quests** (Ninja tab): 3 optional challenges a week, picked by the week. A finished quest shows a red badge
-  on the Ninja tab and the Side quests card; tap Claim to collect the Ryō. Missed = nothing.
+- **Weekly quests** (Ninja tab), one card with two parts:
+  - *Sensei challenges*: Kakashi, Guy, Jiraiya, the Third Hokage (Village duty and Scholar's week). Bonus XP is added
+    by itself the day you finish one. A lost one (a missed mission for Village duty) is greyed out.
+  - *Side quests*: 3 optional challenges a week, picked by the week. A finished one shows a red badge on the Ninja tab
+    and the card; tap Claim to collect the Ryō. Rewards left from earlier weeks gather in one "Claim all" row.
+    Missed = nothing.
 
 ## XP, ranks, streaks
 - XP from sets, completed missions, tests, new maxes, rest days, study hours, good nights, weekly sensei challenges and

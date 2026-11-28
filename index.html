@@ -721,6 +721,22 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .cam-shutter:active{background:#fff}
 .cam-layer.flash::after{content:''; position:absolute; inset:0; background:#fff; animation:camflash .35s ease-out forwards; pointer-events:none}
 @keyframes camflash{from{opacity:.9} to{opacity:0}}
+.wk-sub{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin:14px 0 8px; font-family:var(--f-data); font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase}
+.wk-sub span{font-family:var(--f-body); font-size:12px; font-weight:500; letter-spacing:0; text-transform:none; color:var(--muted)}
+.quests li.sq{border-left:4px solid var(--sc)}
+.sq-name{display:flex; align-items:center; gap:8px; min-width:0}
+.sq-face{width:26px; height:26px; border-radius:50%; object-fit:cover; border:1.5px solid var(--sc); flex:none}
+.sq-xp{font-weight:700; font-size:13px; color:var(--chakra-ink); white-space:nowrap}
+.quests li.sq.done .sq-xp{color:#3c9a48}
+.quests li.sq.lost{opacity:.6}
+.quests li.sq.lost .tf-bar i{background:var(--muted)}
+.rhythm-top{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap}
+.rhythm-top .big{font-family:var(--f-data); font-size:40px; font-weight:700; line-height:1; color:var(--sleep)}
+.rhythm-top .big small{font-size:15px; color:var(--muted)}
+.rhythm-top b{font-size:16px}
+.rhythm-top .trend{font-size:12.5px; color:var(--muted)}
+.rhythm-line{margin:8px 0 0; font-size:13.5px}
+.rhythm-tip{margin:10px 0 0; font-size:13px; padding:8px 10px; border-radius:10px; border-left:3px solid #c0392b; background:color-mix(in srgb, #c0392b 7%, transparent)}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto !important; background-position:center !important}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px !important; background-position:left bottom !important}
@@ -1698,17 +1714,37 @@ function onCallAction(act){
   if(act==='oncall-on') s.oncall.push(today);
   save('settings', null, s); SFX.play('tick'); toast(act==='oncall-on'?'On call: your streaks are safe today. Good luck on the ward.':'Back to a normal day.');
 }
-function questCard(C){
-  const Q=E.sideQuests(C).now; if(!Q) return '';
-  const end=E.addDays(Q.start,6);
-  const all=E.sideQuests(C), old=all.unclaimed.filter(q=>!Q.quests.some(x=>x.key===q.key)), n=all.unclaimed.length;
+/* ---------- one card for the week: the senseis' challenges (bonus XP, added by itself) and side quests (Ryō, tap to claim) ---------- */
+function weeklyCard(C){
+  const all=E.sideQuests(C), Q=all.now, end=E.addDays(weekStart(C.today),6);
+  const old=all.unclaimed.filter(q=>!(Q && Q.quests.some(x=>x.key===q.key))), n=all.unclaimed.length;
   const claimBtn=q=>state.readOnly?'':`<button type="button" class="btn small claim-btn" data-act="quest-claim" data-key="${q.key}" aria-label="Claim ${q.ryo} Ryō for ${esc(q.name)}">Claim ${ryo(q.ryo)}</button>`;
-  const row=q=>`<li class="${q.claimed?'done':q.done?'ready':''}"><div class="q-top"><b>${esc(q.name)}</b><span>${ryo(q.ryo)}</span></div><small>${esc(q.text)}</small>
+  const qRow=q=>`<li class="${q.claimed?'done':q.done?'ready':''}"><div class="q-top"><b>${esc(q.name)}</b><span>${ryo(q.ryo)}</span></div><small>${esc(q.text)}</small>
       <span class="tf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${q.goal}" aria-valuenow="${q.n}" aria-label="${esc(q.name)}"><i style="width:${Math.round(q.n/q.goal*100)}%"></i></span>
       ${q.claimed?'<em>Claimed ✓</em>':q.done?claimBtn(q):`<em>${q.id==='weekend'?`${q.n} / ${q.goal} min`:`${q.n} / ${q.goal}`}</em>`}</li>`;
-  return `<section class="card" id="quest-card"><div class="section-head"><h2>Side quests${n?`<span class="nbadge" aria-label="${n} to claim">${n}</span>`:''}</h2><span class="eyebrow">until ${esc(shortDate(end))}</span></div>
-    ${old.length?`<p class="muted small">Still to claim from earlier weeks:</p><ul class="quests">${old.map(row).join('')}</ul>`:''}
-    <ul class="quests">${Q.quests.map(row).join('')}</ul></section>`;
+  const sRow=(id, title, desc, st, xp, prog, lost)=>{ const sd=SENSEIS[id];
+    return `<li class="sq${st.done?' done':lost?' lost':''}" style="--sc:${sd.color}"><div class="q-top"><span class="sq-name"><img src="senseis/${id}-face.jpg" alt="" class="sq-face"><b>${esc(title)}</b></span><span class="sq-xp">+${xp} XP</span></div>
+      <small>${esc(sd.name)} · ${esc(desc)}</small>
+      <span class="tf-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${st.goal}" aria-valuenow="${Math.round(st.prog)}" aria-label="${esc(title)}"><i style="width:${Math.round(100*st.prog/st.goal)}%"></i></span>
+      <em>${st.done?'Earned ✓':prog}${st.note&&!st.done?` · ${esc(st.note)}`:''}</em></li>`; };
+  const sc=studyChallengeState(C);
+  const sensei=SENSEI_ORDER.map(id=>{ const ch=SENSEIS[id].challenge, st=challengeState(C,id); return sRow(id, ch.title, ch.desc, st, ch.xp, `${st.prog} / ${st.goal}`, id==='hiruzen' && !!(C.weekNow||{}).missed); }).join('')
+    + sRow('hiruzen', "Scholar's week", 'Study 30 hours this week', sc, STUDY.weekXp, `${fmtH(sc.prog)} / 30h`);
+  return `<section class="card" id="quest-card"><div class="section-head"><h2>Weekly quests${n?`<span class="nbadge" aria-label="${n} to claim">${n}</span>`:''}</h2><span class="eyebrow">until ${esc(shortDate(end))}</span></div>
+    ${old.length===1?`<p class="muted small">Still to claim from an earlier week:</p><ul class="quests">${qRow(old[0])}</ul>`
+      : old.length?`<ul class="quests"><li class="ready" id="quest-old"><div class="q-top"><b>From earlier weeks</b><span>${ryo(old.reduce((t,q)=>t+q.ryo,0))}</span></div><small>${old.length} finished side quests waiting to be claimed</small>${state.readOnly?'':`<button type="button" class="btn small claim-btn" data-act="quest-claim-all">Claim all ${old.length}</button>`}</li></ul>`:''}
+    <h3 class="wk-sub">Sensei challenges<span>Bonus XP, added by itself</span></h3>
+    <ul class="quests">${sensei}</ul>
+    ${Q?`<h3 class="wk-sub">Side quests<span>Ryō, tap Claim to collect</span></h3><ul class="quests">${Q.quests.map(qRow).join('')}</ul>`:''}
+  </section>`;
+}
+function questClaimAll(){
+  if(state.readOnly || !lastC) return;
+  const Q=E.sideQuests(lastC), cur=Q.now ? Q.now.quests.map(q=>q.key) : [];
+  const list=Q.unclaimed.filter(q=>!cur.includes(q.key)); if(!list.length) return;
+  const s=clone(S()); s.quests=(s.quests && typeof s.quests==='object')?s.quests:{}; s.quests.claimed=Object.assign({}, s.quests.claimed);
+  list.forEach(q=>{ s.quests.claimed[q.key]=lastC.today; });
+  save('settings', null, s); SFX.play('complete'); FX.leafBurst(); toast(`+${list.reduce((t,q)=>t+q.ryo,0)} Ryō · ${list.length} side quests`);
 }
 function questNews(C){
   if(state.readOnly || !settled()) return;
@@ -1717,7 +1753,7 @@ function questNews(C){
   if(!seen){ try{ localStorage.setItem('leaf-quests-seen', JSON.stringify(done)); }catch(e){} return; }
   const fresh=done.filter(k=>!seen.includes(k)); if(!fresh.length) return;
   try{ localStorage.setItem('leaf-quests-seen', JSON.stringify(seen.concat(fresh))); }catch(e){}
-  fresh.forEach((k,i)=>{ const q=E.QUESTS.find(x=>x.id===k.split('|')[1]); setTimeout(()=>{ toast(`Side quest done: ${q.name}. Claim your ${q.ryo} Ryō on the Ninja tab`, 4000); SFX.play('complete'); }, 900+i*4200); });
+  fresh.forEach((k,i)=>{ const q=E.QUESTS.find(x=>x.id===k.split('|')[1]); setTimeout(()=>{ toast(`Side quest done: ${q.name}. Claim your ${q.ryo} Ryō in Weekly quests on the Ninja tab`, 4000); SFX.play('complete'); }, 900+i*4200); });
 }
 function questClaim(el){
   if(state.readOnly || !lastC) return;
@@ -2262,6 +2298,42 @@ function sleepChart(C){
   const yg=Y(goal).toFixed(1); g+=`<line x1="${L}" x2="${W-R}" y1="${yg}" y2="${yg}" style="stroke:var(--ink)" stroke-width="1.4" stroke-dasharray="4 3"/>`;
   return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Hours slept over the last two weeks">${g}</svg></div>`;
 }
+/* ---------- sleep rhythm: how steady bed and wake times are (a stat, no XP) ---------- */
+function rhythmCard(C){
+  const R=E.sleepRhythm(C), P=E.sleepRhythm(C, addDays(C.today,-14));
+  const head = R.score==null
+    ? `<p class="muted small" style="margin:0">A score appears after ${R.need-R.n} more ${R.need-R.n===1?'night':'nights'} with both a bedtime and a wake time (the last 14 nights count; on-call nights don't).</p>`
+    : `<div class="rhythm-top"><span class="big" id="rhythm-score">${R.score}<small> / 100</small></span><b>${esc(R.label)}</b>${P.score!=null?`<span class="trend">${R.score===P.score?'Same as':R.score>P.score?`▲ Up ${R.score-P.score} from`:`▼ Down ${P.score-R.score} from`} the 14 nights before</span>`:''}</div>
+      <p class="rhythm-line">Usually asleep <b>${clockText(R.bed)}</b>, up <b>${clockText(R.wake)}</b>. Bedtime drifts <b>±${R.bedSpread} min</b>, wake time <b>±${R.wakeSpread} min</b>.</p>`;
+  const tip = R.score==null ? '' : (()=>{
+    if(R.score>=85) return 'Keep it right there. A steady rhythm makes the same hours of sleep feel like more.';
+    if(R.wakeSpread>=R.bedSpread) return 'Anchor the wake time first: the same time every morning, days off too. Bedtime follows on its own within a week or two.';
+    return 'Your bedtime moves the most. Pick a wind-down time an hour before it and keep it, even on nights off.';
+  })();
+  return `<section class="card" id="rhythm-card"><div class="section-head"><h2>Sleep rhythm</h2><span class="eyebrow">Last 14 nights</span></div>
+    ${head}${rhythmChart(C, R)}${tip?`<p class="rhythm-tip"><b>Jiraiya:</b> ${esc(tip)}</p>`:''}</section>`;
+}
+/* each night as a bar from falling asleep to waking, on one clock, so a steady rhythm shows as bars stacked in line */
+function rhythmChart(C, R){
+  const days=Array.from({length:14},(_,k)=>addDays(R.until,k-13)), recs=days.map(d=>C.sleep.days[d]||null);
+  const ok=r=>r && r.logged && r.bed!=null && r.wake!=null;
+  const eve=m=>m<720?m+1440:m, wakeAt=m=>(m>=1080?m-1440:m)+1440;
+  const shown=recs.filter(ok); if(!shown.length) return '';
+  const lo=Math.floor((Math.min(...shown.map(r=>eve(r.bed)))-30)/60)*60, hi=Math.ceil((Math.max(...shown.map(r=>wakeAt(r.wake)))+30)/60)*60;
+  const W=340, L=26, Rt=8, T=R.score!=null?16:6, rowH=13, B=18, H=T+rowH*14+B, X=m=>L+(Math.min(hi,Math.max(lo,m))-lo)/(hi-lo)*(W-L-Rt);
+  let g='';
+  const step=(hi-lo)>720?180:120;
+  for(let m=Math.ceil(lo/step)*step; m<=hi; m+=step){ const x=X(m).toFixed(1); g+=`<line class="gridline" x1="${x}" x2="${x}" y1="${T}" y2="${H-B}"/><text class="ax" x="${x}" y="${H-5}" text-anchor="middle">${clockText(m)}</text>`; }
+  days.forEach((d,k)=>{
+    const r=recs[k], y=T+rowH*k;
+    g+=`<text class="ax" x="${L-6}" y="${(y+9.5).toFixed(1)}" text-anchor="end"${d===C.today?' style="font-weight:700;fill:var(--ink)"':''}>${parse(d).getDate()}</text>`;
+    if(ok(r)){ const x1=X(eve(r.bed)), x2=X(wakeAt(r.wake)), col=r.status==='good'?'var(--sleep)':r.status==='exam'?'var(--exam)':'var(--sleep-soft)';
+      g+=`<rect x="${x1.toFixed(1)}" y="${(y+3).toFixed(1)}" width="${Math.max(2,x2-x1).toFixed(1)}" height="8" rx="4" style="fill:${col}"><title>${esc(shortDate(d))}: ${clockText(r.bed)} to ${clockText(r.wake)}</title></rect>`; }
+    else if(r && r.oncall) g+=`<text class="ax" x="${L+4}" y="${(y+9.5).toFixed(1)}">on call</text>`;
+  });
+  if(R.score!=null){ [[eve(R.bed),'usual'],[wakeAt(R.wake),'usual']].forEach(([m,l])=>{ const x=X(m).toFixed(1); g+=`<line x1="${x}" x2="${x}" y1="${T-2}" y2="${H-B}" style="stroke:var(--ink)" stroke-width="1.2" stroke-dasharray="3 3"/><text class="ax" x="${x}" y="${T-5}" text-anchor="middle" style="fill:var(--ink)">${l} ${clockText(m)}</text>`; }); }
+  return `<div class="chart" style="margin-top:10px"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Bedtime and wake time for each of the last 14 nights">${g}</svg></div>`;
+}
 function sleepStatsView(C){
   const sl=C.sleep, g=E.sleepGoal(S()||{}, C.today);
   if(!sl.start) return `<section class="card"><h2>Sleep</h2><p class="empty">Your sleep log starts with your first night. Open the Sleep Scroll on the Mission tab tomorrow morning and copy last night from your sleep app.</p><p class="muted small">Goal: ${fmtH(g.mins)}, asleep by ${clockText(g.bedBy)}, up by ${clockText(g.wakeBy)}.</p></section>`;
@@ -2283,7 +2355,7 @@ function sleepStatsView(C){
   const totals=`<section class="card"><h2>Sleep totals</h2>
     <div class="statrow"><div><b>${goodN}</b><span>good ${goodN===1?'night':'nights'}</span></div><div><b>${shortN}</b><span>goal missed</span></div><div><b>${missN}</b><span>not logged</span></div></div>
     <div class="statrow"><div><b>${bedAvg(last7)}</b><span>average bedtime (7 nights)</span></div><div><b>${wakeAvg(last7)}</b><span>average wake time</span></div><div><b>${onN}</b><span>on-call ${onN===1?'night':'nights'}</span></div></div></section>`;
-  return tiles+chart+totals;
+  return tiles+rhythmCard(C)+chart+totals;
 }
 function examCard(C){
   const s=S(), list=examWeeks().sort((a,b)=>a.start<b.start?-1:1), today=C.today;
@@ -2423,38 +2495,6 @@ function studyChallengeState(C){
   const wk=(C.study.weeks||{})[weekStart(C.today)]||{mins:0, won:false};
   return {prog:Math.min(wk.mins, STUDY.weekGoal), goal:STUDY.weekGoal, done:!!wk.won};
 }
-function studyChalBlock(C){
-  const st=studyChallengeState(C);
-  return `<div class="chal${st.done?' won':''}" style="--sc:#2f6fb0">
-    <div class="chal-top"><b>Scholar's week</b><span class="num">${st.done?`+${STUDY.weekXp} XP earned`:`+${STUDY.weekXp} XP`}</span></div>
-    <span class="chal-desc">Study 30 hours this week</span>
-    <div class="chal-bar" role="progressbar" aria-valuemin="0" aria-valuemax="30" aria-valuenow="${Math.floor(st.prog/60)}"><i style="width:${Math.round(100*st.prog/st.goal)}%"></i></div>
-    <span class="chal-desc num">${st.done?'Complete this week':`${fmtH(st.prog)} / 30h`}</span>
-  </div>`;
-}
-function senseisCard(C){
-  const rows=SENSEI_ORDER.map(id=>{
-    const sd=SENSEIS[id], ch=sd.challenge, st=challengeState(C,id);
-    return `<div class="sensei-row summon roster" style="--sc:${sd.color}">
-      <div class="summon-box">
-      <div class="summon-fig" aria-hidden="true"><img src="senseis/${id}-1.webp" alt="" loading="lazy"></div>
-      <div class="summon-text">
-      <div class="summon-name"><b>${esc(sd.name)}</b><span>${esc(sd.role)}</span></div>
-      <span class="roster-spec">${esc(sd.spec)}</span>
-      <div class="chal${st.done?' won':''}">
-        <div class="chal-top"><b>${esc(ch.title)}</b><span class="num">${st.done?`+${ch.xp} XP earned`:`+${ch.xp} XP`}</span></div>
-        <span class="chal-desc">${esc(ch.desc)}</span>
-        <div class="chal-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${ch.goal}" aria-valuenow="${st.prog}"><i style="width:${Math.round(100*st.prog/ch.goal)}%"></i></div>
-        <span class="chal-desc num">${st.done?'Complete this week':`${st.prog} / ${ch.goal}`}${st.note&&!st.done?` · ${esc(st.note)}`:''}</span>
-      </div>
-      ${id==='hiruzen'?studyChalBlock(C):''}
-      </div></div>
-    </div>`;
-  }).join('');
-  return `<section class="card" id="sensei-card"><div class="section-head"><h2>Senseis</h2><span class="eyebrow">Week of ${esc(shortDate(weekStart(C.today)))}</span></div>
-    <p class="muted small">Each sensei sets a weekly challenge for bonus XP. Challenges reset every Sunday.</p>${rows}</section>`;
-}
-
 /* ---------- shadow clone rival ---------- */
 function rivalCard(C){
   const R=C._rival||(C._rival=E.rival(C)), k=R.day, dayName=DOW[k];
@@ -3297,9 +3337,8 @@ function ninjaView(C){
     <button class="btn small chakra-btn" data-act="weigh-save" style="align-self:flex-start">${existing?'Update today\'s weigh-in':'Save weigh-in'}</button>
     ${histRows?`<ul class="list">${histRows}</ul>`:''}
   </section>`}
-  ${senseisCard(C)}
+  ${weeklyCard(C)}
   <section class="card"><div class="section-head"><h2>Rank ladder</h2><span class="eyebrow">${fmt(C.total)} XP</span></div><p class="muted" style="margin:0;font-size:13px">Tap a rank to see its form.</p><ul class="ladder">${ladder}</ul></section>
-  ${questCard(C)}
   ${shopCard(C)}
   ${jutsuCard(C)}
   ${bookCard(C)}
@@ -4651,6 +4690,7 @@ document.addEventListener('click', e=>{
   if(act==='swap-ask' || act==='swap-cancel' || act==='swap-yes' || act==='swap-undo'){ swapAction(act); return; }
   if(act==='oncall-on' || act==='oncall-off'){ onCallAction(act); return; }
   if(act==='quest-claim'){ questClaim(el); return; }
+  if(act==='quest-claim-all'){ questClaimAll(); return; }
   if(act==='ph-pose'){ ui.photoPose=el.dataset.v; ui.phThen=null; ui.phNow=null; render(); return; }
   if(act==='ph-cam'){ camOpen(ui.photoPose||'front'); return; }
   if(act==='ph-manage'){ ui.phManage=!ui.phManage; ui.phDelAsk=null; render(); return; }

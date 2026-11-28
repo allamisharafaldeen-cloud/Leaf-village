@@ -725,6 +725,67 @@ test('progress photos: from the library, then the guided camera walks front, sid
   noErrors();
 });
 
+/* four weeks on from the fixture: a weigh-in and a night logged every day (bed and wake times vary a little, one on-call
+   night), and three morning sets on two days of each of the first two weeks */
+function weeksLater(){
+  const f = clone(fixture), add = (d, n) => new Date(Date.parse(d + 'T12:00:00Z') + n * 864e5).toISOString().slice(0, 10);
+  const beds = ['19:40', '20:00', '19:50', '20:30', '19:40', '19:45', '20:10'], wakes = ['03:40', '03:50', '03:40', '04:20', '03:45', '03:40', '03:55'];
+  f.sleep = {};
+  for(let i = 0, d = '2026-11-22'; d <= '2026-12-12'; i++, d = add(d, 1)){ f.body[d] = {date:d, weight:73}; f.sleep[d] = {date:d, mins:470, score:85, bed:beds[i % 7], wake:wakes[i % 7]}; }
+  f.sleep['2026-12-13'] = {date:'2026-12-13', mins:470, score:85, bed:'19:40', wake:'03:40'};
+  f.sleep['2026-12-05'] = {date:'2026-12-05', oncall:true, mins:0};
+  ['2026-11-23', '2026-11-24', '2026-11-30', '2026-12-01'].forEach(d => { f.days[d] = {date:d, sets:[0, 1, 2].map(k => ({ex:'pullups', reps:6, t:`${d}T0${4 + k}:00:00.000Z`}))}; });
+  return tmpFile('weeks-later.json', f);
+}
+
+test('weekly quests: one Ninja card holds the sensei challenges and the side quests; earlier rewards are claimed in one tap', async () => {
+  const B = await fresh('weekly', {file:weeksLater(), now:at('2026-12-13', 9)});
+  await closeScenes(B);
+  await B.tab('ninja');
+  assert.equal(await B.page.locator('#sensei-card').count(), 0, 'the old Senseis card is gone');
+  const card = B.page.locator('#quest-card'), txt = async () => (await card.textContent()).replace(/\s+/g, ' ');
+  assert.match(await txt(), /Weekly quests/);
+  assert.match(await txt(), /Sensei challenges\s*Bonus XP, added by itself/); assert.match(await txt(), /Side quests\s*Ryō, tap Claim to collect/);
+  assert.equal(await card.locator('li.sq').count(), 5, 'four sensei challenges and the Scholar\'s week');
+  for(const t of ['Precision drill', 'Burning youth', 'Field research', 'Village duty', "Scholar's week"]) assert.ok((await txt()).includes(t), t);
+  assert.equal(await card.locator('li.sq .sq-face').count(), 5);
+  const old = card.locator('#quest-old');
+  assert.match((await old.textContent()).replace(/\s+/g, ' '), /From earlier weeks\s*260\s*3 finished side quests waiting to be claimed/);
+  assert.equal(await B.page.locator('nav a[data-tab="ninja"] .nbadge').textContent(), '3');
+  await old.locator('[data-act="quest-claim-all"]').click();
+  const claimed = await until(async () => { const s = (await B.docs())['leaf/main']; return s.quests && s.quests.claimed && Object.keys(s.quests.claimed).length === 3 ? s.quests.claimed : null; }, 'all three to be claimed');
+  assert.deepEqual(Object.keys(claimed).sort(), ['2026-11-22|morning', '2026-11-29|morning', '2026-12-06|scale']);
+  assert.ok(Object.values(claimed).every(v => v === '2026-12-13'));
+  assert.match(await toastText(B), /\+260 Ryō · 3 side quests/);
+  await until(async () => (await old.count()) === 0, 'the row to go');
+  assert.equal(await B.page.locator('nav a[data-tab="ninja"] .nbadge').count(), 0, 'nothing left to claim');
+  await B.close();
+  noErrors();
+});
+
+test('sleep rhythm: Stats → Sleep shows a steadiness score, the usual times and each night from bedtime to waking', async () => {
+  const B = await fresh('rhythm', {file:weeksLater(), now:at('2026-12-13', 9)});
+  await closeScenes(B);
+  await B.tab('stats');
+  await B.page.locator('[data-act="stats-mode"][data-v="sleep"]').click();
+  const card = B.page.locator('#rhythm-card'), txt = async () => (await card.textContent()).replace(/\s+/g, ' ');
+  await card.waitFor();
+  assert.equal((await B.page.locator('#rhythm-score').textContent()).replace(/\s+/g, ' '), '89 / 100');
+  assert.match(await txt(), /Like clockwork/); assert.match(await txt(), /Same as the 14 nights before/);
+  assert.match(await txt(), /Usually asleep 19:50, up 03:45\. Bedtime drifts ±13 min, wake time ±9 min\./);
+  assert.equal(await card.locator('svg rect').count(), 13, '14 nights less the on-call one');
+  assert.match(await card.locator('svg').textContent(), /on call/);
+  assert.match(await txt(), /Jiraiya: Keep it right there/);
+  await B.close();
+  /* early on: not enough nights yet */
+  const N = await fresh('rhythm-new');
+  await N.tab('stats');
+  await N.page.locator('[data-act="stats-mode"][data-v="sleep"]').click();
+  assert.equal(await N.page.locator('#rhythm-card').count(), 0, 'no sleep logged at all: the starting note only');
+  await N.close();
+  noErrors();
+});
+
 test('shadow clone race: the Stats tab compares this week with four weeks ago, and Sunday brings the result', async () => {
   const B = await fresh('rival');
   await B.tab('stats');
