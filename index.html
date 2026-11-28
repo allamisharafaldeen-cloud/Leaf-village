@@ -737,6 +737,9 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .rhythm-top .trend{font-size:12.5px; color:var(--muted)}
 .rhythm-line{margin:8px 0 0; font-size:13.5px}
 .rhythm-tip{margin:10px 0 0; font-size:13px; padding:8px 10px; border-radius:10px; border-left:3px solid #c0392b; background:color-mix(in srgb, #c0392b 7%, transparent)}
+.rm-char{display:flex; gap:12px; align-items:flex-start; margin-bottom:10px}
+.rm-char-art{flex:none; width:64px; height:96px; border-radius:10px; border:1.5px dashed var(--line); background:center/contain no-repeat color-mix(in srgb, var(--rk) 12%, transparent); display:grid; place-items:center; font-size:24px; color:var(--muted)}
+.rm-char b{display:block} .rm-char small{display:block; color:var(--muted); font-size:12.5px; margin:2px 0 6px}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto !important; background-position:center !important}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px !important; background-position:left bottom !important}
@@ -1165,10 +1168,12 @@ const CINE = OPEN ? {} : {'chunin':'media/cine-chunin-v2.mp4','special-jonin':'m
 const CINE_CACHE = 'leaf-cine';
 /* each rank's own wallpapers (up to 5) and scene, and a scene for each bought form; the files stay on this device */
 const RM_KEY='leaf-rank-media';
-function rankMedia(){ try{ const v=JSON.parse(localStorage.getItem(RM_KEY)||'{}')||{}; return {walls:v.walls||{}, cine:v.cine||{}}; }catch(e){ return {walls:{}, cine:{}}; } }
+function rankMedia(){ try{ const v=JSON.parse(localStorage.getItem(RM_KEY)||'{}')||{}; return {walls:v.walls||{}, cine:v.cine||{}, chars:v.chars||{}}; }catch(e){ return {walls:{}, cine:{}, chars:{}}; } }
 function setRankMedia(fn){ const m=rankMedia(); fn(m); try{ localStorage.setItem(RM_KEY, JSON.stringify(m)); }catch(e){} }
 const devUrl = r => { if(!r || !r.id) return null; const u=blobUrl(r.id); return u && u!=='media/missing' ? u : null; };
 const cineUrl = id => devUrl(rankMedia().cine[id]) || CINE[id] || null;
+/* a rank character someone made for themselves: stands on the stage instead of the built-in figure */
+const rankChar = id => { const c=rankMedia().chars[id], u=devUrl(c); return u ? {url:u, ar:c.ar||.5} : null; };
 const deviceWalls = id => (rankMedia().walls[id]||[]).map(w=>({id:w.id, name:w.name, url:devUrl(w)})).filter(w=>w.url);
 const RANKS = E.RANKS.map(r0=>{ const r=Object.assign({}, r0, RANK_LOOK[r0.id]); return Object.assign(r,{photo:`ranks/${r.id}-face.jpg`, scene:`ranks/${r.id}.jpg`, cut:`ranks/${r.id}-cut${CUT_V[r.id]||''}.webp`, cutAr:CUT_AR[r.id]||.7, auraBox:AURA_BOX[r.id]||null, aura:AURA[r.id]||r.color}); });
 const {XP, TIERS, mult, nextTier, DEFAULT_PLAN} = E;
@@ -1501,7 +1506,7 @@ function updateMinibar(C){
       const sb=mb.querySelector('.mb-study b'); if(sb) sb.textContent=C.study.streak;
     } else {
       mb.dataset.rank=String(C.peak)+L.face;
-      mb.innerHTML=`<div class="mb-face"><img src="${L.face}" alt=""></div>
+      mb.innerHTML=`<div class="mb-face"><img src="${L.face}" alt=""${L.faceTop?' style="object-position:50% 6%"':''}></div>
         <div class="mb-mid"><div class="mb-top"><b>${esc(r.name)}</b><span class="mb-xp-text">${fmt(C.total)} XP</span></div><div class="mb-track"><div class="mb-fill" style="width:${pct}%"></div></div></div>
         <div class="mb-streaks"><span class="mb-flame">${flame}<b>${C.streak}</b></span>${C.study.start?`<span class="mb-study">${ico.scrollS}<b>${C.study.streak}</b></span>`:''}</div>`;
     }
@@ -1556,6 +1561,7 @@ function applyLook(){
 function stageLook(C, r){
   const g=activeTf(C);
   return g ? {cut:g.cut, cutAr:g.ar, auraBox:g.box, aura:g.color, auraImg:g.auraImg, face:g.face, name:g.name, tf:g}
+           : rankChar(r.id) ? (()=>{ const m=rankChar(r.id); return {cut:m.url, cutAr:m.ar, auraBox:null, aura:r.aura, auraImg:null, face:m.url, faceTop:true, name:r.name, tf:null}; })()
            : {cut:r.cut, cutAr:r.cutAr, auraBox:r.auraBox, aura:r.aura, auraImg:`ranks/${r.id}-aura.webp`, face:r.photo, name:r.name, tf:null};
 }
 function tfPoof(){
@@ -3867,15 +3873,38 @@ function shrinkPhoto(file, max){
     fr.readAsDataURL(file);
   });
 }
+/* a character picture keeps its transparency (PNG), trimmed to what is drawn and at most 1400 px tall */
+function charBlob(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader(); fr.onerror=()=>rej(fr.error);
+    fr.onload=()=>{ const img=new Image(); img.onerror=()=>rej(new Error('decode')); img.onload=()=>{
+      let W=img.naturalWidth, H=img.naturalHeight; const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d'); g.drawImage(img,0,0);
+      let x0=0, y0=0, x1=W, y1=H;
+      try{ const d=g.getImageData(0,0,W,H).data; let a=W, b=H, e=-1, f=-1;
+        for(let y=0;y<H;y+=2) for(let x=0;x<W;x+=2){ if(d[(y*W+x)*4+3]>16){ if(x<a)a=x; if(x>e)e=x; if(y<b)b=y; if(y>f)f=y; } }
+        if(e>a && f>b){ x0=Math.max(0,a-4); y0=Math.max(0,b-4); x1=Math.min(W,e+5); y1=Math.min(H,f+5); } }catch(err){}
+      const w=x1-x0, h=y1-y0, s=Math.min(1, 1400/h), o=document.createElement('canvas'); o.width=Math.round(w*s); o.height=Math.round(h*s);
+      o.getContext('2d').drawImage(c, x0,y0,w,h, 0,0,o.width,o.height);
+      o.toBlob(b=>b ? res({blob:b, ar:Math.round(w/h*1000)/1000}) : rej(new Error('encode')), 'image/png'); };
+      img.src=fr.result; };
+    fr.readAsDataURL(file);
+  });
+}
 function rankMediaCard(C){
   const rm=rankMedia(), busy=ui.uploading||{};
   const row=(key, name, face, color, withWalls)=>{
     const walls=withWalls?deviceWalls(key):[], cine=devUrl(rm.cine[key]), open=ui.rmOpen===key, built=CINE[key];
     const bw=withWalls?((RANKS.find(x=>x.id===key)||{}).walls||[]).length:0;
-    const sum=[withWalls?(walls.length?`${walls.length}/5 your wallpapers`:bw?'built-in wallpapers':'no wallpapers'):'', cine?'your scene':built?'built-in scene':'no scene'].filter(Boolean).join(' · ');
+    const ch=withWalls?rankChar(key):null;
+    const sum=[withWalls&&ch?'your character':'', withWalls?(walls.length?`${walls.length}/5 your wallpapers`:bw?'built-in wallpapers':'no wallpapers'):'', cine?'your scene':built?'built-in scene':'no scene'].filter(Boolean).join(' · ');
     return `<li class="rm-row${open?' open':''}" style="--rk:${color}">
-      <button type="button" class="rm-head" data-act="rm-open" data-rk="${key}" aria-expanded="${open}"><img src="${face}" alt="" loading="lazy"><span><b>${esc(name)}</b><small>${sum}</small></span><span class="rm-chev" aria-hidden="true">${open?'▴':'▾'}</span></button>
+      <button type="button" class="rm-head" data-act="rm-open" data-rk="${key}" aria-expanded="${open}"><img src="${ch?ch.url:face}" alt="" loading="lazy"${ch?' style="object-position:50% 6%"':''}><span><b>${esc(name)}</b><small>${sum}</small></span><span class="rm-chev" aria-hidden="true">${open?'▴':'▾'}</span></button>
       ${open?`<div class="rm-body">
+        ${withWalls?`<div class="rm-char"><div class="rm-char-art"${ch?` style="background-image:url('${ch.url}')"`:''}>${ch?'':'+'}</div>
+          <div><b>Character</b><small>${ch?'Stands on the stage at this rank.':'Your own ninja for this rank. A PNG with a transparent background looks best: it stands on the scenery like the built-in figures.'}</small>
+          <div class="btnrow"><label class="btn small ghost" for="rm-ch-${key}">${busy['rmch-'+key]?'Saving…':ch?'Change character':'Choose character'}</label>
+          <input class="vh" id="rm-ch-${key}" type="file" accept="image/*" data-act="rm-char" data-rk="${key}"${busy['rmch-'+key]?' disabled':''}>
+          ${ch?`<button type="button" class="btn small ghost" data-act="rm-char-del" data-rk="${key}">Remove</button>`:''}</div></div></div>`:''}
         ${withWalls?`<div class="rm-walls">${walls.map((w,k)=>`<div class="rm-thumb" style="background-image:url('${w.url}')"><button type="button" class="rm-x" data-act="rm-wall-del" data-rk="${key}" data-i="${k}" aria-label="Remove wallpaper ${k+1}">✕</button><i>${['Mission','Stats','Plan','Ninja','Settings'][k]}</i></div>`).join('')}${walls.length<5?`<label class="rm-thumb add" for="rm-w-${key}">${busy['rmw-'+key]?'…':'+'}</label>`:''}</div>
         <input class="vh" id="rm-w-${key}" type="file" accept="image/*" multiple data-act="rm-walls" data-rk="${key}"${busy['rmw-'+key]||walls.length>=5?' disabled':''}>`:''}
         <div class="btnrow">
@@ -3888,7 +3917,7 @@ function rankMediaCard(C){
   };
   const ranks=RANKS.map(r=>row(r.id, r.name, r.photo, r.color, true)).join('');
   const forms=tfList(C).filter(t=>t.own).map(t=>row('tf-'+t.id, t.name, t.face, t.color, false)).join('');
-  return `<section class="card" id="rank-media-card"><h2>Rank wallpapers and scenes</h2>
+  return `<section class="card" id="rank-media-card"><h2>Rank characters, wallpapers and scenes</h2>
     <p class="muted small">Pictures and videos stay on this device, so add them on each one.</p>
     <ul class="rm-list">${ranks}</ul>
     ${forms?`<h3 class="shop-h">Bought forms</h3><ul class="rm-list">${forms}</ul>`:''}
@@ -4829,6 +4858,7 @@ document.addEventListener('click', e=>{
   if(act==='rm-open'){ ui.rmOpen = ui.rmOpen===el.dataset.rk ? null : el.dataset.rk; render(); return; }
   if(act==='rm-play'){ const u=cineUrl(el.dataset.rk); if(u) playCine(u, ()=>{ render(); }); return; }
   if(act==='rm-wall-del'){ const k=el.dataset.rk, i=+el.dataset.i, w=(rankMedia().walls[k]||[])[i]; if(!w) return; setRankMedia(m=>{ m.walls[k]=(m.walls[k]||[]).filter((_,j)=>j!==i); }); deleteAsset(w.id); bgShown=null; toast('Wallpaper removed'); render(); return; }
+  if(act==='rm-char-del'){ const k=el.dataset.rk, c=rankMedia().chars[k]; if(!c) return; setRankMedia(m=>{ delete m.chars[k]; }); deleteAsset(c.id); toast('Character removed'); render(); return; }
   if(act==='rm-cine-del'){ const k=el.dataset.rk, c=rankMedia().cine[k]; if(!c) return; setRankMedia(m=>{ delete m.cine[k]; }); deleteAsset(c.id); toast('Scene removed'); render(); return; }
   if(act==='item-ask' || act==='item-buy' || act==='item-cancel' || act==='item-use' || act==='item-off'){ itemAction(act, el); return; }
   if(act==='xp-rules'){ ui.xpOpen=!ui.xpOpen; render(); return; }
@@ -4888,6 +4918,16 @@ document.addEventListener('change', e=>{
     (async()=>{ let n=0; for(const f of pick){ try{ const blob=await shrinkPhoto(f); const res=await uploadAsset(blob,'image/jpeg'); setRankMedia(m=>{ (m.walls[k]=m.walls[k]||[]).push({id:res.id, name:baseName(f)}); }); n++; }catch(e){ toast(e && e.code ? uploadErrorText(e) : "A photo couldn't be opened. Try a JPEG or PNG."); } }
       if(n) toast(n===1?'Wallpaper saved':`${n} wallpapers saved`); if(files.length>pick.length) toast(`Only ${pick.length} fit: a rank holds 5.`); })()
     .finally(()=>{ delete ui.uploading['rmw-'+k]; bgShown=null; render(); });
+    return;
+  }
+  if(el.dataset.act==='rm-char'){
+    const k=el.dataset.rk, file=el.files && el.files[0]; el.value=''; if(!file) return;
+    if(state.mode!=='db'){ toast('This phone couldn\'t open its storage. Close the app fully and open it again.'); return; }
+    ui.uploading['rmch-'+k]=true; render();
+    charBlob(file).then(async ({blob, ar})=>{ const res=await uploadAsset(blob,'image/png'); const old=rankMedia().chars[k];
+        setRankMedia(m=>{ m.chars[k]={id:res.id, ar, name:baseName(file)}; }); if(old) deleteAsset(old.id); toast('Character saved'); })
+      .catch(e=>toast(e && e.code ? uploadErrorText(e) : "That picture couldn't be opened. Try a PNG or JPEG."))
+      .finally(()=>{ delete ui.uploading['rmch-'+k]; render(); });
     return;
   }
   if(el.dataset.act==='rm-cine'){

@@ -35,6 +35,23 @@ test('friends\' copy: own setup, own storage, no sync, no forms; the main villag
   assert.equal(s.scheduleHistory[0].plan[0].ex, 'pushups'); assert.deepEqual(s.scheduleHistory[0].test.ex, ['pushups', 'squats']);
   assert.match(await page.locator('.mscroll[data-sid="work"]').textContent(), /push-ups/i, 'Sunday trains the first exercise');
   assert.match(await page.locator('.stage img.char').getAttribute('src'), /^ranks\/academy-cut/, 'a crest, from the copy\'s own folder');
+  /* a character of their own for their rank: trimmed to the drawing, transparent, on the stage and in the header */
+  await page.evaluate(() => { location.hash = 'settings'; }); await sleep(500);
+  for(let i = 0; i < 40; i++){ const h = page.locator('.card.folded .fold-head'); if(!(await h.count())) break; await h.first().click(); }
+  await page.locator('#rank-media-card [data-act="rm-open"][data-rk="academy"]').click();
+  await page.setInputFiles('#rm-ch-academy', fileURLToPath(new URL('../fixtures/character.png', import.meta.url)));
+  await until(async () => /your character/.test(await page.locator('#rank-media-card [data-rk="academy"]').first().textContent()), 'the character to be saved');
+  const rm = JSON.parse(await page.evaluate(() => localStorage.getItem('leaf-rank-media')));
+  assert.ok(rm.chars.academy.id); assert.ok(Math.abs(rm.chars.academy.ar - 124 / 544) < .03, `trimmed to the figure: ${rm.chars.academy.ar}`);
+  await page.evaluate(() => { location.hash = 'mission'; }); await sleep(800);
+  assert.match(await page.locator('.stage img.char').getAttribute('src'), /^blob:/, 'the character stands on the stage');
+  assert.equal(await page.locator('.stage .aura-box').count(), 0, 'no crest glow behind it');
+  await page.evaluate(() => { location.hash = 'settings'; }); await sleep(500);
+  for(let i = 0; i < 40; i++){ const h = page.locator('.card.folded .fold-head'); if(!(await h.count())) break; await h.first().click(); }
+  if(!(await page.locator('[data-act="rm-char-del"]').count())) await page.locator('#rank-media-card [data-act="rm-open"][data-rk="academy"]').click();
+  await page.locator('[data-act="rm-char-del"][data-rk="academy"]').click();
+  await page.evaluate(() => { location.hash = 'mission'; }); await sleep(800);
+  assert.match(await page.locator('.stage img.char').getAttribute('src'), /^ranks\/academy-cut/, 'removed: the crest is back');
   /* settings: a device-only note instead of sync and notifications */
   await page.evaluate(() => { location.hash = 'settings'; }); await sleep(600);
   for(let i = 0; i < 40; i++){ const h = page.locator('.card.folded .fold-head'); if(!(await h.count())) break; await h.first().click(); }

@@ -76,6 +76,9 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 ## Settings worth knowing
 - Rank wallpapers and scenes: up to 5 pictures + 1 video per rank (and a scene per bought form). On this device only.
 - Tab backgrounds, sound effects, music, notifications, exam weeks, sleep goal.
+- Rank characters (Settings → Rank characters, wallpapers and scenes): a picture of your own for any rank stands on the
+  stage instead of the built-in figure (or the crest in the friends' copy). PNG with a transparent background is best;
+  it is trimmed to the drawing and kept on this device only. Remove brings the built-in figure back.
 - Launch screens (`splash/`): iOS shows them while the app opens. iOS picks them up when the app is added to the Home
   Screen. Don't delete the old icon to get them: that wipes the pictures, videos, music and photos stored on the
   device.
