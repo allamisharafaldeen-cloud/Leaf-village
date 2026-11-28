@@ -84,7 +84,7 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 ## Settings worth knowing
 - Rank wallpapers and scenes: up to 5 pictures + 1 video per rank (and a scene per bought form). On this device only.
 - Tab backgrounds, sound effects, music, notifications, exam weeks, sleep goal.
-- Stage card: the XP line to the next rank sits under the rank pill; the exam countdown is a pill under the streak
+- Stage card: the exam countdown is a pill under the streak
   pills (days only, the exam's name on long-press/hover). The full countdown card with the banked hours appears in the
   exam's last week (with the exam-week pass hint); the banked hours are always in Settings → Exam countdown.
 - Rank characters (Settings → Rank characters, wallpapers and scenes): a picture of your own for any rank stands on the
