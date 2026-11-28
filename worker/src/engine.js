@@ -64,15 +64,24 @@ export function entryFor(s, date){ const h = sortedHistory(s); let e = h[0]; for
 /* a one-time swap: two days trade their workout missions for that week only (the weekly plan stays as it is) */
 const isYmd = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 export const swapOf = (s, d) => { for(const x of ((s && Array.isArray(s.swaps)) ? s.swaps : [])){ if(!x || !isYmd(x.a) || !isYmd(x.b) || x.a === x.b) continue; if(x.a === d) return x.b; if(x.b === d) return x.a; } return null; };
+/* a deload week (see leaf-engine.js): half the groove sets at a lower share of the max, and no Friday test */
+const deloadOf = (s, d) => { for(const x of ((s && Array.isArray(s.deloads)) ? s.deloads : [])){ if(x && typeof x === 'object' && isYmd(x.start) && x.start <= d && d <= addDays(x.start, 6)) return x; } return null; };
+const lighten = plan => {
+  const g = plan.gtg, c = plan.combo || {sets:3};
+  return Object.assign(plan, {deload:true, gtg:{sets:Math.max(1, Math.ceil(g.sets / 2)), minSets:Math.max(1, Math.ceil(g.minSets / 2)), pct:Math.max(30, g.pct - 15)}, combo:Object.assign({}, c, {sets:Math.max(1, Math.ceil((c.sets || 3) / 2))})});
+};
 export function planFor(s, date){
   const e = entryFor(s, date) || {plan:DEFAULT_PLAN, gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:['pullups','dips']}};
+  const dl = !!deloadOf(s, date);
   const p = (e.plan && e.plan[dow(swapOf(s, date) || date)]) || {type:'rest'};
   const plan = Object.assign({}, p, {gtg:e.gtg, test:e.test, combo:Object.assign({sets:3}, e.combo || {})});
-  if(plan.type === 'gtg' && !(s.exercises || {})[plan.ex]) return Object.assign(plan, {type:'rest'});
-  if(plan.type === 'combo'){ const exs = (plan.exs || []).filter(id => (s.exercises || {})[id]); if(!exs.length) return Object.assign(plan, {type:'rest'}); plan.exs = exs; }
-  /* a test day with nothing to test could never be completed: it is a rest day */
-  if(plan.type === 'test' && !((e.test && e.test.ex) || []).some(id => (s.exercises || {})[id])) return Object.assign(plan, {type:'rest'});
-  return plan;
+  const rest = () => Object.assign(plan, {type:'rest'}, dl ? {deload:true} : {});
+  if(plan.type === 'gtg' && !(s.exercises || {})[plan.ex]) return rest();
+  if(plan.type === 'combo'){ const exs = (plan.exs || []).filter(id => (s.exercises || {})[id]); if(!exs.length) return rest(); plan.exs = exs; }
+  /* a test day with nothing to test could never be completed: it is a rest day; in a deload week there is no test */
+  if(plan.type === 'test' && (dl || !((e.test && e.test.ex) || []).some(id => (s.exercises || {})[id]))) return rest();
+  if(plan.type === 'rest') return rest();
+  return dl ? lighten(plan) : plan;
 }
 export const gtgTarget = (max, pct) => Math.max(1, Math.round((max || 1) * pct / 100));
 export const exName = (s, id) => { const e = ((s && s.exercises) || {})[id]; return e ? e.name : id; };
@@ -422,7 +431,7 @@ export function computeWithScrolls(data, nowMs, opts){
 export function checkpointTarget(today, back){ const d = addDays(today, -(back || 15)); return addDays(d, -((dow(d) + 1) % 7)); }
 /* a fingerprint of the settings that shape history; if it changes, old checkpoints no longer apply */
 export function historyKey(s){
-  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null, s.scrolls || null, s.oncall || null]);
+  const t = JSON.stringify([s.startDate || null, s.studyStart || null, s.exercises || null, s.baseline || null, s.scheduleHistory || null, s.examWeeks || null, s.swaps || null, s.scrolls || null, s.oncall || null, s.deloads || null]);
   let h = 2166136261; for(let i = 0; i < t.length; i++){ h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
   return `${t.length}.${h >>> 0}`;
 }

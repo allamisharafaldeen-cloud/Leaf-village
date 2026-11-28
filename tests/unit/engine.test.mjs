@@ -787,6 +787,45 @@ test('scrolls on the server: before the app has written its scroll, the server a
   assert.deepEqual(W.days.map(x => [x.date, x.status, x.xp, x.streak]), E.compute(A, now).days.map(x => [x.date, x.status, x.xp, x.streak]), 'exactly what the app shows once it has written it');
 });
 
+/* ---------- deload weeks, plateaus, goals ---------- */
+test('deload week: half the groove sets at a lower share, no Friday test, a normal day otherwise; the server agrees', () => {
+  const V = village();
+  const before = E.planFor(V.settings, '2026-11-16');
+  V.settings.deloads = [{start:'2026-11-15'}];
+  const g = E.planFor(V.settings, '2026-11-16'), t = E.planFor(V.settings, '2026-11-20'), after = E.planFor(V.settings, '2026-11-22');
+  assert.equal(g.deload, true); assert.equal(g.gtg.sets, Math.ceil(before.gtg.sets / 2)); assert.equal(g.gtg.minSets, Math.ceil(before.gtg.minSets / 2)); assert.equal(g.gtg.pct, Math.max(30, before.gtg.pct - 15));
+  assert.equal(t.type, 'rest', 'the Friday test of a deload week is a rest day'); assert.equal(t.deload, true);
+  assert.notEqual(after.deload, true, 'it lasts seven days');
+  sets(V, '2026-11-15', 'pullups', 4, 3);
+  const C = E.compute(V, at('2026-11-17', 9));
+  assert.equal(day(C, '2026-11-15').status, 'done', 'three easy sets complete a deload groove day');
+  assert.equal(day(C, '2026-11-16').status, 'missed', 'a deload day still has to be done');
+  assert.deepEqual(C.days.map(x => [x.date, x.status, x.xp, x.streak]), computeAll(V, at('2026-11-17', 9)).days.map(x => [x.date, x.status, x.xp, x.streak]));
+  const bad = clone(V); bad.settings.deloads = [{start:'nope'}, {start:'2026-11-15'}];
+  assert.equal((E.cleanBackup(Object.assign({app:'The Leaf Village'}, bad), at('2026-11-17', 9)).data || {}).settings ? 1 : 1, 1);
+});
+test('plateau: three Friday tests without beating the earlier best at the same weight; not again right after a deload', () => {
+  const V = village();
+  const fri = ['2026-11-06', '2026-11-13', '2026-11-20', '2026-11-27'], tops = [12, 11, 12, 10];
+  fri.forEach((d, i) => { V.days[d] = {date:d, sets:[{ex:'pullups', reps:tops[i], t:iso(d, 17)}, {ex:'pullups', reps:tops[i] - 2, t:iso(d, 17, 10)}, {ex:'dips', reps:20 + i, t:iso(d, 17, 20)}, {ex:'dips', reps:18, t:iso(d, 17, 30)}]}; });
+  let P = E.plateau(E.compute(V, at('2026-11-28', 9)));
+  assert.deepEqual(P.list.map(x => [x.ex, x.kg, x.best, x.tests.map(t => t.top)]), [['pullups', 0, 12, [11, 12, 10]]], 'pull-ups stalled, dips kept climbing');
+  V.settings.deloads = [{start:'2026-11-29'}];
+  P = E.plateau(E.compute(V, at('2026-11-29', 9)));
+  assert.equal(P.list.length, 0, 'once a deload week has started, the tests before it no longer count'); assert.ok(P.active);
+});
+test('goals: reached, on track with a date, flat or too early, for bodyweight and weighted goals', () => {
+  const V = village();
+  ['2026-11-06', '2026-11-13', '2026-11-20', '2026-11-27'].forEach((d, i) => { V.days[d] = {date:d, sets:[{ex:'pullups', reps:10 + i, t:iso(d, 17)}, {ex:'pullups', reps:8, t:iso(d, 17, 10)}, {ex:'dips', reps:20, kg:10, t:iso(d, 17, 20)}, {ex:'dips', reps:18, kg:10, t:iso(d, 17, 30)}]}; });
+  const C = E.compute(V, at('2026-11-28', 9));
+  const f = E.goalForecast(C, {ex:'pullups', reps:20});
+  assert.equal(f.status, 'on-track'); assert.ok(f.date > '2026-12-20' && f.date < '2027-03-01', f.date); assert.ok(f.perWeek > 0.6 && f.perWeek <= 1.01, `about a rep a week (the starting max counts too): ${f.perWeek}`);
+  assert.equal(E.goalForecast(C, {ex:'pullups', reps:12}).status, 'reached');
+  const w = E.goalForecast(C, {ex:'dips', reps:25, kg:10});
+  assert.ok(['flat', 'early'].includes(w.status), w.status);
+  assert.equal(E.goalForecast(E.compute(village(), at(START, 9)), {ex:'pullups', reps:30}).status, 'early');
+});
+
 /* ---------- on call and side quests ---------- */
 test('on call: a missed day marked on call costs nothing and keeps the streak; the server agrees', () => {
   const V = village(); scrollWeek(V);

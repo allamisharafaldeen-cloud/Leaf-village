@@ -92,15 +92,24 @@ function normEntry(e){
 /* a one-time swap: two days trade their workout missions for that week only (the weekly plan stays as it is) */
 const swapList = s => (s && Array.isArray(s.swaps)) ? s.swaps.filter(x => isObj(x) && isDate(x.a) && isDate(x.b) && x.a !== x.b) : [];
 const swapOf = (s, d) => { for(const x of swapList(s)){ if(x.a === d) return x.b; if(x.b === d) return x.a; } return null; };
+/* ---------- deload weeks ----------
+   A planned lighter week (7 days from its start): groove days ask for half the sets at a lower share of the max,
+   and the Friday test becomes a rest day. Days of a deload week count exactly like normal days otherwise. */
+const deloadList = s => (s && Array.isArray(s.deloads)) ? s.deloads.filter(x => isObj(x) && isDate(x.start)) : [];
+const deloadOf = (s, d) => { for(const x of deloadList(s)){ if(x.start <= d && d <= addDays(x.start, 6)) return x; } return null; };
+const lighten = plan => {
+  const g = plan.gtg, c = plan.combo || {sets:3};
+  return Object.assign(plan, {deload:true, gtg:{sets:Math.max(1, Math.ceil(g.sets / 2)), minSets:Math.max(1, Math.ceil(g.minSets / 2)), pct:Math.max(30, g.pct - 15)}, combo:Object.assign({}, c, {sets:Math.max(1, Math.ceil((c.sets || 3) / 2))})});
+};
 function planFor(s, date){
-  const e = normEntry(entryFor(s, date)), ex = (s && s.exercises) || {}, src = swapOf(s, date) || date;
-  const p = e.plan[dowOf(src)], rest = () => ({type:'rest', gtg:e.gtg, test:e.test, combo:e.combo});
+  const e = normEntry(entryFor(s, date)), ex = (s && s.exercises) || {}, src = swapOf(s, date) || date, dl = !!deloadOf(s, date);
+  const p = e.plan[dowOf(src)], rest = () => Object.assign({type:'rest', gtg:e.gtg, test:e.test, combo:e.combo}, dl ? {deload:true} : {});
   if(!isObj(p)) return rest();
   const plan = Object.assign({}, p, {gtg:e.gtg, test:e.test, combo:e.combo});
-  if(plan.type === 'gtg') return ex[plan.ex] ? plan : rest();
-  if(plan.type === 'combo'){ const exs = (Array.isArray(plan.exs) ? plan.exs : []).filter(id => ex[id]); if(!exs.length) return rest(); plan.exs = exs; return plan; }
-  /* a test day with nothing to test could never be completed: it is a rest day */
-  if(plan.type === 'test') return e.test.ex.some(id => ex[id]) ? plan : rest();
+  if(plan.type === 'gtg') return ex[plan.ex] ? (dl ? lighten(plan) : plan) : rest();
+  if(plan.type === 'combo'){ const exs = (Array.isArray(plan.exs) ? plan.exs : []).filter(id => ex[id]); if(!exs.length) return rest(); plan.exs = exs; return dl ? lighten(plan) : plan; }
+  /* a test day with nothing to test could never be completed: it is a rest day; in a deload week there is no test */
+  if(plan.type === 'test') return (e.test.ex.some(id => ex[id]) && !dl) ? plan : rest();
   return rest();
 }
 const gtgTarget = (max, pct) => Math.max(1, Math.round((max || 1) * pct / 100));
@@ -386,7 +395,7 @@ function compute(data, nowMs){
   const power = weight ? Math.round(((maxes.pullups || 0)*3 + (maxes.dips || 0))*weight/10) : null;
   const weekNow = weeks[weekStart(today)] || {qual:0, weigh:0, prDone:false, days:0, missed:0};
   const startedMidWeek = weekStart(s.startDate || today) === weekStart(today) && dowOf(s.startDate || today) !== 0;
-  return { settings:s, now, study, sleep, readyUntil, awards, weekNow, weeks, startedMidWeek, today, todayRec, days, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount, maxes, best, maxHist, prs, totalReps, weekList, cleanWeeks, body, weight, power, exIds, load, wmax, wbest, strength };
+  return { settings:s, now, study, sleep, readyUntil, awards, weekNow, weeks, startedMidWeek, today, todayRec, days, total, peak, rankNow:rankFor(total), streak, bestStreak, doneCount, missedCount, maxes, best, maxHist, prs, totalReps, weekList, cleanWeeks, body, weight, power, exIds, load, wmax, wbest, strength, maxHist };
 }
 
 /* the weight the app puts on the next set: the working weight on groove days; on a test day the working weight,
@@ -447,6 +456,53 @@ function sideQuests(C){
   const out = {weeks, ryo, unclaimed, now:weeks[weeks.length - 1] || null};
   Object.defineProperty(C, '_quests', {value:out, enumerable:false});
   return out;
+}
+
+/* ---------- plateau check: a max that has not moved for three tests at the same weight ---------- */
+const DELOAD = {tests:3, gapDays:28};
+function plateau(C){
+  if(C._plateau) return C._plateau;
+  const s = C.settings || {}, out = [];
+  const lastDl = deloadList(s).map(x => x.start).sort().pop() || null;
+  const recentDeload = lastDl && daysBetween(lastDl, C.today) < DELOAD.gapDays;
+  C.exIds.forEach(ex => {
+    const load = (C.load && C.load[ex]) || 0, tests = [];
+    C.days.forEach(d => { if(d.plan.type === 'test' && d.info && Array.isArray(d.info.per)){ const p = d.info.per.find(q => q.ex === ex && q.sets.length); if(p && p.kg === load) tests.push({date:d.date, top:p.top}); } });
+    if(tests.length < DELOAD.tests + 1) return;
+    const last = tests.slice(-DELOAD.tests), before = tests.slice(0, -DELOAD.tests);
+    if(lastDl && last[0].date <= addDays(lastDl, 6)) return;   /* count only tests after the last deload week */
+    const best = Math.max(...before.map(t => t.top)), top = Math.max(...last.map(t => t.top));
+    if(top <= best) out.push({ex, kg:load, tests:last, best, key:ex + '|' + load + '|' + last[last.length - 1].date});
+  });
+  const res = {list:out, active:deloadOf(s, C.today), next:deloadOf(s, addDays(C.today, 1)), recentDeload:!!recentDeload, lastDeload:lastDl};
+  Object.defineProperty(C, '_plateau', {value:res, enumerable:false});
+  return res;
+}
+
+/* ---------- strength goals: where a trend line says you will reach them ----------
+   A bodyweight goal follows your Friday maxes; a weighted goal follows your strength score (estimated one-rep max),
+   turned back into reps at the goal's weight. The line is fitted to the last eight weeks of tests. */
+function goalForecast(C, g){
+  const ex = g.ex, kg = g.kg || 0, reps = g.reps, today = C.today, bw = bwAt(C.body || [], today);
+  const reachedPr = C.prs.find(p => p.ex === ex && (p.kg || 0) >= kg && p.v >= reps);
+  const base = (C.settings.baseline || {})[ex];
+  const reached = reachedPr ? reachedPr.date : (kg === 0 && base && base.max >= reps ? (base.date || C.settings.startDate) : null);
+  const now = kg ? Math.max(0, ...Object.keys((C.wbest || {})[ex] || {}).filter(k => +k >= kg).map(k => C.wbest[ex][k])) : (C.best[ex] || 0);
+  const out = {ex, kg, reps, now, reached, pct:Math.min(100, Math.round(now / reps * 100))};
+  if(reached) return Object.assign(out, {status:'reached'});
+  const from = addDays(today, -56);
+  const pts = kg === 0
+    ? ((C.maxHist || {})[ex] || []).filter(p => p.date >= from).map(p => ({date:p.date, y:p.v}))
+    : ((C.strength || {})[ex] || []).filter(p => p.date >= from).map(p => ({date:p.date, y:30 * (p.v / (bw + kg) - 1)}));
+  if(pts.length < 3) return Object.assign(out, {status:'early', tests:pts.length});
+  const xs = pts.map(p => daysBetween(from, p.date)), ys = pts.map(p => p.y), n = pts.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / n, my = ys.reduce((a, b) => a + b, 0) / n;
+  const sxx = xs.reduce((a, x) => a + (x - mx) * (x - mx), 0), sxy = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0);
+  const slope = sxx > 0 ? sxy / sxx : 0, perWeek = slope * 7;
+  if(perWeek < 0.05) return Object.assign(out, {status:'flat', perWeek});
+  const t = mx + (reps - my) / slope, days = Math.ceil(t - daysBetween(from, today));
+  if(days > 730) return Object.assign(out, {status:'far', perWeek});
+  return Object.assign(out, {status:'on-track', perWeek, date:addDays(today, Math.max(7, days))});
 }
 
 /* the latest strength score of each exercise and its history */
@@ -545,6 +601,15 @@ function cleanBackup(d, nowMs){
   if(s.oncall !== undefined){
     const oc = Array.isArray(s.oncall) ? [...new Set(s.oncall.filter(isDate))].sort() : [];
     if(!Array.isArray(s.oncall) || oc.length !== s.oncall.length){ s.oncall = oc; fixed++; }
+  }
+  if(s.deloads !== undefined){
+    const dlv = deloadList(s).map(x => ({start:x.start}));
+    if(!Array.isArray(s.deloads) || dlv.length !== s.deloads.length){ s.deloads = dlv; fixed++; }
+  }
+  if(isObj(s.goals) || (s.goals !== undefined && !Array.isArray(s.goals))){ s.goals = []; fixed++; }
+  if(Array.isArray(s.goals)){
+    const gv = s.goals.filter(g => isObj(g) && typeof g.id === 'string' && typeof g.ex === 'string' && Number.isInteger(g.reps) && g.reps > 0 && g.reps <= 500 && (g.kg === undefined || (typeof g.kg === 'number' && isFinite(g.kg) && g.kg >= 0 && g.kg <= LOAD.cap)) && (g.created === undefined || isDate(g.created))).slice(0, 6);
+    if(gv.length !== s.goals.length){ s.goals = gv; fixed++; }
   }
   if(s.swaps !== undefined){
     const sw = swapList(s);
@@ -1113,7 +1178,7 @@ function hokageBook(C){
 }
 
 return {
-  QUESTS, sideQuests, onCallDay, LOAD, kgOf, meets, e1rm, bwAt, suggestKg, strengthNow, monthBwTest,
+  QUESTS, sideQuests, onCallDay, LOAD, kgOf, meets, deloadOf, plateau, DELOAD, goalForecast, e1rm, bwAt, suggestKg, strengthNow, monthBwTest,
   hokageBook, SCROLL_FROM, scrollUsed, SCROLL, scrollBook, SHOP_ITEMS,
   TRANSFORMS, transforms, swapOf, RARITY, SHOP_FROM, RYO_PER_XP, shop,
   RANKS, XP, TIERS, mult, nextTier, DEFAULT_PLAN, DEFAULT_GTG, DEFAULT_TEST, CHALLENGES, STUDY, STUDY_DEFAULT, SET_CAP,

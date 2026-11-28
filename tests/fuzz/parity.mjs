@@ -21,6 +21,7 @@ function village(span){
   if(chance(.7)) s.studyStart = E.addDays(START, int(0, 20));
   if(chance(.4)){ const a = E.addDays(START, int(10, span - 10)); s.examWeeks = [{start:a, end:E.addDays(a, int(0, 9))}]; }
   if(chance(.5)){ s.oncall = []; for(let i = 0; i < int(1, 8); i++) s.oncall.push(E.addDays(START, int(0, span))); s.oncall = [...new Set(s.oncall)].sort(); }
+  if(chance(.35)){ s.deloads = []; for(let i = 0; i < int(1, 2); i++) s.deloads.push({start:E.addDays(START, int(0, span))}); }
   if(chance(.4)){ s.swaps = []; for(let i = 0; i < int(1, 3); i++){ const a = E.addDays(START, int(0, span - 2)); s.swaps.push({a, b:E.addDays(a, 1), created:iso(a, 7)}); } }
   if(chance(.6)){ s.scrolls = {used:{}}; for(let i = 0; i < int(1, 10); i++) s.scrolls.used[`${pick(['workout', 'study', 'sleep'])}|${E.addDays(START, int(0, span))}`] = pick(['common', 'rare', 'forbidden']); }
   if(chance(.5)){ s.shop = {owned:{}, buys:[]}; for(let i = 0; i < int(1, 6); i++) s.shop.buys.push({id:pick(['ramen', 'forbidden', 'card-anbu', 'title-copy', 'fx-sage']), date:E.addDays(START, int(0, span)), price:pick([100, 3000, 300, 150])}); }

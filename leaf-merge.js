@@ -120,7 +120,10 @@ function keepAppendOnly(path, win, lose){
   const addUsed = Object.keys(lUsed).filter(k => !(k in wUsed));
   const wCl = isObj(win.quests) && isObj(win.quests.claimed) ? win.quests.claimed : {}, lCl = isObj(lose.quests) && isObj(lose.quests.claimed) ? lose.quests.claimed : {};
   const addCl = Object.keys(lCl).filter(k => !(k in wCl));
-  if(!addBuys.length && !addOwned.length && !addUsed.length && !addCl.length) return win;
+  /* a deload week can't be taken back in the app, so a device that hadn't seen it must not drop it */
+  const wDl = Array.isArray(win.deloads) ? win.deloads : [], lDl = Array.isArray(lose.deloads) ? lose.deloads : [];
+  const dlHave = new Set(wDl.map(x => isObj(x) ? x.start : x)), addDl = lDl.filter(x => isObj(x) && typeof x.start === 'string' && !dlHave.has(x.start));
+  if(!addBuys.length && !addOwned.length && !addUsed.length && !addCl.length && !addDl.length) return win;
   const out = Object.assign({}, win);
   if(addBuys.length || addOwned.length){
     out.shop = Object.assign({}, ws);
@@ -129,6 +132,7 @@ function keepAppendOnly(path, win, lose){
   }
   if(addUsed.length) out.scrolls = Object.assign({}, isObj(win.scrolls) ? win.scrolls : {}, {used:Object.assign({}, lUsed, wUsed)});
   if(addCl.length) out.quests = Object.assign({}, isObj(win.quests) ? win.quests : {}, {claimed:Object.assign({}, lCl, wCl)});
+  if(addDl.length) out.deloads = wDl.concat(addDl).sort((a, b) => (isObj(a) && isObj(b) && a.start !== b.start) ? (a.start < b.start ? -1 : 1) : 0);
   return out;
 }
 

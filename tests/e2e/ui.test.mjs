@@ -575,24 +575,180 @@ test('achievements wall: every scroll with its date, hidden ones masked, and a m
   noErrors();
 });
 
-test('shadow clone race: the Mission tab compares this week with four weeks ago, and Sunday brings the result', async () => {
+test('rest timer: each Friday test set starts a rest countdown by itself; +30 s, Skip, a chosen length, and a bell at zero', async () => {
+  const B = await fresh('rest', {now:at('2026-11-13', 17, 0)});
+  await closeScenes(B);
+  await B.tab('mission');
+  const clock = () => B.page.locator('[data-rest]').textContent();
+  const on = () => B.page.locator('.rest-box.on').count();
+  assert.equal(await on(), 0, 'no countdown before the first set');
+  assert.equal(await B.page.locator('[data-act="rest-len"][data-v="180"]').getAttribute('aria-pressed'), 'true', 'three minutes by default');
+  await B.setTime(at('2026-11-13', 17, 1)); await B.logSet(14);
+  await until(async () => (await on()) === 1, 'the rest to start by itself');
+  assert.equal(await clock(), '3:00');
+  await B.setTime(at('2026-11-13', 17, 2));
+  await until(async () => (await clock()) === '2:00', 'the countdown to tick');
+  await B.page.locator('[data-act="rest-add"]').click();
+  await until(async () => (await clock()) === '2:30', '+30 s');
+  await B.page.locator('[data-act="rest-skip"]').click();
+  await until(async () => (await on()) === 0, 'Skip ends it');
+  await B.page.locator('[data-act="rest-len"][data-v="120"]').click();
+  await until(async () => (await B.page.locator('[data-act="rest-len"][data-v="120"]').getAttribute('aria-pressed')) === 'true', 'two minutes chosen');
+  await B.setTime(at('2026-11-13', 17, 5)); await B.logSet(12);
+  await until(async () => (await on()) === 1, 'the second rest');
+  assert.equal(await clock(), '2:00', 'the chosen length is used');
+  assert.match(await toastText(B), /12 pull-ups logged/, 'the normal toast still shows on a test day');
+  await B.setTime(at('2026-11-13', 17, 8));
+  await until(async () => /Rest done/.test(await toastText(B)), 'the bell at zero');
+  assert.equal(await on(), 0);
+  /* the last set of the test: no countdown, nothing left to rest for */
+  for(const [m, reps] of [[9, 26], [14, 24]]){ await B.setTime(at('2026-11-13', 17, m)); await B.logSet(reps); }
+  await until(async () => ((await B.docs())['leaf/main/days/2026-11-13'] || {sets:[]}).sets.length === 4, 'all four test sets');
+  await sleep(300);
+  assert.equal(await B.page.locator('.rest-box').count(), 0, 'no rest box once the test is complete');
+  await B.close();
+  noErrors();
+});
+
+test('plateau: three flat Friday tests bring Kakashi\'s deload offer; the deload week halves the groove and skips the test', async () => {
+  const f = clone(fixture);
+  const setTop = (d, top) => { const ps = f.days[d].sets.filter(s => s.ex === 'pullups'), was = Math.max(...ps.map(s => s.reps)); ps.forEach(s => { s.reps = s.reps === was ? top : top - 2; }); };
+  setTop('2026-10-16', 15); setTop('2026-10-23', 14); setTop('2026-10-30', 15); setTop('2026-11-06', 13);
+  const B = await fresh('plateau', {file:tmpFile('plateau.json', f)});
+  await B.tab('mission');
+  const offer = B.page.locator('#deload-offer');
+  assert.equal(await offer.count(), 1, 'Kakashi offers a deload week');
+  assert.match((await offer.textContent()).replace(/\s+/g, ' '), /Your pull-ups max hasn't moved in three tests \(14, 15, 13; best before 15\)/);
+  await offer.locator('[data-act="deload-yes"]').click();
+  const s = await until(async () => { const x = (await B.docs())['leaf/main']; return x.deloads ? x : null; }, 'the deload week to be saved');
+  assert.deepEqual(s.deloads, [{start:'2026-11-16'}]);
+  await until(async () => (await offer.count()) === 0, 'the offer to go');
+  assert.match(await B.page.locator('.deload-card').textContent(), /Deload week starts 16 Nov and runs to 22 Nov/);
+  /* Tuesday of the deload week: a pull-up groove day at half the sets */
+  await B.setTime(at('2026-11-17', 10)); await B.page.reload(); await B.page.waitForFunction(() => !document.querySelector('.loading')); await closeScenes(B);
+  await B.tab('mission');
+  assert.match(await B.page.locator('.deload-note').first().textContent(), /Deload week until 22 Nov: half the sets/);
+  assert.match((await B.page.locator('.mscroll[data-sid="work"] .mission-sub').first().textContent()).replace(/\s+/g, ' '), /Grease the groove: 3 mini-sets/);
+  assert.equal(await B.page.locator('#deload-offer').count(), 0, 'no new offer during the deload week');
+  /* its Friday: no test */
+  await B.setTime(at('2026-11-20', 17)); await B.page.reload(); await B.page.waitForFunction(() => !document.querySelector('.loading')); await closeScenes(B);
+  await B.tab('mission');
+  assert.equal(await B.page.locator('.mscroll[data-sid="work"] [data-act="log"]').count(), 0, 'nothing to log: the test is skipped');
+  assert.match(await B.page.locator('.mscroll[data-sid="work"]').textContent(), /Recovery day/);
+  await B.close();
+  /* Keep pushing hides the offer for that plateau */
+  const K = await fresh('plateau-keep', {file:tmpFile('plateau.json', f)});
+  await K.tab('mission');
+  await K.page.locator('#deload-offer [data-act="deload-no"]').click();
+  await until(async () => (await K.page.locator('#deload-offer').count()) === 0, 'the offer to close');
+  assert.equal((await K.docs())['leaf/main'].deloads, undefined, 'nothing is saved to the plan');
+  await until(async () => { const p = Object.entries(await K.docs()).find(([k]) => /prefs/.test(k)); return p && p[1].plateauSeen && Object.keys(p[1].plateauSeen).length; }, 'the answer to be remembered');
+  await K.page.reload(); await K.page.waitForFunction(() => !document.querySelector('.loading'));
+  assert.equal(await K.page.locator('#deload-offer').count(), 0, 'it stays closed');
+  await K.close();
+  noErrors();
+});
+
+test('goals: a goal on Stats shows progress and a projected date from the Friday tests; a weighted goal; remove', async () => {
+  const B = await fresh('goals');
+  await B.tab('stats');
+  const card = B.page.locator('#goals-card'), txt = async () => (await card.textContent()).replace(/\s+/g, ' ');
+  assert.match(await txt(), /Set a target like 20 pull-ups/);
+  const add = async (ex, reps, kg) => {
+    await card.locator('[data-act="goal-form"]').click();
+    await card.locator('select[data-bind="goalDraft.ex"]').selectOption(ex);
+    await card.locator('input[data-bind="goalDraft.reps"]').fill(String(reps));
+    if(kg) await card.locator('input[data-bind="goalDraft.kg"]').fill(String(kg));
+    await card.locator('[data-act="goal-add"]').click();
+  };
+  await add('pullups', 20);
+  const g = await until(async () => { const x = (await B.docs())['leaf/main']; return x.goals && x.goals.length ? x.goals : null; }, 'the goal to be saved');
+  assert.equal(g[0].ex, 'pullups'); assert.equal(g[0].reps, 20); assert.equal(g[0].created, '2026-11-15'); assert.equal(g[0].kg, undefined);
+  assert.match(await txt(), /20 pull-ups\s*15 \/ 20/); assert.match(await txt(), /At your current rate: around \d+ \w+/);
+  await add('dips', 10, 20);
+  await until(async () => /10 dips · \+20 kg/.test(await txt()), 'the weighted goal');
+  assert.match(await txt(), /0 \/ 2 reached/);
+  await card.locator('[data-act="goal-del"]').first().click();
+  await until(async () => ((await B.docs())['leaf/main'].goals || []).length === 1, 'one goal left');
+  assert.doesNotMatch(await txt(), /20 pull-ups/);
+  await B.close();
+  noErrors();
+});
+
+test('progress photos: from the library, then the guided camera walks front, side and back; the same day replaces; a month later they compare side by side', async () => {
+  const B = await fresh('photos');
+  await B.tab('stats');
+  const card = B.page.locator('#photos-card'), txt = async () => (await card.textContent()).replace(/\s+/g, ' ');
+  const list = () => B.page.evaluate(() => JSON.parse(localStorage.getItem('leaf-progress-photos') || '[]'));
+  assert.match(await txt(), /Once a month/);
+  const JPG = fileURLToPath(new URL('../../senseis/kakashi-face.jpg', import.meta.url));
+  await B.page.setInputFiles('#ph-file', JPG);
+  await until(async () => (await list()).length === 1, 'the library photo');
+  assert.match(await txt(), /This month: 1 of 3/); assert.match(await txt(), /Add next month's photo/);
+  /* a fake camera: a canvas stream, as a phone camera would give */
+  await B.page.evaluate(() => {
+    const c = document.createElement('canvas'); c.width = 480; c.height = 640; const g = c.getContext('2d');
+    setInterval(() => { g.fillStyle = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'); g.fillRect(0, 0, 480, 640); }, 50);
+    navigator.mediaDevices.getUserMedia = async () => c.captureStream(20);
+  });
+  await card.locator('[data-act="ph-cam"]').click();
+  await B.page.waitForSelector('#cam-layer video');
+  assert.equal(await B.page.locator('#cam-layer .cam-ghost').count(), 1, 'the last front photo is shown faintly to line up with');
+  await B.page.locator('#cam-layer [data-cam="timer"][data-v="0"]').click();
+  const firstFront = (await list())[0].id;
+  for(const pose of ['Front', 'Side', 'Back']){
+    await B.page.waitForFunction(() => { const v = document.querySelector('#cam-layer video'); return v && v.videoWidth > 0; });
+    assert.match(await B.page.locator('#cam-layer .cam-top b').textContent(), new RegExp(pose));
+    await B.page.locator('#cam-layer [data-cam="shoot"]').click();
+    await until(async () => (await list()).some(p => p.pose === pose.toLowerCase() && p.id !== firstFront), `${pose} saved`);
+    if(pose !== 'Back') await until(async () => { const b = B.page.locator('#cam-layer .cam-top b'); return (await b.count()) && !new RegExp(pose).test(await b.textContent()); }, 'the next pose');
+  }
+  await until(async () => (await B.page.locator('#cam-layer').count()) === 0, 'the camera closes after the back photo');
+  assert.deepEqual((await list()).map(p => p.pose).sort(), ['back', 'front', 'side'], 'the camera front photo replaced the library one from the same day');
+  assert.match(await txt(), /This month ✓/);
+  /* a month later: a new front photo, compared with the first */
+  await B.setTime(at('2026-12-15', 10)); await B.page.reload(); await B.page.waitForFunction(() => !document.querySelector('.loading')); await closeScenes(B);
+  await B.tab('stats');
+  assert.match(await txt(), /This month: 0 of 3/);
+  await B.page.setInputFiles('#ph-file', JPG);
+  await until(async () => (await list()).length === 4, 'the December photo');
+  await until(async () => /30 days apart/.test(await txt()), 'the comparison');
+  assert.equal(await card.locator('.ph-compare img').count(), 2);
+  assert.ok(await card.locator('.ph-compare img').first().evaluate(i => i.complete && i.naturalWidth > 0), 'the photos load after a reload');
+  /* delete asks twice */
+  await card.locator('[data-act="ph-manage"]').click();
+  await card.locator('[data-act="ph-del"]').first().click();
+  assert.match(await card.locator('[data-act="ph-del"]').first().textContent(), /Tap again/);
+  await card.locator('[data-act="ph-del"]').first().click();
+  await until(async () => (await list()).length === 3, 'one deleted');
+  await B.close();
+  noErrors();
+});
+
+test('shadow clone race: the Stats tab compares this week with four weeks ago, and Sunday brings the result', async () => {
   const B = await fresh('rival');
+  await B.tab('stats');
+  assert.equal(await B.page.locator('#rival-card').count(), 1, 'the race lives on Stats');
   const card = async () => (await B.page.locator('#rival-card').textContent()).replace(/\s+/g, ' ');
   assert.match(await card(), /Shadow clone race/); assert.match(await card(), /week of 18 Oct/);
   assert.equal(await B.page.locator('#rival-line').textContent(), 'Your shadow clone had 438 XP by Sunday. You have 0 XP.');
   assert.match(await card(), /The clone leads 3–0 so far\. Win two of the three by Saturday night for \+50 XP/);
   assert.equal(await B.page.locator('#rival-last').count(), 0, 'the week before the race began has no result');
   /* study past the clone's Sunday and log more reps: two of three now lead */
+  await B.tab('mission');
+  assert.equal(await B.page.locator('#rival-card').count(), 0, 'the Mission tab no longer carries the race');
   await B.setTime(T0 + min(2));
   for(let i = 0; i < 5; i++) await B.page.evaluate(() => document.querySelector('.mscroll.study [data-act="st-add"][data-min="60"]').click());
   await until(async () => ((await B.docs())['leaf/main/study/2026-11-15'] || {entries:[]}).entries.length === 5, 'five study hours');
   for(let i = 0; i < 6; i++){ await B.setTime(T0 + min(3 + i)); await B.logSet(8); await until(async () => ((await B.docs())[TODAY] || {sets:[]}).sets.length === i + 1, `set ${i + 1}`); }
+  await B.tab('stats');
   await until(async () => /You lead (2–1|3–0) so far/.test(await card()), 'the lead to show');
   assert.match(await card(), /Study\s*5h\s*4h by Sun/); assert.match(await card(), /Reps\s*48 reps\s*43 reps by Sun/);
   await B.close();
   /* the next Sunday: last week's result (nothing was logged after the import, so the clone won) */
   const S = await fresh('rival-sunday', {now:at('2026-11-22', 9, 0)});
   await closeScenes(S);
+  await S.tab('stats');
   assert.equal(await S.page.locator('#rival-last').textContent(), 'Last week your shadow clone won 3–0. A new race starts today.');
   await S.close();
   noErrors();

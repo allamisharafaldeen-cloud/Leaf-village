@@ -108,4 +108,7 @@ test('settings: whichever copy wins keeps every purchase and every used scroll e
   assert.deepEqual(M.keepAppendOnly('leaf/main', w, phone), w, 'safe to repeat');
   const claimed = M.keepAppendOnly('leaf/main', {name:'a'}, {quests:{claimed:{'2026-11-22|record':'2026-11-28'}}});
   assert.deepEqual(claimed.quests.claimed, {'2026-11-22|record':'2026-11-28'}, 'claimed quest rewards are never lost either');
+  const dl = M.keepAppendOnly('leaf/main', {name:'a', deloads:[{start:'2026-12-20'}], goals:[]}, {deloads:[{start:'2026-11-16'}, {start:'2026-12-20'}], goals:[{id:'g1', ex:'pullups', reps:20}]});
+  assert.deepEqual(dl.deloads, [{start:'2026-11-16'}, {start:'2026-12-20'}], 'deload weeks are kept from both, once each, in order');
+  assert.deepEqual(dl.goals, [], 'goals can be removed, so they follow the winner');
 });

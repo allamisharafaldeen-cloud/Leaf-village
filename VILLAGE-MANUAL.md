@@ -10,7 +10,7 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - Data lives on each device (IndexedDB) and syncs through the Cloudflare Worker. Pictures, videos and sounds you add
   stay on the device you added them on.
 - Sync rules: logged sets and study minutes from two devices are always joined. Settings: the latest edit wins,
-  except purchases and used scrolls, which are never lost whichever device edits last.
+  except purchases, used scrolls, claimed quests and deload weeks, which are never lost whichever device edits last.
 - Settings → Backup exports everything (except your own pictures/videos) to a .json file. Import restores it.
 
 ## Training
@@ -22,6 +22,18 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - **Strength score** (Stats): estimated one-rep max = (bodyweight + weight) × (1 + reps ÷ 30), from sets of 12 or fewer.
 - **Skill tree** (Ninja): moves unlock by bodyweight max (Pull by pull-ups, Push by dips). Unlocking is a badge; a move
   only joins training after its baseline test and if you add it to a day in the Plan tab.
+- **Rest timer** (Friday test): starts by itself after each test set (3 min by default; 2–5 min chips, +30 s, Skip).
+  A bell rings at zero. No timer after the last set.
+- **Plateau → deload week**: if a max at the same weight hasn't beaten the earlier best for 3 Friday tests, Kakashi
+  offers a lighter week on the Mission tab: half the groove sets, a share 15% lower (never under 30%), no Friday
+  test. It starts the next day and lasts 7 days. It still has to be done (it counts like a normal day). At most one
+  every 28 days; "Keep pushing" hides that offer. A deload week can't be cancelled.
+- **Goals** (Stats): up to 6, e.g. 20 pull-ups or 10 dips at +20 kg. The date is a straight line through your test
+  maxes of the last 8 weeks (needs 3 tests). Weighted goals use the strength score converted to reps at that weight.
+- **Progress photos** (Stats): front, side, back, once a month. The camera shows a faint copy of the last photo of
+  that pose to line up with, has a 5/10 s timer and moves on to the next pose by itself. Compare any two dates side by
+  side (with the weight and tape changes if you weighed in within 10 days). **On this device only**, not synced, not in
+  the backup file.
 - **One-time swap**: trade today's mission with tomorrow's, this week only.
 - **On call** (Mission tab, 2 a week, today only): the day counts like an exam day: what you do still earns, nothing
   missed costs XP or breaks a streak, and no scroll is used.
@@ -30,7 +42,8 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 
 ## XP, ranks, streaks
 - XP from sets, completed missions, tests, new maxes, rest days, study hours, good nights, weekly sensei challenges and
-  beating your shadow clone (last weeks' you). Missed days cost XP and break the streak. Streak multiplies XP.
+  beating your shadow clone (last weeks' you; the race and the week strip are on the Stats tab). Missed days cost XP
+  and break the streak. Streak multiplies XP.
 - Ranks follow total XP. Each rank has a cinematic that plays once at rank-up (replay in the Hokage Book).
 
 ## Ryō and Tsunade's Shop (Ninja tab)
@@ -48,6 +61,9 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 ## Settings worth knowing
 - Rank wallpapers and scenes: up to 5 pictures + 1 video per rank (and a scene per bought form). On this device only.
 - Tab backgrounds, sound effects, music, notifications, exam weeks, sleep goal.
+- Launch screens (`splash/`): iOS shows them while the app opens. iOS picks them up when the app is added to the Home
+  Screen. Don't delete the old icon to get them: that wipes the pictures, videos, music and photos stored on the
+  device.
 
 ## If something breaks
 1. Close the app fully and reopen (gets the newest version). An app left open in the background also updates itself
