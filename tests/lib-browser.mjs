@@ -18,6 +18,7 @@ export async function startSite(port){
     const url = new URL(req.url, 'http://x');
     if(!url.pathname.startsWith('/Leaf-village/')){ res.writeHead(404); res.end('not found'); return; }
     let rel = decodeURIComponent(url.pathname.slice('/Leaf-village/'.length)) || 'index.html';
+    if(rel.endsWith('/')) rel += 'index.html';   // a folder serves its index.html, like GitHub Pages (the friends' copy in open/)
     const file = path.join(ROOT, rel);
     if(!file.startsWith(ROOT) || /(^|\/)(node_modules|\.git)\//.test(rel)){ res.writeHead(403); res.end(); return; }
     try{

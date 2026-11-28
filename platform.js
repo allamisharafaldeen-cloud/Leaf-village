@@ -18,7 +18,9 @@
 /* files shipped with the app: asset id -> file in media/ */
 const BUNDLED = { "04baf85978a90d901be411fd8aabf43e": "04baf85978a90d901be411fd8aabf43e.jpg", "0cf141c4617406724f4fc4d2148c5a4b": "0cf141c4617406724f4fc4d2148c5a4b.jpg", "106315c3656e4822e889983fd281af4f": "106315c3656e4822e889983fd281af4f.jpg", "1cf51ee0bdafbad96d967453c6e449db": "1cf51ee0bdafbad96d967453c6e449db.mp4", "236748730ea6df4f87634613c0a186fb": "236748730ea6df4f87634613c0a186fb.mp4", "5e47551e43ecb539f92386566fd875dc": "5e47551e43ecb539f92386566fd875dc.mp4", "61086f82549a63c7b6d2767a929e318b": "61086f82549a63c7b6d2767a929e318b.jpg", "63c736ee956cf8a8da6048a07a464365": "63c736ee956cf8a8da6048a07a464365.mp4", "6b1b25ac0ecf14f8469fa1edbefe782e": "6b1b25ac0ecf14f8469fa1edbefe782e.jpg", "7e50605ef8db59e51500cdbd09e4bad1": "7e50605ef8db59e51500cdbd09e4bad1.jpg", "7e675d801254c215cf318e4f1a7f659a": "7e675d801254c215cf318e4f1a7f659a.mp4", "80d85646aab54c9d54290196def1811f": "80d85646aab54c9d54290196def1811f.mp4", "95dfb73fc94beca212496f6c476d51f2": "95dfb73fc94beca212496f6c476d51f2.jpg", "9d8ad0fc80a43ead43677fac144839ba": "9d8ad0fc80a43ead43677fac144839ba.mp4", "9f018bf25b7328a533dad4843d0836a0": "9f018bf25b7328a533dad4843d0836a0.jpg", "b04a0e695aca0f3f48c232eed209448e": "b04a0e695aca0f3f48c232eed209448e.jpg", "c279c8d56915fbd9ff1076c1508e448c": "c279c8d56915fbd9ff1076c1508e448c.jpg", "e72ce34a5db7454f91710c3f1731f89b": "e72ce34a5db7454f91710c3f1731f89b.mp4", "fb4f2ca55fffb735fc8fab1a38b273b1": "fb4f2ca55fffb735fc8fab1a38b273b1.mp4" };
 
-const DB_NAME = 'leaf-village-local';
+/* the friends' copy (window.LEAF_OPEN, set by tools/build_open.py) keeps its own storage and never syncs */
+const OPEN = !!window.LEAF_OPEN;
+const DB_NAME = OPEN ? 'leaf-village-open' : 'leaf-village-local';
 let dbp = null;
 function openDb(){
   if(dbp) return dbp;
@@ -439,7 +441,7 @@ const pushApi = {
 };
 
 window.LeafSync = Object.freeze({
-  available: !!M,
+  available: !!M && !OPEN,
   status(){ return { on: !!getKey(), state: sync.state, last: sm.last, error: sync.state === 'error' ? sm.err : null, waiting: Object.keys(sm.dirty).length, everSynced: !!sm.gen }; },
   hasKey(){ return !!getKey(); },
   /* save the key on this device and sync straight away; resolves true when the first sync worked */

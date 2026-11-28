@@ -3,7 +3,7 @@
    The app page itself is always checked online first, so updates show up the next time you open it.
    It also shows the senseis' reminders when the sync Worker pushes one (see the end of this file).
    Bump VERSION whenever files change. */
-const VERSION = '14a4d5801a';
+const VERSION = '46cd1eb945';
 const CACHE = 'leaf-' + VERSION;
 const CINE_CACHE = 'leaf-cine';  /* rank-up scenes: kept across versions, filled ahead of each promotion */
 const FONT_CACHE = 'leaf-fonts';
@@ -211,7 +211,7 @@ self.addEventListener('fetch', e=>{
   const req = e.request;
   if(req.method !== 'GET') return;
   const url = new URL(req.url);
-
+  if(url.origin === self.location.origin && /\/open\//.test(url.pathname)) return;   // OPEN-SKIP: the friends' copy has its own worker
   if(url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com'){
     e.respondWith(caches.open(FONT_CACHE).then(async c=>{
       const hit = await c.match(req);

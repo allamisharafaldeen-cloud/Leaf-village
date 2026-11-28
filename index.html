@@ -1102,6 +1102,8 @@ body.has-bg .jutsu li{background:var(--paper-glass)}
 <script>
 (function(){
 'use strict';
+/* the friends' copy: same app, its own storage, no sync, no forms drawn as Sharaf (tools/build_open.py) */
+const OPEN = !!window.LEAF_OPEN;
 
 /* ---------- game constants ---------- */
 const CUT_AR = {"eight-gates": 0.505, "byakugan": 1.059, "akatsuki": 0.382, "susanoo": 0.468, "academy": 0.731, "genin": 0.531, "chunin": 0.532, "special-jonin": 0.657, "jonin": 0.533, "anbu": 0.551, "sannin": 0.556, "kage": 0.693, "hokage": 0.56, "sage": 0.532, "tailed-beast": 0.693, "six-paths": 0.738};
@@ -1159,7 +1161,7 @@ const RANK_LOOK = {
 };
 /* Rank-up cinematics: each plays once, at the moment that rank is earned (and again from its card in the Ninja tab).
    They live in their own cache so app updates don't download them again. */
-const CINE = {'chunin':'media/cine-chunin-v2.mp4','special-jonin':'media/cine-special-jonin.mp4'};
+const CINE = OPEN ? {} : {'chunin':'media/cine-chunin-v2.mp4','special-jonin':'media/cine-special-jonin.mp4'};
 const CINE_CACHE = 'leaf-cine';
 /* each rank's own wallpapers (up to 5) and scene, and a scene for each bought form; the files stay on this device */
 const RM_KEY='leaf-rank-media';
@@ -1415,7 +1417,7 @@ function engineData(){
   const over=(a,b)=>{ for(const k in b) return Object.assign({}, a, b); return a; };
   return {settings:S(), days:over(state.days,pending.days), study:over(state.study,pending.study), body:over(state.body,pending.body), sleep:over(state.sleep,pending.sleep), timer:timerDoc()};
 }
-function compute(){ return E.compute(engineData(), Date.now()); }
+function compute(){ const C=E.compute(engineData(), Date.now()); if(OPEN) C.noForms=true; return C; }
 /* the engine walks the whole history, so its result is kept until the data or the day changes
    (a running study timer changes every second, so then it is always worked out fresh) */
 let cachedKey=null;
@@ -1530,7 +1532,7 @@ function stagePowerUp(gained){
   const r=st.getBoundingClientRect(); FX.sparkBurst(r.left+r.width/2, r.top+r.height*.55, getComputedStyle(st).getPropertyValue('--aura').trim()||'#ffd27a');
 }
 /* ---------- transformation jutsu ---------- */
-const tfList = C => C._tfl || (C._tfl = E.shop(C).forms.map(t=>Object.assign(t, GUEST_ART[t.id]||{ar:.5, box:null}, {cut:`guests/${t.id}-cut.webp`, auraImg:`guests/${t.id}-aura.webp`, face:`guests/${t.id}-face.jpg`})));
+const tfList = C => OPEN ? [] : C._tfl || (C._tfl = E.shop(C).forms.map(t=>Object.assign(t, GUEST_ART[t.id]||{ar:.5, box:null}, {cut:`guests/${t.id}-cut.webp`, auraImg:`guests/${t.id}-aura.webp`, face:`guests/${t.id}-face.jpg`})));
 function activeTf(C){ const id=prefs.transform; if(!id || !C) return null; const t=tfList(C).find(x=>x.id===id); return t && t.own ? t : null; }
 /* a Ryō coin: gold, with the square hole of an old mon coin */
 const ryoIcon = (sz=18) => `<svg class="ryo-ic" width="${sz}" height="${sz}" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10.5" fill="#e9b949" stroke="#9a6c12" stroke-width="1.6"/><circle cx="12" cy="12" r="7.6" fill="none" stroke="#c48d1e" stroke-width="1"/><rect x="9" y="9" width="6" height="6" rx=".8" fill="#5b3d07"/></svg>`;
@@ -2977,11 +2979,11 @@ function shopCard(C){
       <div class="summon-text"><div class="summon-name"><b>Tsunade</b><span>Shopkeeper</span></div>
         <div class="shop-purse"><div>${ryoIcon(34)}<b class="num">${fmt(sh.balance)}</b><span>Ryō</span></div></div>
         <p class="shop-line">“${esc(line)}”</p></div></div></div>
-    <h3 class="shop-h">Skins</h3>
-    <ul class="shop-grid">${forms.map(tile).join('')}</ul>
+    ${list.length?`<h3 class="shop-h">Skins</h3>
+    <ul class="shop-grid">${forms.map(tile).join('')}</ul>`:''}
     ${shopExtras(C)}
-    <h3 class="shop-h">Bounties</h3>
-    <ul class="tf-list">${list.map(bounty).join('')}</ul></section>`;
+    ${list.length?`<h3 class="shop-h">Bounties</h3>
+    <ul class="tf-list">${list.map(bounty).join('')}</ul>`:''}</section>`;
 }
 /* ---------- protection scrolls and the rest of Tsunade's shelves ---------- */
 const SCROLL_SW = (c1, c2) => `<svg viewBox="0 0 52 52" aria-hidden="true"><rect x="11" y="13" width="30" height="26" rx="2" fill="#f3e6c4"/><path d="M15 20h22M15 26h22M15 32h14" stroke="${c2}" stroke-width="2" stroke-linecap="round" opacity=".7"/><rect x="7" y="9" width="38" height="7" rx="3.5" fill="${c1}"/><rect x="7" y="36" width="38" height="7" rx="3.5" fill="${c1}"/><circle cx="7" cy="12.5" r="3.5" fill="${c2}"/><circle cx="45" cy="12.5" r="3.5" fill="${c2}"/><circle cx="7" cy="39.5" r="3.5" fill="${c2}"/><circle cx="45" cy="39.5" r="3.5" fill="${c2}"/></svg>`;
@@ -3347,25 +3349,32 @@ function ninjaView(C){
 }
 
 /* --- setup (first visit) --- */
+/* the two exercises a new village trains; pull-ups and dips by default, easier ones for anyone starting out */
+const SETUP_EX = {a:[['pullups','Pull-ups'],['chinups','Chin-ups'],['rows','Inverted rows'],['pushups','Push-ups']],
+                  b:[['dips','Dips'],['pushups','Push-ups'],['squats','Squats'],['pike','Pike push-ups']]};
+const setupExName = (slot, id) => (SETUP_EX[slot].find(x=>x[0]===id)||SETUP_EX[slot][0])[1];
 function setupView(){
-  if(!ui.setup) ui.setup={name:'', start:todayStr(), pull:'', dip:'', weight:''};
-  const u=ui.setup;
+  if(!ui.setup) ui.setup={name:'', start:todayStr(), pull:'', dip:'', weight:'', exA:'pullups', exB:'dips'};
+  const u=ui.setup; u.exA=u.exA||'pullups'; u.exB=u.exB||'dips';
+  const pick=(slot,key)=>`<div class="chips">${SETUP_EX[slot].map(([id,l])=>`<button type="button" class="chip" data-act="setup-ex" data-slot="${key}" data-v="${id}" aria-pressed="${u[key]===id}">${esc(l)}</button>`).join('')}</div>`;
   return `<section class="scroll" style="margin-top:14px"><div class="seal" aria-hidden="true">入<small>ENTER</small></div>
     <div class="eyebrow">Academy enrollment</div>
     <h1 class="mission-title">Enter the Leaf Village</h1>
-    <p class="mission-sub">Set your starting point. Your maxes set the groove targets, and your weight starts the body log.</p>
+    <p class="mission-sub">Set your starting point. Pick your two exercises: your maxes set the daily targets, and your weight starts the body log.</p>
     <div class="form-grid">
       <label class="field full"><span>Ninja name</span><input id="su-name" type="text" data-bind="setup.name" value="${esc(u.name)}" maxlength="24"></label>
-      <label class="field"><span>Strict pull-up max</span><input id="su-pull" type="number" inputmode="numeric" min="0" data-bind="setup.pull" value="${esc(u.pull)}"></label>
-      <label class="field"><span>Strict dip max</span><input id="su-dip" type="number" inputmode="numeric" min="0" data-bind="setup.dip" value="${esc(u.dip)}"></label>
+      <div class="field full"><span>First exercise</span>${pick('a','exA')}</div>
+      <div class="field full"><span>Second exercise</span>${pick('b','exB')}</div>
+      <label class="field"><span>Max ${esc(setupExName('a',u.exA).toLowerCase())} in one go</span><input id="su-pull" type="number" inputmode="numeric" min="0" data-bind="setup.pull" value="${esc(u.pull)}"></label>
+      <label class="field"><span>Max ${esc(setupExName('b',u.exB).toLowerCase())} in one go</span><input id="su-dip" type="number" inputmode="numeric" min="0" data-bind="setup.dip" value="${esc(u.dip)}"></label>
       <label class="field"><span>Bodyweight (kg)</span><input id="su-weight" type="number" inputmode="decimal" step="0.1" data-bind="setup.weight" value="${esc(u.weight)}"></label>
       <label class="field"><span>Start date</span><input id="su-start" type="date" data-bind="setup.start" value="${esc(u.start)}"></label>
     </div>
     <button class="btn chakra-btn" data-act="setup-save">Begin training</button>
   </section>
   <section class="card" style="margin-top:14px">
-    <h2>Moving from the Claude version?</h2>
-    <p class="muted small">Import your backup file instead, and your rank, XP, streaks and history come with you.</p>
+    <h2>${OPEN?'Have a backup file?':'Moving from the Claude version?'}</h2>
+    <p class="muted small">${OPEN?'Import it instead, and your rank, XP, streaks and history come back. Everything stays on this device, so export a backup now and then from Settings.':'Import your backup file instead, and your rank, XP, streaks and history come with you.'}</p>
     ${importBlock(false)}
   </section>
   ${setupSyncCard()}`;
@@ -3608,7 +3617,7 @@ function syncMedia(){
 /* one-time move of files that older versions kept only on this device */
 const localFiles = (()=>{
   let dbp=null;
-  function open(){ if(dbp) return dbp; dbp=new Promise((res,rej)=>{ try{ const r=indexedDB.open('leaf-village-device',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); return dbp; }
+  function open(){ if(dbp) return dbp; dbp=new Promise((res,rej)=>{ try{ const r=indexedDB.open(OPEN?'leaf-village-open-device':'leaf-village-device',1); r.onupgradeneeded=()=>r.result.createObjectStore('kv'); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }catch(e){ rej(e); } }); return dbp; }
   const run=(mode,fn)=>open().then(d=>new Promise((res,rej)=>{ const tx=d.transaction('kv',mode); const rq=fn(tx.objectStore('kv')); rq.onsuccess=()=>res(rq.result); rq.onerror=()=>rej(rq.error); }));
   return { get:k=>run('readonly',st=>st.get(k)), del:k=>run('readwrite',st=>st.delete(k)) };
 })();
@@ -4062,8 +4071,8 @@ function settingsView(C){
     ${sw('pref-ambient',prefs.ambient,'Moving background')}
     ${reduceMotion()?'<p class="notice">Reduce Motion is on in your phone settings, so effects are already toned down.</p>':''}
   </section>
-  ${syncCard()}
-  ${notifyCard()}
+  ${OPEN?`<section class="card"><h2>Your data</h2><p class="muted small">Everything stays on this phone: nothing is sent anywhere. Deleting the app from the Home Screen deletes your village, so export a backup file every week or two (Backup, below) and keep it somewhere safe.</p></section>`:syncCard()}
+  ${OPEN?'':notifyCard()}
   ${examCountSettings(C)}
   ${examCard(C)}
   <section class="card">
@@ -4795,14 +4804,18 @@ document.addEventListener('click', e=>{
     ['arm','chest','waist'].forEach(k=>{ const v=Number(w[k]); if(w[k]!=='' && v>0) rec[k]=Math.round(v*10)/10; });
     const prevAw=(lastC&&lastC.awards||[]).length; save('body', rec.date, rec); toast('Weigh-in saved'); if(lastC) announceAwards(lastC, prevAw); return;
   }
+  if(act==='setup-ex'){ ui.setup=ui.setup||{}; ui.setup[el.dataset.slot]=el.dataset.v; SFX.play('tick'); render(); return; }
   if(act==='setup-save'){
     const u=ui.setup, pull=Math.round(Number(u.pull)), dip=Math.round(Number(u.dip)), wt=Number(u.weight);
     if(!(pull>=0) || u.pull===''||!(dip>=0)||u.dip===''){ toast('Enter both of your maxes.'); return; }
     const start=/^\d{4}-\d{2}-\d{2}$/.test(u.start)?u.start:todayStr();
+    const A=u.exA||'pullups', B=u.exB||'dips';
+    if(A===B){ toast('Pick two different exercises.'); return; }
+    const plan=clone(DEFAULT_PLAN).map(p=>p.ex==='pullups'?Object.assign(p,{ex:A}):p.ex==='dips'?Object.assign(p,{ex:B}):p);
     const s={ v:1, name:(u.name||'').trim()||'Ninja', startDate:start,
-      exercises:{pullups:{name:'Pull-ups'}, dips:{name:'Dips'}},
-      baseline:{pullups:{max:pull,date:start}, dips:{max:dip,date:start}},
-      scheduleHistory:[{from:start, plan:clone(DEFAULT_PLAN), gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:['pullups','dips']}}],
+      exercises:{[A]:{name:setupExName('a',A)}, [B]:{name:setupExName('b',B)}},
+      baseline:{[A]:{max:pull,date:start}, [B]:{max:dip,date:start}},
+      scheduleHistory:[{from:start, plan, gtg:{sets:6,minSets:5,pct:50}, test:{sets:2,ex:[A,B]}}],
       celebrated:0, celebratedId:RANKS[0].id, studyStart:start };
     save('settings', null, s);
     if(wt>=20 && wt<=300) save('body', todayStr(), {date:todayStr(), weight:Math.round(wt*10)/10});

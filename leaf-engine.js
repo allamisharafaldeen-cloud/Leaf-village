@@ -1130,7 +1130,7 @@ function shop(C){
   const earned = Math.floor(C.days.reduce((m, d) => m + (d.earn != null ? d.earn : Math.max(0, d.gain || 0)) * (ramen.has(d.date) ? 2 : 1), 0) / RYO_PER_XP);
   let bounty = 0, spent = buys.reduce((m, b) => m + Math.round(b.price), 0);
   const owned = {};
-  const forms = transforms(C).map(t => {
+  const forms = (C.noForms ? [] : transforms(C)).map(t => {   // noForms: the friends' copy has no forms (they are drawn as Sharaf)
     const r = RARITY[RARITY_OF[t.id] || 'common'], o = bought[t.id];
     let own = null, paid = null;
     if(t.date && t.date < SHOP_FROM) own = {how:'mission', date:t.date};
