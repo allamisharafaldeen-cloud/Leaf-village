@@ -156,6 +156,7 @@ export function computeStudy(data, today, nowMs, opts){
 export const SLEEP = {goodXp:20, scoreXp:10, scoreMin:80};
 const SLEEP_DEFAULT = {mins:450, bedBy:1200, wakeBy:240};
 const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const isDate = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && ymd(dayMs(v)) === v;
 const clockMin = v => { const m = typeof v === 'string' ? /^(\d{1,2}):(\d{2})$/.exec(v) : null; if(!m) return null; const h = +m[1], mi = +m[2]; return (h < 24 && mi < 60) ? h * 60 + mi : null; };
 const inRange = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 export const sleepGoal = (s, d) => { const e = entryFor(s || {}, d), p = (e && isObj(e.sleep)) ? e.sleep : {};
@@ -354,6 +355,70 @@ export function snapshotFromDocs(map){
 
 /* ---------- checkpoints: keep the Worker's work small however long the history grows ---------- */
 /* the Saturday at least `back` days before today: everything up to it is settled history */
+/* ---------- protection scrolls on the server ----------
+   The app works out which missed days a scroll covers and writes them into settings.scrolls.used, but only when it
+   is opened. Until then the server works out the same inventory itself, with the same rules as scrollBook in
+   leaf-engine.js, so a reminder never calls a covered day missed. The inventory at a checkpoint is saved with it. */
+const SCROLL = {common:7, rare:30, forbidden:60, capCommon:2, capRare:2, capForbidden:1};
+const SCROLL_AREAS = ['workout', 'study', 'sleep'];
+/* from: null (start of the scroll era) or {date, inv, count} saved at a checkpoint; runs the days after it up to `until` */
+export function scrollLedger(C, s, from, until){
+  const used = isObj(s.scrolls) && isObj(s.scrolls.used) ? s.scrolls.used : {};
+  const wd = {}; C.days.forEach(d => { wd[d.date] = d; });
+  const cls = (area, d) => {
+    const r = area === 'workout' ? wd[d] : area === 'study' ? C.study.days[d] : (C.sleep && C.sleep.days[d]);
+    if(!r) return 'skip';
+    const st = r.status;
+    if(st === 'scroll') return 'used';
+    if(st === 'open') return 'skip';
+    if(area === 'sleep') return st === 'good' ? 'good' : (st === 'short' || st === 'missed') ? 'bad' : 'neutral';
+    return (st === 'done' || st === 'rest') ? 'good' : st === 'missed' ? 'bad' : 'neutral';
+  };
+  const inv = Object.assign({workout:0, study:0, sleep:0, rare:0, forbidden:0}, from && from.inv), count = Object.assign({workout:0, study:0, sleep:0}, from && from.count), pending = [];
+  const boughtOn = {};
+  ((isObj(s.shop) && Array.isArray(s.shop.buys)) ? s.shop.buys : []).forEach(b => { if(isObj(b) && b.id === 'forbidden' && isDate(b.date) && Number.isFinite(b.price) && b.price >= 0) boughtOn[b.date] = (boughtOn[b.date] || 0) + 1; });
+  const fresh = !from || from.date < SCROLL_FROM;
+  if(fresh) Object.keys(boughtOn).filter(d => d < SCROLL_FROM && d <= C.today).forEach(d => { inv.forbidden = Math.min(SCROLL.capForbidden, inv.forbidden + boughtOn[d]); });
+  const take = area => { if(inv[area] > 0){ inv[area]--; return 'common'; } if(inv.rare > 0){ inv.rare--; return 'rare'; } if(inv.forbidden > 0){ inv.forbidden--; return 'forbidden'; } return null; };
+  const first = fresh ? SCROLL_FROM : addDays(from.date, 1), last = until < C.today ? until : C.today;
+  for(let d = first, g = 0; d <= last && g < 4000; d = addDays(d, 1), g++){
+    if(boughtOn[d]) inv.forbidden = Math.min(SCROLL.capForbidden, inv.forbidden + boughtOn[d]);
+    SCROLL_AREAS.forEach(area => {
+      const c = cls(area, d);
+      if(c === 'used'){
+        const want = used[area + '|' + d];
+        if(want === 'rare' && inv.rare > 0) inv.rare--; else if(want === 'forbidden' && inv.forbidden > 0) inv.forbidden--; else if(inv[area] > 0) inv[area]--;
+        count[area] = 0;
+      } else if(c === 'bad' && d < C.today){
+        const t = take(area);
+        if(t) pending.push({key:area + '|' + d, area, date:d, type:t});
+        count[area] = 0;
+      } else if(c === 'good'){
+        const n = ++count[area];
+        if(n % SCROLL.common === 0 && inv[area] < SCROLL.capCommon) inv[area]++;
+        if(n % SCROLL.rare === 0 && inv.rare < SCROLL.capRare) inv.rare++;
+        if(n % SCROLL.forbidden === 0 && inv.forbidden < SCROLL.capForbidden) inv.forbidden++;
+      }
+    });
+  }
+  return {inv, count, pending};
+}
+/* computeAll, with the scrolls the app is still to write treated as used (the app would write exactly these) */
+export function computeWithScrolls(data, nowMs, opts){
+  const o = opts || {}, s = data.settings || {}, until = o.until || dateAt(nowMs);
+  const from = o.resume ? Object.assign({date:o.resume.date}, o.resume.scrolls || {}) : null;
+  let C = computeAll(data, nowMs, o), L = scrollLedger(C, s, from, until);
+  if(L.pending.length){
+    const used = Object.assign({}, isObj(s.scrolls) && isObj(s.scrolls.used) ? s.scrolls.used : {});
+    L.pending.forEach(p => { used[p.key] = p.type; });
+    const s2 = Object.assign({}, s, {scrolls:Object.assign({}, isObj(s.scrolls) ? s.scrolls : {}, {used})});
+    C = computeAll(Object.assign({}, data, {settings:s2}), nowMs, o);
+    L = scrollLedger(C, s2, from, until);
+    C.scrollsDue = L.pending.length ? L.pending : [];
+  }
+  if(C.state) C.state.scrolls = {inv:L.inv, count:L.count};
+  return C;
+}
 export function checkpointTarget(today, back){ const d = addDays(today, -(back || 15)); return addDays(d, -((dow(d) + 1) % 7)); }
 /* a fingerprint of the settings that shape history; if it changes, old checkpoints no longer apply */
 export function historyKey(s){
@@ -367,5 +432,5 @@ export function advanceCheckpoint(data, nowMs, resume, to, maxDays){
   const start = resume ? addDays(resume.date, 1) : s.startDate; if(start > to) return resume;
   let until = to;
   if(maxDays && (dayMs(to) - dayMs(start)) / 86400000 >= maxDays){ const lim = addDays(start, maxDays - 1); until = addDays(lim, -((dow(lim) + 1) % 7)); if(until < start) until = addDays(until, 7); if(until > to) until = to; }
-  return computeAll(data, nowMs, {resume, until}).state;
+  return computeWithScrolls(data, nowMs, {resume, until}).state;
 }

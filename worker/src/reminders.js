@@ -1,7 +1,7 @@
 /* The Leaf Village · what the senseis say, and when.
    decide() is a pure function: give it the synced documents, the time and the slot, and it returns
    the one notification to send (or nothing). The rules are the ones from docs/fable-session-1.md. */
-import { computeAll, planFor, examFor, onCallDay, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, dateAt, sleepGoal } from './engine.js';
+import { computeWithScrolls, planFor, examFor, onCallDay, dow, addDays, weekStart, dayMs, exName, XP, CHALLENGES, hourAt, dateAt, sleepGoal } from './engine.js';
 import { LINES, SENSEI_NAMES, fill } from './lines.js';
 
 /* 5:40, 11:40 and 14:40 on the clock; the evening two follow tonight's sleep goal (see eveningSlotAt) */
@@ -58,7 +58,7 @@ export function decide({data, nowMs, slot, picks, resume}){
   if(!s || !s.startDate || !TITLES[slot]) return out;
   const n = Object.assign({}, NOTIFY_DEFAULT, s.notify || {});
   if(!n.enabled) return out;
-  const C = computeAll(data, nowMs, resume ? {resume} : null), today = C.today;
+  const C = computeWithScrolls(data, nowMs, resume ? {resume} : null), today = C.today;
   out.today = today;
   if(s.startDate > today) return out;
   const name = s.name || 'ninja';

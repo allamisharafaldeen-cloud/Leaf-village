@@ -4,7 +4,7 @@ process.env.TZ = 'Asia/Baghdad';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import E from '../../leaf-engine.js';
-import { computeAll } from '../../worker/src/engine.js';
+import { computeAll, computeWithScrolls } from '../../worker/src/engine.js';
 import { backup, dataOf, asOf, at, clone } from '../lib-data.mjs';
 
 /* a small village that starts on Sunday 1 Nov 2026: Sun pull-ups, Mon dips, Tue pull-ups, Wed dips, Thu rest, Fri test, Sat rest */
@@ -775,6 +775,16 @@ test('weighted sets: maxes per weight, the working weight follows the test, targ
   const bad = clone(V); bad.days['2026-12-11'].sets[0].kg = -4;
   const cl = E.cleanBackup(Object.assign({app:'The Leaf Village'}, bad), at('2026-12-18', 9));
   assert.equal((cl.data || cl.backup || cl).days['2026-12-11'].sets.length, 3);
+});
+
+test('scrolls on the server: before the app has written its scroll, the server already treats the day as covered', () => {
+  const V = village(); scrollWeek(V);
+  const now = at('2026-12-02', 9);
+  assert.equal(day(computeAll(V, now), '2026-12-01').status, 'missed', 'without the scroll rules the day looks missed');
+  const W = computeWithScrolls(V, now), d = day(W, '2026-12-01');
+  assert.equal(d.status, 'scroll'); assert.equal(d.streak, day(W, '2026-11-30').streak, 'the streak is kept, as the app will show');
+  const A = clone(V); A.settings.scrolls = {used:{'workout|2026-12-01':'common'}};
+  assert.deepEqual(W.days.map(x => [x.date, x.status, x.xp, x.streak]), E.compute(A, now).days.map(x => [x.date, x.status, x.xp, x.streak]), 'exactly what the app shows once it has written it');
 });
 
 /* ---------- on call and side quests ---------- */

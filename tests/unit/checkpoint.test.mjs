@@ -2,7 +2,7 @@
    history gives. The Worker relies on this to stay inside Cloudflare's free CPU allowance. */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeAll, checkpointTarget, advanceCheckpoint, historyKey, dow, addDays, dateAt } from '../../worker/src/engine.js';
+import { computeAll, computeWithScrolls, checkpointTarget, advanceCheckpoint, historyKey, dow, addDays, dateAt } from '../../worker/src/engine.js';
 import { decide, TITLES } from '../../worker/src/reminders.js';
 import { makeEnv, call, runSlot, stepCheckpoint } from '../lib-worker.mjs';
 import { backup, dataOf, docsOf, asOf, slotTime, clone } from '../lib-data.mjs';
@@ -34,7 +34,7 @@ test('resuming from a checkpoint gives exactly the same totals as replaying ever
   const LONG = longData();
   for(let i = 0; i < 40; i += 3){
     const date = addDays('2027-02-20', i), now = slotTime(date, 'EVENING'), data = asOf(LONG, now);
-    const full = computeAll(data, now);
+    const full = computeWithScrolls(data, now);
     /* build the checkpoint in small steps, as the Worker does */
     let state = null, steps = 0;
     const target = checkpointTarget(dateAt(now));
@@ -43,7 +43,7 @@ test('resuming from a checkpoint gives exactly the same totals as replaying ever
     /* then give the engine only the days after it */
     const recent = clone(data);
     ['days', 'study', 'body'].forEach(k => Object.keys(recent[k]).forEach(d => { if(d <= state.date) delete recent[k][d]; }));
-    const resumed = computeAll(recent, now, {resume:state});
+    const resumed = computeWithScrolls(recent, now, {resume:state});
     assert.deepEqual(pickOut(resumed), pickOut(full), `totals on ${date}`);
     Object.keys(TITLES).forEach(slot => {
       const t = slotTime(date, slot), a = decide({data:asOf(LONG, t), nowMs:t, slot, picks:{}});
@@ -98,8 +98,8 @@ test('in the Worker: reminders with a checkpoint say the same as without, and th
   LATE.settings.notify = {promotion:false};
   for(let i = 0; i < 6; i++) await stepCheckpoint(env, slotTime('2027-03-17', 'MIDDAY'));
   assert.equal(cpNow().state.date, checkpointTarget('2027-03-17'));
-  assert.deepEqual(cpNow().state.totalReps, computeAll(LATE, slotTime('2027-03-17', 'MIDDAY'), {until:cpNow().state.date}).totalReps, 'the late set is counted');
-  assert.equal(cpNow().state.total, computeAll(LATE, slotTime('2027-03-17', 'MIDDAY'), {until:cpNow().state.date}).total);
+  assert.deepEqual(cpNow().state.totalReps, computeWithScrolls(LATE, slotTime('2027-03-17', 'MIDDAY'), {until:cpNow().state.date}).totalReps, 'the late set is counted');
+  assert.equal(cpNow().state.total, computeWithScrolls(LATE, slotTime('2027-03-17', 'MIDDAY'), {until:cpNow().state.date}).total);
   /* changing the plan's history throws it away too */
   const s2 = Object.assign({}, LATE.settings, {examWeeks:LATE.settings.examWeeks.concat([{start:'2027-04-04', end:'2027-04-10'}])});
   await on('2027-03-18', () => call(env, 'POST', '/sync', {since:0, docs:[{path:'leaf/main', data:s2, mtime:Date.now()}]}));
