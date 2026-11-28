@@ -615,7 +615,7 @@ test('transformations: reps missions (Gon in one day, Kaneki lifetime) know the 
   sets(V, '2026-11-08', 'pullups', 50, 14);
   C = E.compute(V, at('2026-11-08', 22));
   assert.equal(tf(C, 'kaneki').date, '2026-11-08'); assert.equal(tf(C, 'kaneki').n, 993);
-  assert.equal(E.transforms(C).length, 18);
+  assert.equal(E.transforms(C).length, 30);
 });
 test('transformations: the Perfect Week needs every scroll with no shield; Checkmate needs the full study goal; Dual Wielder counts days', () => {
   const V = perfectWeek();
@@ -659,7 +659,7 @@ test('second wave: Thorfinn counts workout missions and Gabimaru early mornings,
   const V = train(village(), START, '2026-12-20');
   let C = E.compute(V, at('2026-11-28', 20));
   for(const id of ['thorfinn', 'gabimaru', 'zuko', 'invincible', 'aang', 'vegeta', 'goku']){ assert.equal(tf(C, id).n, 0, `${id} starts at zero`); assert.equal(tf(C, id).date, null); }
-  assert.ok(E.shop(C).forms.filter(f => f.from).every(f => !f.bountyPaid && !f.own), 'no new form is owned or paid for before 29 Nov'); assert.equal(E.transforms(C).length, 18);
+  assert.ok(E.shop(C).forms.filter(f => f.from).every(f => !f.bountyPaid && !f.own), 'no new form is owned or paid for before 29 Nov'); assert.equal(E.transforms(C).length, 30);
   C = E.compute(V, at('2026-12-13', 20));
   assert.equal(tf(C, 'thorfinn').n, 11); assert.equal(tf(C, 'thorfinn').date, null);
   C = E.compute(V, at('2026-12-16', 20));
@@ -701,6 +701,26 @@ test('second wave: Goku needs both maxes 5 above the best before 29 Nov; Vegeta 
   assert.equal(tf(C, 'aang').date, null); assert.equal(tf(C, 'aang').n, 3, 'three of four elements: no weigh-in');
   C = E.compute(A, at('2026-11-28', 21));
   assert.equal(tf(C, 'aang').date, null, 'the same perfect week before 29 Nov does not count');
+});
+
+test('third wave: groove days with 8+ sets, bursts of 5 in 30 minutes, 100-rep days, late nights, runs and weekly reps, all from 29 Nov', () => {
+  const V = train(village(), START, '2026-12-31');
+  const extra = (d, n, hour, reps = 10) => { const r = V.days[d] || (V.days[d] = {date:d, sets:[]}); for(let i = 0; i < n; i++) r.sets.push({ex:'pullups', reps, t:iso(d, hour, i * 5)}); };
+  for(const d of ['2026-11-22', '2026-11-29', '2026-11-30', '2026-12-01', '2026-12-02', '2026-12-06', '2026-12-07', '2026-12-08', '2026-12-09']) extra(d, 3, 21);
+  let C = E.compute(V, at('2026-11-28', 23));
+  for(const id of ['deku', 'david', 'atem', 'ashitaka', 'jack', 'goblinslayer', 'jotaro', 'saitama', 'archer', 'guts', 'kafka', 'kenshiro']) assert.equal(tf(C, id).date, null, `${id} is not unlocked by the past`);
+  C = E.compute(V, at('2026-12-09', 23));
+  assert.equal(tf(C, 'deku').date, '2026-12-09', 'the 8th groove day with 8 sets (5 + 3 extra)');
+  assert.equal(tf(C, 'david').n, 0, 'sets an hour apart, and three in ten minutes, are no burst of five');
+  const B = clone(V); ['2026-11-29', '2026-11-30', '2026-12-01', '2026-12-02', '2026-12-06', '2026-12-07'].forEach(d => { const r = B.days[d]; for(let i = 0; i < 2; i++) r.sets.push({ex:'pullups', reps:10, t:iso(d, 21, 15 + i * 5)}); });
+  assert.equal(tf(E.compute(B, at('2026-12-09', 23)), 'david').date, '2026-12-07', 'five sets between 21:00 and 21:20 on six days');
+  assert.equal(tf(C, 'kafka').n, 8, 'eight days with a set after 9 pm since 29 Nov (22 Nov does not count)');
+  assert.equal(tf(C, 'jack').date, null); assert.ok(tf(C, 'jack').n >= 11, 'every day since 29 Nov kept');
+  C = E.compute(V, at('2026-12-12', 23));
+  assert.equal(tf(C, 'jack').date, '2026-12-12', 'fourteen days in a row from 29 Nov');
+  assert.equal(tf(C, 'kenshiro').n, 2, 'two Friday tests in a row');
+  C = E.compute(V, at('2026-12-31', 23));
+  assert.equal(tf(C, 'goblinslayer').date !== null, true);
 });
 
 /* ---------- one-time swap ---------- */

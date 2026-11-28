@@ -65,6 +65,14 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
   - Zuko (Rare): a new max with added weight on 3 test days. Mark Grayson (Rare): 5+ hours of study on 14 days.
   - Aang (Epic): one Sunday-to-Saturday week with every workout mission, the study target every study day, 5 good
     nights and a weigh-in. Vegeta (Epic): 9,001 XP earned. Goku (Legendary): both maxes 5 above the best before 29 Nov.
+- Third wave (added 28 Nov 2026, same 29 Nov start): Deku, David Martinez, Atem, Archer, Kafka (Rare); Ashitaka, Samurai
+  Jack, Goblin Slayer (Uncommon); Jotaro, Saitama, Kenshiro (Epic); Guts (Legendary).
+  - Deku: 8+ sets on 8 groove days. David: 5 sets within 30 minutes on 6 days. Atem: 6 side quests (counted when
+    their week ends). Ashitaka: 10 good nights. Jack: 14 days in a row without a missed workout. Goblin Slayer: sets
+    on 20 days. Jotaro: 400 reps in one week. Saitama: 100+ reps on 10 days. Archer: 100 study hours. Guts: 60 days in
+    a row without a missed workout. Kafka: a set after 9 pm on 10 days. Kenshiro: 7 Friday tests in a row.
+- The shop lists the first 11 as Original characters and everything from 28 Nov on as Bonus characters (forms with a
+  `from` date), in the skins and in the bounties.
 
 ## Protection scrolls
 - 7 unbroken days in an area (workout, study, sleep) → a scroll for that area (hold 2). 30 days → Rare (any area, hold 2).

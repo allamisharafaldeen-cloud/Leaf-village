@@ -41,7 +41,8 @@ def head_box(m):
     return left, top, side
 
 HAND = {  # body outlines drawn by hand where an effect wraps around the figure (Zuko's fire dragon)
-  'zuko': {'head': (875, 660)}}
+  'zuko': {'head': (875, 660)},
+  'jotaro': {'head': (895, 190)}}
 
 def hand_mask(shape, polys):
     from PIL import ImageDraw

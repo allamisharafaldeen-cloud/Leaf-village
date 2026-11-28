@@ -740,6 +740,7 @@ select,input[type=number],input[type=text],input[type=date],input[type=time]{wid
 .rm-char{display:flex; gap:12px; align-items:flex-start; margin-bottom:10px}
 .rm-char-art{flex:none; width:64px; height:96px; border-radius:10px; border:1.5px dashed var(--line); background:center/contain no-repeat color-mix(in srgb, var(--rk) 12%, transparent); display:grid; place-items:center; font-size:24px; color:var(--muted)}
 .rm-char b{display:block} .rm-char small{display:block; color:var(--muted); font-size:12.5px; margin:2px 0 6px}
+.shop-sub{margin:14px 0 6px; font-family:var(--f-data); font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted)}
 /* card styles bought from Tsunade */
 .item-sw .cs-prev{background-size:44px auto !important; background-position:center !important}
 .item-sw .cs-prev.cs-hokage{background-size:22px 10px !important; background-position:left bottom !important}
@@ -1115,7 +1116,7 @@ const AURA_BOX = {"genin": [-3.06, -1.72, 105.16, 103.53], "chunin": [-2.62, -2.
 const CUT_V = {"academy": "-v2", "genin": "-v3", "chunin": "-v3", "special-jonin": "-v3", "jonin": "-v3", "six-paths": "-v2", "anbu": "-v2", "akatsuki": "-v2", "sannin": "-v2", "tailed-beast": "-v2", "eight-gates": "-v2", "kage": "-v2", "hokage": "-v2", "sage": "-v2", "susanoo": "-v2"};
 const AURA = {"eight-gates": "#ff3b2f", "byakugan": "#dfe3ff", "akatsuki": "#ff4a4a", "susanoo": "#b46bff", "academy": "#6ec3ff", "genin": "#6ec3ff", "chunin": "#5fe0c0", "special-jonin": "#a9c8ff", "jonin": "#4a7dff", "anbu": "#b9c8ff", "sannin": "#ffb84a", "kage": "#f2f0ea", "hokage": "#ffb14a", "sage": "#ff8a3d", "tailed-beast": "#ffc229", "six-paths": "#ffe27a"};
 /* transformation jutsu forms: body cut-out aspect ratio and where the aura layer sits around it (% of the body box) */
-const GUEST_ART = {"ayanokoji": {"ar": 0.344, "box": [-13.92, -0.63, 115.75, 101.14]}, "eren": {"ar": 0.636, "box": [-1.93, -1.32, 103.6, 102.33]}, "gojo": {"ar": 0.437, "box": [-11.81, -2.49, 115.68, 104.1]}, "gon": {"ar": 0.636, "box": [-1.28, -1.03, 101.96, 101.85]}, "isagi": {"ar": 0.362, "box": [-16.76, -1.1, 132.36, 102.24]}, "jinwoo": {"ar": 0.64, "box": [-4.9, -1.23, 109.21, 102.37]}, "kaneki": {"ar": 0.614, "box": [-1.31, -0.76, 102.98, 101.57]}, "kirito": {"ar": 0.478, "box": [-6.38, -0.93, 107.53, 101.91]}, "lelouch": {"ar": 0.598, "box": [-1.52, -0.25, 103.12, 101.12]}, "tanjiro": {"ar": 0.533, "box": [-2.07, -1.32, 103.43, 102.67]}, "tobi": {"ar": 0.394, "box": [-15.5, -0.42, 131.0, 100.8]}, "aang": {"ar": 0.577, "box": [-17.64, -1.62, 120.37, 103.23]}, "zuko": {"ar": 0.68, "box": [-2.53, -0.31, 104.67, 102.78]}, "invincible": {"ar": 0.408, "box": [-41.11, -2.13, 163.18, 104.1]}, "gabimaru": {"ar": 0.408, "box": [-3.51, -1.51, 108.76, 102.99]}, "thorfinn": {"ar": 0.478, "box": [-17.91, -1.82, 132.8, 103.43]}, "goku": {"ar": 0.417, "box": [-16.77, -4.25, 122.73, 105.39]}, "vegeta": {"ar": 0.374, "box": [-14.43, -3.63, 132.36, 104.98]}};
+const GUEST_ART = {"ayanokoji": {"ar": 0.344, "box": [-13.92, -0.63, 115.75, 101.14]}, "eren": {"ar": 0.636, "box": [-1.93, -1.32, 103.6, 102.33]}, "gojo": {"ar": 0.437, "box": [-11.81, -2.49, 115.68, 104.1]}, "gon": {"ar": 0.636, "box": [-1.28, -1.03, 101.96, 101.85]}, "isagi": {"ar": 0.362, "box": [-16.76, -1.1, 132.36, 102.24]}, "jinwoo": {"ar": 0.64, "box": [-4.9, -1.23, 109.21, 102.37]}, "kaneki": {"ar": 0.614, "box": [-1.31, -0.76, 102.98, 101.57]}, "kirito": {"ar": 0.478, "box": [-6.38, -0.93, 107.53, 101.91]}, "lelouch": {"ar": 0.598, "box": [-1.52, -0.25, 103.12, 101.12]}, "tanjiro": {"ar": 0.533, "box": [-2.07, -1.32, 103.43, 102.67]}, "tobi": {"ar": 0.394, "box": [-15.5, -0.42, 131.0, 100.8]}, "aang": {"ar": 0.577, "box": [-17.64, -1.62, 120.37, 103.23]}, "zuko": {"ar": 0.68, "box": [-2.53, -0.31, 104.67, 102.78]}, "invincible": {"ar": 0.408, "box": [-41.11, -2.13, 163.18, 104.1]}, "gabimaru": {"ar": 0.408, "box": [-3.51, -1.51, 108.76, 102.99]}, "thorfinn": {"ar": 0.478, "box": [-17.91, -1.82, 132.8, 103.43]}, "goku": {"ar": 0.417, "box": [-16.77, -4.25, 122.73, 105.39]}, "vegeta": {"ar": 0.374, "box": [-14.43, -3.63, 132.36, 104.98]}, "deku": {"ar": 0.473, "box": [-17.38, -1.88, 139.28, 104.28]}, "david": {"ar": 0.655, "box": [-2.21, -1.28, 102.92, 102.89]}, "atem": {"ar": 0.579, "box": [-2.19, -2.28, 106.35, 103.8]}, "ashitaka": {"ar": 0.59, "box": [-1.87, -1.44, 109.19, 102.54]}, "jack": {"ar": 0.579, "box": [-8.43, -1.32, 113.29, 102.52]}, "goblinslayer": {"ar": 0.442, "box": [-13.42, -1.27, 116.97, 102.54]}, "jotaro": {"ar": 0.596, "box": [-1.57, -0.57, 103.08, 102.2]}, "saitama": {"ar": 0.62, "box": [-2.79, -1.86, 105.86, 103.38]}, "archer": {"ar": 0.55, "box": [-17.15, -1.48, 119.92, 102.96]}, "guts": {"ar": 0.619, "box": [-2.59, -1.56, 104.64, 103.16]}, "kafka": {"ar": 0.485, "box": [-7.83, -1.69, 110.36, 103.08]}, "kenshiro": {"ar": 0.388, "box": [-17.52, -5.23, 134.93, 106.62]}};
 /* the rules (rank thresholds, XP, streak tiers) live in leaf-engine.js; this is how each rank looks */
 const E = window.LeafEngine;
 /* a small diary of anything that went wrong on this device (the last 15), shown in Settings → Backup, so a problem
@@ -2985,11 +2986,15 @@ function shopCard(C){
       <div class="summon-text"><div class="summon-name"><b>Tsunade</b><span>Shopkeeper</span></div>
         <div class="shop-purse"><div>${ryoIcon(34)}<b class="num">${fmt(sh.balance)}</b><span>Ryō</span></div></div>
         <p class="shop-line">“${esc(line)}”</p></div></div></div>
-    ${list.length?`<h3 class="shop-h">Skins</h3>
-    <ul class="shop-grid">${forms.map(tile).join('')}</ul>`:''}
+    ${list.length?`<h3 class="shop-h">Original characters</h3>
+    <ul class="shop-grid">${forms.filter(t=>!t.from).map(tile).join('')}</ul>
+    ${forms.some(t=>t.from)?`<h3 class="shop-h">Bonus characters</h3>
+    <ul class="shop-grid">${forms.filter(t=>t.from).map(tile).join('')}</ul>`:''}`:''}
     ${shopExtras(C)}
     ${list.length?`<h3 class="shop-h">Bounties</h3>
-    <ul class="tf-list">${list.map(bounty).join('')}</ul>`:''}</section>`;
+    <ul class="tf-list">${list.filter(t=>!t.from).map(bounty).join('')}</ul>
+    ${list.some(t=>t.from)?`<h4 class="shop-sub">Bonus characters</h4>
+    <ul class="tf-list">${list.filter(t=>t.from).map(bounty).join('')}</ul>`:''}`:''}</section>`;
 }
 /* ---------- protection scrolls and the rest of Tsunade's shelves ---------- */
 const SCROLL_SW = (c1, c2) => `<svg viewBox="0 0 52 52" aria-hidden="true"><rect x="11" y="13" width="30" height="26" rx="2" fill="#f3e6c4"/><path d="M15 20h22M15 26h22M15 32h14" stroke="${c2}" stroke-width="2" stroke-linecap="round" opacity=".7"/><rect x="7" y="9" width="38" height="7" rx="3.5" fill="${c1}"/><rect x="7" y="36" width="38" height="7" rx="3.5" fill="${c1}"/><circle cx="7" cy="12.5" r="3.5" fill="${c2}"/><circle cx="45" cy="12.5" r="3.5" fill="${c2}"/><circle cx="7" cy="39.5" r="3.5" fill="${c2}"/><circle cx="45" cy="39.5" r="3.5" fill="${c2}"/></svg>`;

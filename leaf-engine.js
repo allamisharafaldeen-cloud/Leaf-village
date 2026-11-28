@@ -983,7 +983,19 @@ const TRANSFORMS = [
   {id:'invincible', name:'Mark Grayson', world:'Invincible', color:'#ffd23f', mission:'Think, Mark!', hint:'Think. Five hours at a time, fourteen times.', need:'Study 5 hours or more on 14 different days, counted from 29 November', goal:14, unit:'days with 5+ hours', from:'2026-11-29'},
   {id:'aang', name:'Aang', world:'Avatar: The Last Airbender', color:'#9fe3ff', mission:'Avatar State', hint:'Master all four elements in a single week.', need:'One Sunday-to-Saturday week with every workout mission done, the study target met on every study day, 5 good nights and a weigh-in (from 29 November)', goal:4, unit:'elements on track this week', from:'2026-11-29'},
   {id:'vegeta', name:'Vegeta', world:'Dragon Ball', color:'#8f6bff', mission:"It's Over 9000", hint:'What does the scouter say?', need:'Earn 9,001 XP, counted from 29 November', goal:9001, unit:'XP since 29 Nov', from:'2026-11-29'},
-  {id:'goku', name:'Goku', world:'Dragon Ball', color:'#c9d6ff', mission:'Ultra Instinct', hint:'Surpass your limits. Then surpass them again.', need:'Raise both your pull-up and dip max 5 reps above your best before 29 November', goal:5, unit:'reps above your old best (the weaker of the two)', from:'2026-11-29'}
+  {id:'goku', name:'Goku', world:'Dragon Ball', color:'#c9d6ff', mission:'Ultra Instinct', hint:'Surpass your limits. Then surpass them again.', need:'Raise both your pull-up and dip max 5 reps above your best before 29 November', goal:5, unit:'reps above your old best (the weaker of the two)', from:'2026-11-29'},
+  {id:'deku', name:'Izuku Midoriya', world:'My Hero Academia', color:'#2fbf6a', mission:'Plus Ultra', hint:'Go beyond the plan. Then go beyond it again.', need:'Log 8 or more sets on 8 groove days, counted from 29 November', goal:8, unit:'groove days with 8+ sets', from:'2026-11-29'},
+  {id:'david', name:'David Martinez', world:'Cyberpunk: Edgerunners', color:'#c6ff3d', mission:'Sandevistan', hint:'Five sets before the clock even notices.', need:'Log 5 sets within 30 minutes on 6 different days, counted from 29 November', goal:6, unit:'days', from:'2026-11-29'},
+  {id:'atem', name:'Pharaoh Atem', world:'Yu-Gi-Oh!', color:'#9b6bff', mission:'Heart of the Cards', hint:'Trust the quests the week deals you.', need:'Finish 6 side quests (a week counts once it ends), counted from 29 November', goal:6, unit:'side quests', from:'2026-11-29'},
+  {id:'ashitaka', name:'Ashitaka', world:'Princess Mononoke', color:'#7c5cc4', mission:'Eyes Unclouded', hint:'Rest well, and see with eyes unclouded.', need:'10 good nights (not in a row), counted from 29 November', goal:10, unit:'good nights', from:'2026-11-29'},
+  {id:'jack', name:'Samurai Jack', world:'Samurai Jack', color:'#e8edf2', mission:'The Long Road Back', hint:'Fourteen days. Not one step missed.', need:'14 days in a row without a missed workout mission (rest days count), counted from 29 November', goal:14, unit:'days in a row', from:'2026-11-29'},
+  {id:'goblinslayer', name:'Goblin Slayer', world:'Goblin Slayer', color:'#b3262e', mission:'Clear the Nest', hint:'Every day. Every single one.', need:'Log sets on 20 different days, counted from 29 November', goal:20, unit:'training days', from:'2026-11-29'},
+  {id:'jotaro', name:'Jotaro Kujo', world:"JoJo's Bizarre Adventure", color:'#8a5cff', mission:'Ora Ora Ora', hint:'A rush of reps in a single week.', need:'Log 400 reps in one Sunday-to-Saturday week, counted from 29 November', goal:400, unit:'reps in your best week', from:'2026-11-29'},
+  {id:'saitama', name:'Saitama', world:'One Punch Man', color:'#ffd23f', mission:'One Hundred a Day', hint:'Every single day. Even when it gets boring.', need:'Log 100 reps or more on 10 different days, counted from 29 November', goal:10, unit:'100-rep days', from:'2026-11-29'},
+  {id:'archer', name:'Archer', world:'Fate/stay night', color:'#c0392b', mission:'Unlimited Blade Works', hint:'I am the bone of my sword. A hundred hours forged.', need:'Study 100 hours, counted from 29 November', goal:100, unit:'hours', from:'2026-11-29'},
+  {id:'guts', name:'Guts', world:'Berserk', color:'#a3242b', mission:'The Struggler', hint:'Keep struggling. Sixty days without falling.', need:'60 days in a row without a missed workout mission (rest days count), counted from 29 November', goal:60, unit:'days in a row', from:'2026-11-29'},
+  {id:'kafka', name:'Kafka Hibino', world:'Kaiju No. 8', color:'#29d3e6', mission:'Night Shift', hint:'After the day job, the real training starts.', need:'Log a set after 9 at night on 10 different days, counted from 29 November', goal:10, unit:'late nights', from:'2026-11-29'},
+  {id:'kenshiro', name:'Kenshiro', world:'Fist of the North Star', color:'#8fb8ff', mission:'Seven Stars', hint:'Seven tests. Seven scars. Not one skipped.', need:'Complete 7 Friday tests in a row, counted from 29 November', goal:7, unit:'tests in a row', from:'2026-11-29'}
 ];
 const TF_WAVE2 = '2026-11-29';
 function transforms(C){
@@ -1070,6 +1082,36 @@ function transforms(C){
     if(fire === 7 && water === 7 && air >= 5 && earth) set('aang', addDays(ws, 6));
     if(ws === weekStart(C.today)) prog.aang = (fireBad ? 0 : 1) + (waterBad ? 0 : 1) + (air >= 5 ? 1 : 0) + (earth ? 1 : 0);
   }
+  /* ---- third wave (same start, 29 Nov 2026) ---- */
+  const hourOf = x => { const t = new Date(x.t); return isNaN(t) ? null : t.getHours(); };
+  let deku = 0, dav = 0, gob = 0, sai = 0, kaf = 0, runJ = 0, bestJ = 0, ken = 0, bestK = 0;
+  const weekReps = {};
+  C.days.forEach(r => {
+    if(!after(r.date)) return;
+    const sets = r.sets || [], reps = sets.reduce((m, x) => m + (x.reps || 0), 0);
+    if(r.plan.type === 'gtg' && sets.length >= 8){ deku++; if(deku >= 8) set('deku', r.date); }
+    const ts = sets.map(x => Date.parse(x.t)).filter(t => !isNaN(t)).sort((a, b) => a - b);
+    if(ts.some((t, i) => i + 4 < ts.length && ts[i + 4] - t <= 30 * 60000)){ dav++; if(dav >= 6) set('david', r.date); }
+    if(sets.length){ gob++; if(gob >= 20) set('goblinslayer', r.date); }
+    if(reps >= 100){ sai++; if(sai >= 10) set('saitama', r.date); }
+    if(sets.some(x => hourOf(x) !== null && hourOf(x) >= 21)){ kaf++; if(kaf >= 10) set('kafka', r.date); }
+    const wk = weekStart(r.date); weekReps[wk] = (weekReps[wk] || 0) + reps; if(weekReps[wk] >= 400) set('jotaro', r.date);
+    const w = W(r.date);
+    if(w === 'ok'){ runJ++; bestJ = Math.max(bestJ, runJ); if(runJ >= 14) set('jack', r.date); if(runJ >= 60) set('guts', r.date); }
+    else if(w === 'bad') runJ = 0;
+    if(r.plan.type === 'test'){ if(r.status === 'done'){ ken++; bestK = Math.max(bestK, ken); if(ken >= 7) set('kenshiro', r.date); } else if(r.status === 'missed') ken = 0; }
+  });
+  prog.deku = deku; prog.david = dav; prog.goblinslayer = gob; prog.saitama = sai; prog.kafka = kaf;
+  prog.jotaro = Object.values(weekReps).reduce((m, v) => Math.max(m, v), 0); prog.jack = runJ; prog.guts = runJ; prog.kenshiro = ken;
+  let ash = 0; Object.keys(ld).sort().forEach(d => { if(after(d) && d <= C.today && ld[d].status === 'good'){ ash++; if(ash >= 10) set('ashitaka', d); } }); prog.ashitaka = ash;
+  let arch = 0; C.study.list.forEach(r => { if(!after(r.date)) return; arch += r.mins || 0; if(arch >= 6000) set('archer', r.date); }); prog.archer = Math.floor(arch / 60);
+  /* Atem: side quests finished in weeks that have ended (dated that Saturday); this week's show in the progress */
+  let atem = 0, atemNow = 0;
+  for(let ws = weekStart(F), g = 0; ws <= C.today && g < 600; ws = addDays(ws, 7), g++){
+    const n = questWeek(C, ws).quests.filter(q => q.done).length, end = addDays(ws, 6);
+    if(end < C.today){ atem += n; if(atem >= 6) set('atem', end); } else atemNow = n;
+  }
+  prog.atem = atem + atemNow;
   const out = TRANSFORMS.map(t => Object.assign({}, t, {date:got[t.id] || null, n:got[t.id] ? t.goal : Math.min(t.goal, prog[t.id] || 0)}));
   Object.defineProperty(C, '_tf', {value:out, enumerable:false});
   return out;
@@ -1089,7 +1131,8 @@ const RARITY = {
   legendary:{label:'Legendary', price:4000, bounty:1200, color:'#f08a2c'}
 };
 const RARITY_OF = {ayanokoji:'common', isagi:'common', gon:'uncommon', tanjiro:'uncommon', kirito:'rare', eren:'rare', kaneki:'rare', lelouch:'epic', gojo:'epic', tobi:'legendary', jinwoo:'legendary',
-  thorfinn:'uncommon', gabimaru:'rare', zuko:'rare', invincible:'rare', aang:'epic', vegeta:'epic', goku:'legendary'};
+  thorfinn:'uncommon', gabimaru:'rare', zuko:'rare', invincible:'rare', aang:'epic', vegeta:'epic', goku:'legendary',
+  deku:'rare', david:'rare', atem:'rare', ashitaka:'uncommon', jack:'uncommon', goblinslayer:'uncommon', jotaro:'epic', saitama:'epic', archer:'rare', guts:'legendary', kafka:'rare', kenshiro:'epic'};
 const SHOP_IDS = Object.assign({}, ...Object.keys(RARITY_OF).map(id => ({[id]:1})));
 /* one form a week is 20% off: "Tsunade's pick", chosen in turn from the forms not owned yet */
 function shopPick(C, owned){
