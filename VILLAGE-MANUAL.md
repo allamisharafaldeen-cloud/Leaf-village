@@ -42,14 +42,17 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - 7 unbroken days in an area (workout, study, sleep) → a scroll for that area (hold 2). 30 days → Rare (any area, hold 2).
   60 days → Forbidden (any area, hold 1; or buy for 3,000 Ryō, one a month).
 - A missed day uses one automatically: area → Rare → Forbidden. The streak survives; the day gives no XP and no penalty;
-  that area's count restarts. Counting started 24 Nov 2026.
+  that area's count restarts. Counting started 24 Nov 2026. The sync server knows the same rules, so a reminder never
+  calls a covered day missed, even before the app has been opened.
 
 ## Settings worth knowing
 - Rank wallpapers and scenes: up to 5 pictures + 1 video per rank (and a scene per bought form). On this device only.
 - Tab backgrounds, sound effects, music, notifications, exam weeks, sleep goal.
 
 ## If something breaks
-1. Close the app fully and reopen (gets the newest version).
+1. Close the app fully and reopen (gets the newest version). An app left open in the background also updates itself
+   the next time you come back to it.
+   Settings → Backup lists any problem the app noticed on that device; "Copy for Claude" copies the list to paste.
 2. Still broken: Settings → Backup → export, keep the file safe.
 3. GitHub → Actions: the monthly **Health check** says whether the app, the sync server and the Cloudflare key are fine.
    Red = open the run and read the failed step. The Cloudflare key never expires.
@@ -60,5 +63,7 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - `index.html` is the whole app; `leaf-engine.js` is all the maths (also used by tests); `worker/src/engine.js` is the
   server copy of the maths — **any change to statuses, targets or XP must be made in both**.
 - `sw.js`: bump `VERSION` on every release or phones keep the old version.
+- Deploys: `.github/workflows/worker.yml` (actions/checkout@v7, setup-node@v7 on Node 24, Wrangler 4). GitHub Pages
+  deploys the app by itself. The Worker keeps a checkpoint of its running totals (v3, includes the scroll inventory).
 - Tests: `npm test` (unit + browser + a short random-data check). `npm run test:fuzz` runs 200 random villages
   through the app maths and the server maths and fails if they disagree. Keep them green before pushing.
