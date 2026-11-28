@@ -25,7 +25,8 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - **One-time swap**: trade today's mission with tomorrow's, this week only.
 - **On call** (Mission tab, 2 a week, today only): the day counts like an exam day: what you do still earns, nothing
   missed costs XP or breaks a streak, and no scroll is used.
-- **Side quests** (Ninja tab): 3 optional challenges a week, picked by the week. Done = Ryō, missed = nothing.
+- **Side quests** (Ninja tab): 3 optional challenges a week, picked by the week. A finished quest shows a red badge
+  on the Ninja tab and the Side quests card; tap Claim to collect the Ryō. Missed = nothing.
 
 ## XP, ranks, streaks
 - XP from sets, completed missions, tests, new maxes, rest days, study hours, good nights, weekly sensei challenges and

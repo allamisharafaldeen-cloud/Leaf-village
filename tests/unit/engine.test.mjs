@@ -793,9 +793,16 @@ test('side quests: three a week, the same every time, paid in Ryō when done', (
   const C = E.compute(V, at('2026-11-30', 22)), Q = E.sideQuests(C);
   assert.ok(Q.weeks.length >= 2); Q.weeks.forEach(w => assert.equal(new Set(w.quests.map(q => q.id)).size, 3));
   assert.deepEqual(E.sideQuests(E.compute(V, at('2026-11-30', 22))).weeks.map(w => w.quests.map(q => q.id)), Q.weeks.map(w => w.quests.map(q => q.id)));
-  const paid = Q.weeks.reduce((m, w) => m + w.quests.filter(q => q.done).reduce((a, q) => a + q.ryo, 0), 0);
-  assert.equal(Q.ryo, paid); assert.equal(E.shop(C).quests, paid);
-  assert.equal(E.shop(C).balance, E.shop(C).earned + E.shop(C).bounty + paid - E.shop(C).spent);
+  const done = Q.weeks.flatMap(w => w.quests.filter(q => q.done));
+  assert.ok(done.length > 0, 'the test week finishes at least one quest');
+  assert.equal(Q.ryo, 0, 'a finished quest pays nothing until it is claimed'); assert.equal(Q.unclaimed.length, done.length);
+  V.settings.quests = {claimed:Object.fromEntries(done.map(q => [q.key, '2026-11-30']))};
+  const C2 = E.compute(V, at('2026-11-30', 22)), Q2 = E.sideQuests(C2), paid = done.reduce((a, q) => a + q.ryo, 0);
+  assert.equal(Q2.ryo, paid); assert.equal(Q2.unclaimed.length, 0); assert.equal(E.shop(C2).quests, paid);
+  assert.equal(E.shop(C2).balance, E.shop(C2).earned + E.shop(C2).bounty + paid - E.shop(C2).spent);
+  V.settings.quests.claimed['2026-11-29|nope'] = '2026-11-30'; V.settings.quests.claimed['junk'] = 'x';
+  const cl = E.cleanBackup(Object.assign({app:'The Leaf Village'}, clone(V)), at('2026-11-30', 22));
+  assert.equal(Object.keys((cl.data || cl.backup || cl).settings.quests.claimed).length, done.length + 1, 'only well-formed claims are kept');
 });
 
 /* ---------- Hokage Book ---------- */

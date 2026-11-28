@@ -106,4 +106,6 @@ test('settings: whichever copy wins keeps every purchase and every used scroll e
   assert.equal(M.keepAppendOnly('leaf/main', phone, {name:'x'}), phone, 'nothing to add: the winner comes back untouched');
   assert.equal(M.keepAppendOnly('leaf/prefs', ipad, phone), ipad, 'only the settings work this way');
   assert.deepEqual(M.keepAppendOnly('leaf/main', w, phone), w, 'safe to repeat');
+  const claimed = M.keepAppendOnly('leaf/main', {name:'a'}, {quests:{claimed:{'2026-11-22|record':'2026-11-28'}}});
+  assert.deepEqual(claimed.quests.claimed, {'2026-11-22|record':'2026-11-28'}, 'claimed quest rewards are never lost either');
 });

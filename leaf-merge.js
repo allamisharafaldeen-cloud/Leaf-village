@@ -7,7 +7,8 @@
    - Everything else (settings, prefs, media, timer, weigh-ins, sleep nights): the latest edit wins.
      A sleep night can only be entered or changed on the morning it belongs to, so there is nothing to join.
    - Except inside the settings: purchases (shop.owned, shop.buys) and used protection scrolls (scrolls.used) are
-     only ever added, never taken back, so whichever copy wins keeps every one either copy holds. A device that was
+     only ever added, never taken back (so are claimed side-quest rewards, quests.claimed), so whichever copy wins keeps
+     every one either copy holds. A device that was
      away for a day can then never wipe out what the other device bought or used meanwhile. */
 (function(root, factory){
   if(typeof module === 'object' && module.exports) module.exports = factory();
@@ -117,7 +118,9 @@ function keepAppendOnly(path, win, lose){
   const addBuys = lBuys.filter(b => isObj(b) && !have.has(bKey(b)));
   const addOwned = Object.keys(lOwned).filter(k => !(k in wOwned));
   const addUsed = Object.keys(lUsed).filter(k => !(k in wUsed));
-  if(!addBuys.length && !addOwned.length && !addUsed.length) return win;
+  const wCl = isObj(win.quests) && isObj(win.quests.claimed) ? win.quests.claimed : {}, lCl = isObj(lose.quests) && isObj(lose.quests.claimed) ? lose.quests.claimed : {};
+  const addCl = Object.keys(lCl).filter(k => !(k in wCl));
+  if(!addBuys.length && !addOwned.length && !addUsed.length && !addCl.length) return win;
   const out = Object.assign({}, win);
   if(addBuys.length || addOwned.length){
     out.shop = Object.assign({}, ws);
@@ -125,6 +128,7 @@ function keepAppendOnly(path, win, lose){
     if(addBuys.length) out.shop.buys = wBuys.concat(addBuys).sort((a, b) => (isObj(a) && isObj(b) && a.date !== b.date) ? (a.date < b.date ? -1 : 1) : 0);
   }
   if(addUsed.length) out.scrolls = Object.assign({}, isObj(win.scrolls) ? win.scrolls : {}, {used:Object.assign({}, lUsed, wUsed)});
+  if(addCl.length) out.quests = Object.assign({}, isObj(win.quests) ? win.quests : {}, {claimed:Object.assign({}, lCl, wCl)});
   return out;
 }
 

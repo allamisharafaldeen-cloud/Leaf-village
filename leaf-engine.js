@@ -436,13 +436,15 @@ function questWeek(C, start){
     if(q.id === 'record') return C.prs.filter(p => dates.includes(p.date)).length;
     return 0;
   };
-  return {start, quests:pick.map(q => { const n = prog(q); return Object.assign({}, q, {n:Math.min(n, q.goal), done:n >= q.goal}); })};
+  const claimed = (isObj(C.settings.quests) && isObj(C.settings.quests.claimed)) ? C.settings.quests.claimed : {};
+  return {start, quests:pick.map(q => { const n = prog(q), key = start + '|' + q.id; return Object.assign({}, q, {n:Math.min(n, q.goal), done:n >= q.goal, key, claimed:n >= q.goal && !!claimed[key]}); })};
 }
 function sideQuests(C){
   if(C._quests) return C._quests;
-  const weeks = []; let ryo = 0;
-  for(let w = weekStart(QUEST_FROM), g = 0; w <= C.today && g < 600; w = addDays(w, 7), g++){ const q = questWeek(C, w); weeks.push(q); q.quests.forEach(x => { if(x.done) ryo += x.ryo; }); }
-  const out = {weeks, ryo, now:weeks[weeks.length - 1] || null};
+  /* a finished quest pays only once it is claimed (tapped), so the reward is something you collect */
+  const weeks = [], unclaimed = []; let ryo = 0;
+  for(let w = weekStart(QUEST_FROM), g = 0; w <= C.today && g < 600; w = addDays(w, 7), g++){ const q = questWeek(C, w); weeks.push(q); q.quests.forEach(x => { if(x.claimed) ryo += x.ryo; else if(x.done) unclaimed.push(x); }); }
+  const out = {weeks, ryo, unclaimed, now:weeks[weeks.length - 1] || null};
   Object.defineProperty(C, '_quests', {value:out, enumerable:false});
   return out;
 }
@@ -534,6 +536,11 @@ function cleanBackup(d, nowMs){
     const u = (isObj(s.scrolls) && isObj(s.scrolls.used)) ? s.scrolls.used : null, keep = {};
     if(u) Object.keys(u).forEach(k => { const m = /^(workout|study|sleep)\|(\d{4}-\d{2}-\d{2})$/.exec(k); if(m && isDate(m[2]) && ['common','rare','forbidden'].includes(u[k])) keep[k] = u[k]; });
     if(!u || Object.keys(keep).length !== Object.keys(u).length){ s.scrolls = {used:keep}; fixed++; }
+  }
+  if(s.quests !== undefined){
+    const c = (isObj(s.quests) && isObj(s.quests.claimed)) ? s.quests.claimed : null, keep = {};
+    if(c) Object.keys(c).forEach(k => { if(/^\d{4}-\d{2}-\d{2}\|[a-z]+$/.test(k) && isDate(c[k])) keep[k] = c[k]; });
+    if(!c || Object.keys(keep).length !== Object.keys(c).length){ s.quests = {claimed:keep}; fixed++; }
   }
   if(s.oncall !== undefined){
     const oc = Array.isArray(s.oncall) ? [...new Set(s.oncall.filter(isDate))].sort() : [];
