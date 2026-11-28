@@ -975,8 +975,17 @@ const TRANSFORMS = [
   {id:'isagi', name:'Yoichi Isagi', world:'Blue Lock', color:'#3f8cff', mission:'Ego', hint:'Devour your shadow. Four weeks running.', need:'Beat your shadow clone 4 weeks in a row', goal:4, unit:'weeks in a row'},
   {id:'gojo', name:'Satoru Gojo', world:'Jujutsu Kaisen', color:'#6fd3ff', mission:'Limitless', hint:'The strongest studies the most. One month.', need:'150 hours of study in one calendar month', goal:150, unit:'hours in your best month'},
   {id:'tobi', name:'Tobi', world:'Naruto Shippuden', color:'#a98bd6', mission:'Back From the Dead', hint:'Nobody is watching.', need:'After a streak breaks, rebuild it to 21 days', goal:21, unit:'days rebuilt'},
-  {id:'jinwoo', name:'Sung Jinwoo', world:'Solo Leveling', color:'#8a5cff', mission:'The Daily Quest', hint:'Daily Quest. Do not fail. Thirty days.', need:'30 days in a row with every scroll complete: workout, study and sleep', goal:30, unit:'days in a row'}
+  {id:'jinwoo', name:'Sung Jinwoo', world:'Solo Leveling', color:'#8a5cff', mission:'The Daily Quest', hint:'Daily Quest. Do not fail. Thirty days.', need:'30 days in a row with every scroll complete: workout, study and sleep', goal:30, unit:'days in a row'},
+  /* the second wave: their missions count only from TF_WAVE2, so none of them unlocks or pays a bounty for the past */
+  {id:'thorfinn', name:'Thorfinn', world:'Vinland Saga', color:'#9fb6c8', mission:'I Have No Enemies', hint:'No sword. Just honest work, day after day.', need:'Complete 12 workout missions (rest days don\'t count), counted from 29 November', goal:12, unit:'missions done', from:'2026-11-29'},
+  {id:'gabimaru', name:'Gabimaru the Hollow', world:"Hell's Paradise", color:'#ffb38a', mission:'Before Dawn', hint:'A shinobi trains before the world wakes.', need:'Log 3 sets before 9 in the morning on 12 different days, counted from 29 November', goal:12, unit:'early mornings', from:'2026-11-29'},
+  {id:'zuko', name:'Zuko', world:'Avatar: The Last Airbender', color:'#ff5a2a', mission:'Inner Fire', hint:'Carry more. Break through anyway. Three times.', need:'Set a new max with added weight on 3 different test days, counted from 29 November', goal:3, unit:'test days', from:'2026-11-29'},
+  {id:'invincible', name:'Mark Grayson', world:'Invincible', color:'#ffd23f', mission:'Think, Mark!', hint:'Think. Five hours at a time, fourteen times.', need:'Study 5 hours or more on 14 different days, counted from 29 November', goal:14, unit:'days with 5+ hours', from:'2026-11-29'},
+  {id:'aang', name:'Aang', world:'Avatar: The Last Airbender', color:'#9fe3ff', mission:'Avatar State', hint:'Master all four elements in a single week.', need:'One Sunday-to-Saturday week with every workout mission done, the study target met on every study day, 5 good nights and a weigh-in (from 29 November)', goal:4, unit:'elements on track this week', from:'2026-11-29'},
+  {id:'vegeta', name:'Vegeta', world:'Dragon Ball', color:'#8f6bff', mission:"It's Over 9000", hint:'What does the scouter say?', need:'Earn 9,001 XP, counted from 29 November', goal:9001, unit:'XP since 29 Nov', from:'2026-11-29'},
+  {id:'goku', name:'Goku', world:'Dragon Ball', color:'#c9d6ff', mission:'Ultra Instinct', hint:'Surpass your limits. Then surpass them again.', need:'Raise both your pull-up and dip max 5 reps above your best before 29 November', goal:5, unit:'reps above your old best (the weaker of the two)', from:'2026-11-29'}
 ];
+const TF_WAVE2 = '2026-11-29';
 function transforms(C){
   if(C._tf) return C._tf;
   const got = {}, prog = {}, set = (id, date) => { if(date && (!got[id] || date < got[id])) got[id] = date; };
@@ -1027,6 +1036,40 @@ function transforms(C){
   scan(C.study.list, rec => rec.broke);
   if(C.sleep) scan(C.sleep.list, rec => rec.broke);
   prog.tobi = tobi;
+  /* ---- second wave: everything from TF_WAVE2 on ---- */
+  const F = TF_WAVE2, after = d => d >= F;
+  let thor = 0, gab = 0;
+  C.days.forEach(r => {
+    if(!after(r.date)) return;
+    if(r.status === 'done' && r.plan.type !== 'rest'){ thor++; if(thor >= 12) set('thorfinn', r.date); }
+    if((r.sets || []).filter(x => { const t = new Date(x.t); return !isNaN(t) && t.getHours() < 9; }).length >= 3){ gab++; if(gab >= 12) set('gabimaru', r.date); }
+  });
+  prog.thorfinn = thor; prog.gabimaru = gab;
+  let mark = 0; C.study.list.forEach(r => { if(after(r.date) && r.mins >= 300){ mark++; if(mark >= 14) set('invincible', r.date); } }); prog.invincible = mark;
+  let zk = 0; [...new Set(C.prs.filter(p => p.kg > 0 && after(p.date)).map(p => p.date))].sort().forEach(d => { zk++; if(zk >= 3) set('zuko', d); }); prog.zuko = zk;
+  /* Vegeta: XP gained (net, as the total shows it) since the day before TF_WAVE2 */
+  const preDay = C.days.filter(r => r.date < F).pop(), base = preDay ? preDay.total : 0; let veg = 0;
+  C.days.forEach(r => { if(!after(r.date)) return; veg = Math.max(veg, r.total - base); if(r.total - base >= 9001) set('vegeta', r.date); });
+  prog.vegeta = Math.max(0, Math.floor(veg));
+  /* Goku: both bodyweight maxes five above the best before TF_WAVE2 (the baseline counts as a best) */
+  const mh = C.maxHist || {}, gb = {}, gnow = {}; const gEx = ['pullups', 'dips'];
+  gEx.forEach(ex => { const h = mh[ex] || []; gb[ex] = h.filter(x => x.date < F).reduce((m, x) => Math.max(m, x.v), 0); gnow[ex] = gb[ex]; });
+  gEx.flatMap(ex => (mh[ex] || []).filter(x => after(x.date)).map(x => Object.assign({ex}, x))).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
+    .forEach(x => { gnow[x.ex] = Math.max(gnow[x.ex], x.v); if(gEx.every(ex => gnow[ex] - gb[ex] >= 5)) set('goku', x.date); });
+  prog.goku = Math.max(0, Math.min(...gEx.map(ex => gnow[ex] - gb[ex])));
+  /* Aang: one Sunday-to-Saturday week with all four elements */
+  const bodyDays = new Set((C.body || []).map(b => b.date));
+  for(let ws = weekStart(F), g = 0; ws <= C.today && g < 600; ws = addDays(ws, 7), g++){
+    let fire = 0, water = 0, fireBad = false, waterBad = false, air = 0, earth = false;
+    for(let k = 0; k < 7; k++){ const d = addDays(ws, k); if(d > C.today) break;
+      const w = W(d), s = Sx(d);
+      if(w === 'ok') fire++; else if(w !== 'open') fireBad = true;
+      if(s === 'ok') water++; else if(s !== 'open') waterBad = true;
+      if(ld[d] && ld[d].status === 'good') air++;
+      if(bodyDays.has(d)) earth = true; }
+    if(fire === 7 && water === 7 && air >= 5 && earth) set('aang', addDays(ws, 6));
+    if(ws === weekStart(C.today)) prog.aang = (fireBad ? 0 : 1) + (waterBad ? 0 : 1) + (air >= 5 ? 1 : 0) + (earth ? 1 : 0);
+  }
   const out = TRANSFORMS.map(t => Object.assign({}, t, {date:got[t.id] || null, n:got[t.id] ? t.goal : Math.min(t.goal, prog[t.id] || 0)}));
   Object.defineProperty(C, '_tf', {value:out, enumerable:false});
   return out;
@@ -1045,7 +1088,8 @@ const RARITY = {
   epic:     {label:'Epic',      price:2500, bounty:800,  color:'#a35ee8'},
   legendary:{label:'Legendary', price:4000, bounty:1200, color:'#f08a2c'}
 };
-const RARITY_OF = {ayanokoji:'common', isagi:'common', gon:'uncommon', tanjiro:'uncommon', kirito:'rare', eren:'rare', kaneki:'rare', lelouch:'epic', gojo:'epic', tobi:'legendary', jinwoo:'legendary'};
+const RARITY_OF = {ayanokoji:'common', isagi:'common', gon:'uncommon', tanjiro:'uncommon', kirito:'rare', eren:'rare', kaneki:'rare', lelouch:'epic', gojo:'epic', tobi:'legendary', jinwoo:'legendary',
+  thorfinn:'uncommon', gabimaru:'rare', zuko:'rare', invincible:'rare', aang:'epic', vegeta:'epic', goku:'legendary'};
 const SHOP_IDS = Object.assign({}, ...Object.keys(RARITY_OF).map(id => ({[id]:1})));
 /* one form a week is 20% off: "Tsunade's pick", chosen in turn from the forms not owned yet */
 function shopPick(C, owned){

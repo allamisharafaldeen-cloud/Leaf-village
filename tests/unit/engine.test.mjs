@@ -615,7 +615,7 @@ test('transformations: reps missions (Gon in one day, Kaneki lifetime) know the 
   sets(V, '2026-11-08', 'pullups', 50, 14);
   C = E.compute(V, at('2026-11-08', 22));
   assert.equal(tf(C, 'kaneki').date, '2026-11-08'); assert.equal(tf(C, 'kaneki').n, 993);
-  assert.equal(E.transforms(C).length, 11);
+  assert.equal(E.transforms(C).length, 18);
 });
 test('transformations: the Perfect Week needs every scroll with no shield; Checkmate needs the full study goal; Dual Wielder counts days', () => {
   const V = perfectWeek();
@@ -642,6 +642,65 @@ test('transformations: Tatakae counts test days with a new max; Tanjiro and Tobi
   C = E.compute(S, at('2026-12-10', 12));
   assert.equal(tf(C, 'tanjiro').date, E.addDays(START, 19), 'fourteen good nights after the short one');
   assert.equal(tf(C, 'tobi').date, E.addDays(START, 26), 'a broken streak rebuilt to 21');
+});
+
+/* the second wave of forms: everything counts from 29 Nov 2026, so nothing unlocks (or pays a bounty) for the past */
+function train(V, from, to, tops = () => ({pullups:11, dips:21}), kg = () => 0){
+  for(let d = from; d <= to; d = E.addDays(d, 1)){
+    const p = E.planFor(V.settings, d);
+    if(p.type === 'gtg') sets(V, d, p.ex, p.ex === 'pullups' ? 10 : 15, 5, 6);              // 06:05 … 10:05: three before 9
+    if(p.type === 'test'){ const t = tops(d), w = kg(d); V.days[d] = {date:d, sets:[
+      {ex:'pullups', reps:t.pullups, t:iso(d, 17)}, {ex:'pullups', reps:t.pullups - 2, t:iso(d, 17, 10)},
+      Object.assign({ex:'dips', reps:t.dips, t:iso(d, 17, 20)}, w ? {kg:w} : {}), Object.assign({ex:'dips', reps:t.dips - 2, t:iso(d, 17, 30)}, w ? {kg:w} : {})]}; }
+  }
+  return V;
+}
+test('second wave: Thorfinn counts workout missions and Gabimaru early mornings, only from 29 Nov; no bounty for the past', () => {
+  const V = train(village(), START, '2026-12-20');
+  let C = E.compute(V, at('2026-11-28', 20));
+  for(const id of ['thorfinn', 'gabimaru', 'zuko', 'invincible', 'aang', 'vegeta', 'goku']){ assert.equal(tf(C, id).n, 0, `${id} starts at zero`); assert.equal(tf(C, id).date, null); }
+  assert.ok(E.shop(C).forms.filter(f => f.from).every(f => !f.bountyPaid && !f.own), 'no new form is owned or paid for before 29 Nov'); assert.equal(E.transforms(C).length, 18);
+  C = E.compute(V, at('2026-12-13', 20));
+  assert.equal(tf(C, 'thorfinn').n, 11); assert.equal(tf(C, 'thorfinn').date, null);
+  C = E.compute(V, at('2026-12-16', 20));
+  assert.equal(tf(C, 'thorfinn').date, '2026-12-14', 'the 12th workout mission since 29 Nov: groove days and tests, never rest days');
+  assert.equal(tf(C, 'gabimaru').date, '2026-12-16', 'twelve days with three sets before 9 (the tests were at 5 pm)');
+  assert.equal(E.shop(C).forms.find(f => f.id === 'thorfinn').bountyPaid, '2026-12-14');
+  const late = clone(V); Object.values(late.days).forEach(d => d.sets.forEach((x, i) => { if(d.date >= '2026-11-29') x.t = iso(d.date, 9 + i); }));
+  assert.equal(tf(E.compute(late, at('2026-12-16', 20)), 'gabimaru').n, 0, 'nine o\'clock is already too late');
+});
+test('second wave: Mark Grayson counts 5-hour study days; Zuko counts test days with a new weighted max', () => {
+  const V = village(); V.settings.studyStart = START;
+  for(let k = 0; k < 40; k++){ const d = E.addDays('2026-11-20', k); study(V, d, k % 2 ? 300 : 290); study(V, d, 10, 'timer', 20); }
+  let C = E.compute(V, at('2026-12-12', 22));
+  assert.equal(tf(C, 'invincible').n, 14); assert.equal(tf(C, 'invincible').date, '2026-12-12', 'the 14th day with 5 hours since 29 Nov');
+  const Z = train(village(), START, '2026-12-19', d => ({pullups:11, dips:{'2026-11-27':9, '2026-12-04':8, '2026-12-11':10, '2026-12-18':11}[d] || 21}), d => ['2026-11-27', '2026-12-04', '2026-12-11', '2026-12-18'].includes(d) ? 10 : 0);
+  C = E.compute(Z, at('2026-12-12', 9));
+  assert.equal(tf(C, 'zuko').n, 1, 'the weighted max of 27 Nov is before the wave; 4 Dec at the same weight is lower; 11 Dec beats it');
+  C = E.compute(Z, at('2026-12-19', 9));
+  assert.equal(tf(C, 'zuko').n, 2); assert.equal(tf(C, 'zuko').date, null);
+});
+test('second wave: Goku needs both maxes 5 above the best before 29 Nov; Vegeta counts XP since then; Aang needs all four elements in one week', () => {
+  const tops = {'2026-11-06':{pullups:11, dips:21}, '2026-12-04':{pullups:14, dips:24}, '2026-12-11':{pullups:16, dips:25}, '2026-12-18':{pullups:16, dips:26}};
+  const V = train(village(), START, '2026-12-19', d => tops[d] || {pullups:11, dips:21});
+  let C = E.compute(V, at('2026-12-12', 9));
+  assert.equal(tf(C, 'goku').n, 4, 'pull-ups +5, dips +4: the weaker one counts'); assert.equal(tf(C, 'goku').date, null);
+  C = E.compute(V, at('2026-12-19', 9));
+  assert.equal(tf(C, 'goku').date, '2026-12-18');
+  const before = C.days.find(d => d.date === '2026-11-28').total, now = C.days.find(d => d.date === '2026-12-19').total;
+  assert.equal(tf(C, 'vegeta').n, now - before, 'net XP since 28 Nov'); assert.equal(tf(C, 'vegeta').date, null);
+  /* Aang: the week of 6 Dec with everything, then the same week without the weigh-in */
+  const A = train(village(), START, '2026-12-12', d => ({pullups:11, dips:21})); A.settings.studyStart = START;
+  for(let k = 0; k < 7; k++){ const d = E.addDays('2026-12-06', k); if(E.dowOf(d) !== 4) study(A, d, 480); if(k < 5) goodNight(A, d); }
+  for(let k = 0; k < 7; k++){ const d = E.addDays('2026-11-22', k); if(E.dowOf(d) !== 4) study(A, d, 480); goodNight(A, d); }
+  A.body = {'2026-11-25':{date:'2026-11-25', weight:72}, '2026-12-09':{date:'2026-12-09', weight:72.5}};
+  const noWeigh = clone(A); delete noWeigh.body['2026-12-09'];
+  C = E.compute(A, at('2026-12-12', 21));
+  assert.equal(tf(C, 'aang').date, '2026-12-12', 'every workout mission, every study day, five good nights and a weigh-in');
+  C = E.compute(noWeigh, at('2026-12-12', 21));
+  assert.equal(tf(C, 'aang').date, null); assert.equal(tf(C, 'aang').n, 3, 'three of four elements: no weigh-in');
+  C = E.compute(A, at('2026-11-28', 21));
+  assert.equal(tf(C, 'aang').date, null, 'the same perfect week before 29 Nov does not count');
 });
 
 /* ---------- one-time swap ---------- */

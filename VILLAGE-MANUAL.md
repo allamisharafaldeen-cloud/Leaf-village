@@ -56,8 +56,15 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 
 ## Ryō and Tsunade's Shop (Ninja tab)
 - 5 XP gained = 1 Ryō. Missed days never take Ryō back.
-- Skins (the 11 forms from other worlds), bounties (missions that unlock forms), card styles, titles, jutsu effects,
+- Skins (18 forms from other worlds), bounties (missions that unlock forms), card styles, titles, jutsu effects,
   Ichiraku Ramen (double Ryō for the day), Forbidden Scroll.
+
+- Second wave (added 28 Nov 2026): Thorfinn, Gabimaru, Zuko, Mark Grayson, Aang, Vegeta, Goku. Their missions
+  count only from 29 Nov 2026, so none of them unlocked or paid a bounty for earlier logs.
+  - Thorfinn (Uncommon): 12 workout missions done. Gabimaru (Rare): 3 sets before 9 am on 12 days.
+  - Zuko (Rare): a new max with added weight on 3 test days. Mark Grayson (Rare): 5+ hours of study on 14 days.
+  - Aang (Epic): one Sunday-to-Saturday week with every workout mission, the study target every study day, 5 good
+    nights and a weigh-in. Vegeta (Epic): 9,001 XP earned. Goku (Legendary): both maxes 5 above the best before 29 Nov.
 
 ## Protection scrolls
 - 7 unbroken days in an area (workout, study, sleep) → a scroll for that area (hold 2). 30 days → Rare (any area, hold 2).
@@ -89,5 +96,8 @@ and the sync server (Cloudflare Worker, via GitHub Actions).
 - `sw.js`: bump `VERSION` on every release or phones keep the old version.
 - Deploys: `.github/workflows/worker.yml` (actions/checkout@v7, setup-node@v7 on Node 24, Wrangler 4). GitHub Pages
   deploys the app by itself. The Worker keeps a checkpoint of its running totals (v3, includes the scroll inventory).
+- New forms: generate the full picture (prompt doc in the Project), save it to `guests/originals/<id>.jpg`, run
+  `python3 tools/make_guest.py <id>=guests/originals/<id>.jpg` (needs `pip install rembg`), paste the printed
+  GUEST_ART entry into index.html, and add the form to TRANSFORMS and RARITY_OF in leaf-engine.js with a `from` date.
 - Tests: `npm test` (unit + browser + a short random-data check). `npm run test:fuzz` runs 200 random villages
   through the app maths and the server maths and fails if they disagree. Keep them green before pushing.
